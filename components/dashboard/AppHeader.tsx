@@ -78,7 +78,7 @@ export default function AppHeader({ onOpenSidebar }: { onOpenSidebar: () => void
       color="default"
       elevation={0}
       sx={{
-        backgroundColor: '#ffffffcc',
+        backgroundColor: '#f8f9facc',
         backdropFilter: 'blur(8px)',
         borderBottom: '1px solid #e5e7eb',
       }}

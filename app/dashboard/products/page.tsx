@@ -273,16 +273,38 @@ export default function ProductsPage() {
   return (
     <DashboardLayout>
       <Container maxWidth="lg" sx={{ px: { xs: 1, sm: 3 } }}>
-        <Box sx={{ mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, pb: 2, borderBottom: '1px solid #e5e7eb' }}>
-            <Typography variant="h4" fontWeight={800} sx={{ fontFamily: 'Soria, Georgia, Cambria, \"Times New Roman\", Times, serif' }}>
+        <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: { xs: 'flex-start', sm: 'center' }, 
+            justifyContent: 'space-between', 
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: { xs: 2, sm: 2 }, 
+            pb: 2
+          }}>
+            <Typography 
+              variant="h4" 
+              fontWeight={900} 
+              sx={{ 
+                fontFamily: 'Soria, Georgia, Cambria, \"Times New Roman\", Times, serif',
+                fontSize: { xs: '1.75rem', sm: '3rem' },
+                color: '#000000',
+                lineHeight: 1.2
+              }}
+            >
               Packages
             </Typography>
             {userRole === 'Boss' && (
               <GradientButton
                 variant="red"
                 animated
-                sx={{ px: { xs: 2, sm: 3 }, py: { xs: 0.6, sm: 1.2 }, fontSize: { xs: 12, sm: 14 } }}
+                sx={{ 
+                  px: { xs: 2, sm: 3 }, 
+                  py: { xs: 1, sm: 1.2 }, 
+                  fontSize: { xs: 13, sm: 14 },
+                  width: { xs: '100%', sm: 'auto' },
+                  borderRadius: { xs: 3, sm: 4 }
+                }}
                 onClick={() => setOpen(true)}
               >
                 New Package

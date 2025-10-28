@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import DashboardLayout from '../../../components/dashboard/Layout';
-import RoleGuard from '../../../components/RoleGuard';
+import { useUserRole } from '../../../hooks/useUserRole';
 import {
   Typography,
   Box,
@@ -18,210 +18,114 @@ import {
   TableHead,
   TableRow,
   Paper,
+  IconButton,
   Stack,
   TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  Menu,
-  IconButton,
-  Snackbar,
-  Alert,
+  InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   useTheme,
   useMediaQuery,
+  Button,
 } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
+import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import GroupIcon from '@mui/icons-material/GroupOutlined';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import BlockIcon from '@mui/icons-material/Block';
+import PendingIcon from '@mui/icons-material/PendingActions';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { apiGet, apiPost, apiPut, apiDelete } from '../../../src/utils/axios';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { apiGet, apiPost } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
 
-interface User {
+interface Staff {
   id: number;
   name: string;
   email: string;
-  role: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  phone: string;
+  role: 'Boss' | 'Staff';
+  status: 'active' | 'inactive';
+  joinDate: string;
+  totalAppointments: number;
+  totalRevenue: number;
+}
+
+interface StaffStats {
+  totalStaff: number;
+  activeStaff: number;
+  totalAppointments: number;
+  totalRevenue: number;
 }
 
 export default function StaffPage() {
+  const { userRole } = useUserRole();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [users, setUsers] = React.useState<User[]>([]);
+  
+  const [staff, setStaff] = React.useState<Staff[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState('all');
   const [createStaffOpen, setCreateStaffOpen] = React.useState(false);
   const [newStaff, setNewStaff] = React.useState({
     name: '',
     email: '',
-    password: '',
-    role: 'Staff'
+    phone: '',
+    role: 'Staff' as 'Boss' | 'Staff'
   });
-  const [roleMenuAnchor, setRoleMenuAnchor] = React.useState<null | HTMLElement>(null);
-  const [selectedUserForRole, setSelectedUserForRole] = React.useState<User | null>(null);
-  const [isUpdatingRole, setIsUpdatingRole] = React.useState(false);
-  const [snackbarOpen, setSnackbarOpen] = React.useState(false);
-  const [snackbarMessage, setSnackbarMessage] = React.useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = React.useState<'success' | 'error'>('success');
 
   React.useEffect(() => {
-    fetchUsers();
+    const fetchStaff = async () => {
+      try {
+        setLoading(true);
+        const response = await apiGet('/staff') as any;
+        if (response.success) {
+          setStaff(response.data || []);
+        } else {
+          console.error('Failed to fetch staff:', response.error);
+          setStaff([]);
+        }
+      } catch (error: any) {
+        console.error('Error fetching staff:', error);
+        setStaff([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStaff();
   }, []);
-
-  const showNotification = (message: string, severity: 'success' | 'error' = 'success') => {
-    setSnackbarMessage(message);
-    setSnackbarSeverity(severity);
-    setSnackbarOpen(true);
-  };
-
-  const handleSnackbarClose = (event?: React.SyntheticEvent | Event, reason?: string) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
-
-  const fetchUsers = async () => {
-    try {
-      const response = await apiGet<{ success: boolean; data: User[] }>('/users');
-      setUsers(response.data || []);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreateStaff = async () => {
     try {
-      const staffData = {
-        name: newStaff.name.trim(),
-        email: newStaff.email.trim(),
-        password: newStaff.password,
-        role: newStaff.role
-      };
-
-      await apiPost('/auth/register', staffData);
-      
-      // Reset form and close modal
-      setCreateStaffOpen(false);
-      setNewStaff({
-        name: '',
-        email: '',
-        password: '',
-        role: 'Staff'
-      });
-      
-      // Refresh users list
-      fetchUsers();
-      
-      showNotification(`Successfully created staff member: ${staffData.name}!`, 'success');
+      const response = await apiPost('/staff', newStaff) as any;
+      if (response.success) {
+        setStaff([...staff, response.data]);
+        setCreateStaffOpen(false);
+        setNewStaff({
+          name: '',
+          email: '',
+          phone: '',
+          role: 'Staff'
+        });
+        alert('Staff member added successfully!');
+      } else {
+        alert(response.message || 'Failed to add staff member. Please try again.');
+      }
     } catch (error: any) {
       console.error('Error creating staff:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || error?.error || 'Failed to create staff member. Please try again.';
-      showNotification(errorMessage, 'error');
-    }
-  };
-
-  const handleRoleMenuOpen = (event: React.MouseEvent<HTMLElement>, user: User) => {
-    setRoleMenuAnchor(event.currentTarget);
-    setSelectedUserForRole(user);
-  };
-
-  const handleRoleMenuClose = () => {
-    setRoleMenuAnchor(null);
-    setSelectedUserForRole(null);
-  };
-
-  const handleRoleUpdate = async (newRole: string) => {
-    if (!selectedUserForRole) return;
-
-    setIsUpdatingRole(true);
-    try {
-      const response = await apiPut<{ success: boolean; data: User; message: string }>(
-        `/auth/users/${selectedUserForRole.id}/role`,
-        { role: newRole }
-      );
-
-      if (response.success) {
-        await fetchUsers(); // Refresh the list
-        showNotification(`Successfully updated ${selectedUserForRole.name}'s role to ${newRole}!`, 'success');
-        handleRoleMenuClose(); // Close the menu
-      } else {
-        showNotification('Failed to update role. Please try again.', 'error');
-      }
-    } catch (error: any) {
-      console.error('Error updating role:', error);
-      if (error.response?.data?.message) {
-        showNotification(error.response.data.message, 'error');
-      } else {
-        showNotification('Failed to update role. Please try again.', 'error');
-      }
-    } finally {
-      setIsUpdatingRole(false);
-    }
-  };
-
-  const handleToggleStatus = async (user: User) => {
-    try {
-      const response = await apiPut<{ success: boolean; data: User; message: string }>(
-        `/auth/users/${user.id}/status`,
-        {}
-      );
-
-      if (response.success) {
-        await fetchUsers(); // Refresh the list
-        showNotification(response.message, 'success');
-        handleRoleMenuClose(); // Close the menu
-      } else {
-        showNotification('Failed to update user status. Please try again.', 'error');
-      }
-    } catch (error: any) {
-      console.error('Error toggling user status:', error);
-      if (error.response?.data?.message) {
-        showNotification(error.response.data.message, 'error');
-      } else {
-        showNotification('Failed to update user status. Please try again.', 'error');
-      }
-    }
-  };
-
-  const handleDeleteUser = async (user: User) => {
-    if (!window.confirm(`Are you sure you want to delete ${user.name}'s account? This action cannot be undone.`)) {
-      return;
-    }
-
-    try {
-      const response = await apiDelete<{ success: boolean; message: string }>(
-        `/auth/users/${user.id}`
-      );
-
-      if (response.success) {
-        await fetchUsers(); // Refresh the list
-        showNotification(response.message, 'success');
-        handleRoleMenuClose(); // Close the menu
-      } else {
-        showNotification('Failed to delete user. Please try again.', 'error');
-      }
-    } catch (error: any) {
-      console.error('Error deleting user:', error);
-      if (error.response?.data?.message) {
-        showNotification(error.response.data.message, 'error');
-      } else {
-        showNotification('Failed to delete user. Please try again.', 'error');
-      }
+      alert('Failed to add staff member. Please try again.');
     }
   };
 
@@ -233,280 +137,566 @@ export default function StaffPage() {
     });
   };
 
+  const getStatusColor = (status: string) => {
+    return status === 'active' ? 'success' : 'error';
+  };
+
   const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'Boss':
-        return 'error';
-      case 'Staff':
-        return 'primary';
-      default:
-        return 'default';
+    return role === 'Boss' ? 'primary' : 'secondary';
+  };
+
+  // Filter and search logic
+  const filteredStaff = React.useMemo(() => {
+    let filtered = staff;
+
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(member =>
+        member.name.toLowerCase().includes(searchLower) ||
+        member.email.toLowerCase().includes(searchLower) ||
+        member.phone.includes(searchLower)
+      );
     }
-  };
 
-  const getStatusColor = (isActive: boolean) => {
-    return isActive ? 'success' : 'warning';
-  };
-
-  const getStatusLabel = (isActive: boolean) => {
-    return isActive ? 'Active' : 'Pending Activation';
-  };
-
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'Boss':
-        return <AdminPanelSettingsIcon fontSize="small" />;
-      case 'Staff':
-        return <PersonIcon fontSize="small" />;
-      default:
-        return <PersonIcon fontSize="small" />;
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(member => member.status === statusFilter);
     }
-  };
 
-  const getStats = () => {
+    return filtered;
+  }, [staff, searchTerm, statusFilter]);
+
+  const getStaffStats = (): StaffStats => {
     return {
-      total: users.length,
-      boss: users.filter(user => user.role === 'Boss').length,
-      staff: users.filter(user => user.role === 'Staff').length
+      totalStaff: staff.length,
+      activeStaff: staff.filter(s => s.status === 'active').length,
+      totalAppointments: staff.reduce((total, s) => total + s.totalAppointments, 0),
+      totalRevenue: staff.reduce((total, s) => total + s.totalRevenue, 0)
     };
   };
 
-  const stats = getStats();
+  const stats = getStaffStats();
+
+  // Only Boss can access this page
+  if (userRole !== 'Boss') {
+    return (
+      <DashboardLayout>
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <Typography variant="h5" color="error" gutterBottom>
+            Access Denied
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Only Boss can access the staff management page.
+          </Typography>
+        </Box>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
-      <RoleGuard allowedRoles={['Boss', 'Staff']}>
-        <Box sx={{ mb: 3 }}>
+      {/* Header */}
+      <Box sx={{ mb: { xs: 3, sm: 4 } }}>
         <Box sx={{ 
           display: 'flex', 
-          alignItems: isMobile ? 'flex-start' : 'center', 
+          alignItems: { xs: 'flex-start', sm: 'center' }, 
           justifyContent: 'space-between', 
-          gap: 2, 
-          pb: 2, 
-          borderBottom: '1px solid #e5e7eb',
-          flexDirection: isMobile ? 'column' : 'row'
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 2, sm: 2 }, 
+          pb: 2
         }}>
-          <Typography variant="h4" fontWeight={800} sx={{ fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif' }}>
+          <Typography 
+            variant="h4" 
+            fontWeight={900} 
+            sx={{ 
+              fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
+              fontSize: { xs: '1.75rem', sm: '3rem' },
+              color: '#000000',
+              lineHeight: 1.2
+            }}
+          >
             Staff Management
           </Typography>
           <GradientButton
             variant="blue"
             onClick={() => setCreateStaffOpen(true)}
             sx={{ 
-              px: 3, 
-              py: 1.2, 
-              fontSize: 14,
-              alignSelf: isMobile ? 'flex-start' : 'auto',
-              minWidth: isMobile ? 'auto' : undefined
+              px: { xs: 2, sm: 3 }, 
+              py: { xs: 1, sm: 1.2 }, 
+              fontSize: { xs: 13, sm: 14 },
+              width: { xs: '100%', sm: 'auto' },
+              borderRadius: { xs: 3, sm: 4 }
             }}
           >
-            Add Staff
+            Add New Staff
           </GradientButton>
         </Box>
       </Box>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={{ xs: 2, sm: 3 }}>
         {/* Stats Cards */}
-        <Grid item xs={12} sm={4}>
-          <Card sx={{ boxShadow: 'none', border: '1px solid #e5e7eb', borderRadius: 3, backgroundColor: '#fff' }}>
-            <CardContent sx={{ p: 3 }}>
+        <Grid item xs={6} sm={6} md={3}>
+          <Card sx={{ 
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+            border: 'none', 
+            borderRadius: { xs: 4, sm: 5 }, 
+            backgroundColor: '#fff',
+            height: '100%',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              outline: '2px solid #8B0000',
+              outlineOffset: '-2px'
+            }
+          }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      fontWeight: 600,
+                      mb: { xs: 1, sm: 1.5 },
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
                     Total Staff
                   </Typography>
-                  <Typography variant="h4" fontWeight={700} color="#2563eb">
-                    {stats.total}
+                  <Typography 
+                    variant="h4" 
+                    fontWeight={800} 
+                    color="#2563eb" 
+                    sx={{ 
+                      fontSize: { xs: '1.5rem', sm: '2.25rem' },
+                      lineHeight: 1.1
+                    }}
+                  >
+                    {stats.totalStaff}
                   </Typography>
                 </Box>
-                <Avatar sx={{ bgcolor: '#f3f4f6', color: '#111827', border: '1px solid #e5e7eb' }}>
-                  <GroupIcon />
-                </Avatar>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <Card sx={{ boxShadow: 'none', border: '1px solid #e5e7eb', borderRadius: 3, backgroundColor: '#fff' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Boss
-                  </Typography>
-                  <Typography variant="h4" fontWeight={700} color="#dc2626">
-                    {stats.boss}
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: '#f3f4f6', color: '#111827', border: '1px solid #e5e7eb' }}>
-                  <AdminPanelSettingsIcon />
-                </Avatar>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <Card sx={{ boxShadow: 'none', border: '1px solid #e5e7eb', borderRadius: 3, backgroundColor: '#fff' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Staff
-                  </Typography>
-                  <Typography variant="h4" fontWeight={700} color="#059669">
-                    {stats.staff}
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: '#f3f4f6', color: '#111827', border: '1px solid #e5e7eb' }}>
-                  <PersonIcon />
+                <Avatar sx={{ 
+                  bgcolor: '#dbeafe', 
+                  color: '#2563eb', 
+                  border: 'none',
+                  width: { xs: 32, sm: 44 },
+                  height: { xs: 32, sm: 44 },
+                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
+                }}>
+                  <GroupIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                 </Avatar>
               </Stack>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Staff Table */}
+        <Grid item xs={6} sm={6} md={3}>
+          <Card sx={{ 
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+            border: 'none', 
+            borderRadius: { xs: 4, sm: 5 }, 
+            backgroundColor: '#fff',
+            height: '100%',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              outline: '2px solid #8B0000',
+              outlineOffset: '-2px'
+            }
+          }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      fontWeight: 600,
+                      mb: { xs: 1, sm: 1.5 },
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
+                    Active Staff
+                  </Typography>
+                  <Typography 
+                    variant="h4" 
+                    fontWeight={800} 
+                    color="#059669" 
+                    sx={{ 
+                      fontSize: { xs: '1.5rem', sm: '2.25rem' },
+                      lineHeight: 1.1
+                    }}
+                  >
+                    {stats.activeStaff}
+                  </Typography>
+                </Box>
+                <Avatar sx={{ 
+                  bgcolor: '#d1fae5', 
+                  color: '#059669', 
+                  border: 'none',
+                  width: { xs: 32, sm: 44 },
+                  height: { xs: 32, sm: 44 },
+                  boxShadow: '0 4px 12px rgba(5, 150, 105, 0.2)'
+                }}>
+                  <PersonIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                </Avatar>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={6} sm={6} md={3}>
+          <Card sx={{ 
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+            border: 'none', 
+            borderRadius: { xs: 4, sm: 5 }, 
+            backgroundColor: '#fff',
+            height: '100%',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              outline: '2px solid #8B0000',
+              outlineOffset: '-2px'
+            }
+          }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      fontWeight: 600,
+                      mb: { xs: 1, sm: 1.5 },
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
+                    Appointments
+                  </Typography>
+                  <Typography 
+                    variant="h4" 
+                    fontWeight={800} 
+                    color="#d97706" 
+                    sx={{ 
+                      fontSize: { xs: '1.5rem', sm: '2.25rem' },
+                      lineHeight: 1.1
+                    }}
+                  >
+                    {stats.totalAppointments}
+                  </Typography>
+                </Box>
+                <Avatar sx={{ 
+                  bgcolor: '#fef3c7', 
+                  color: '#d97706', 
+                  border: 'none',
+                  width: { xs: 32, sm: 44 },
+                  height: { xs: 32, sm: 44 },
+                  boxShadow: '0 4px 12px rgba(217, 119, 6, 0.2)'
+                }}>
+                  <PendingIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                </Avatar>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={6} sm={6} md={3}>
+          <Card sx={{ 
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+            border: 'none', 
+            borderRadius: { xs: 4, sm: 5 }, 
+            backgroundColor: '#fff',
+            height: '100%',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              outline: '2px solid #8B0000',
+              outlineOffset: '-2px'
+            }
+          }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      fontWeight: 600,
+                      mb: { xs: 1, sm: 1.5 },
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
+                    Total Revenue
+                  </Typography>
+                  <Typography 
+                    variant="h4" 
+                    fontWeight={800} 
+                    color="#dc2626" 
+                    sx={{ 
+                      fontSize: { xs: '1.5rem', sm: '2.25rem' },
+                      lineHeight: 1.1
+                    }}
+                  >
+                    RM{stats.totalRevenue}
+                  </Typography>
+                </Box>
+                <Avatar sx={{ 
+                  bgcolor: '#fee2e2', 
+                  color: '#dc2626', 
+                  border: 'none',
+                  width: { xs: 32, sm: 44 },
+                  height: { xs: 32, sm: 44 },
+                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)'
+                }}>
+                  <AttachMoneyIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                </Avatar>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Staff List */}
         <Grid item xs={12}>
-          <Card sx={{ boxShadow: 'none', border: '1px solid #e5e7eb', borderRadius: 3, backgroundColor: '#fff' }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
+          <Card sx={{ 
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+            border: 'none', 
+            borderRadius: { xs: 4, sm: 5 }, 
+            backgroundColor: '#fff',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              outline: '2px solid #8B0000',
+              outlineOffset: '-2px'
+            }
+          }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Typography 
+                variant="h6" 
+                fontWeight={600} 
+                sx={{ 
+                  mb: { xs: 2, sm: 3 },
+                  fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                }}
+              >
                 Staff Members
               </Typography>
-              
+
+              {/* Filters and Search */}
+              <Box sx={{ 
+                mb: { xs: 2, sm: 3 }, 
+                display: 'flex', 
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: { xs: 1.5, sm: 2 }, 
+                alignItems: { xs: 'stretch', sm: 'center' }
+              }}>
+                <TextField
+                  placeholder="Search by name, email, or phone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  sx={{ 
+                    flex: { xs: 'none', sm: 1 },
+                    maxWidth: { xs: '100%', sm: 400 },
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: { xs: 1.5, sm: 2 },
+                    }
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  size="small"
+                />
+                
+                <FormControl 
+                  size="small" 
+                  sx={{ 
+                    minWidth: { xs: '100%', sm: 150 },
+                    maxWidth: { xs: '100%', sm: 200 }
+                  }}
+                >
+                  <InputLabel>Status Filter</InputLabel>
+                  <Select
+                    value={statusFilter}
+                    label="Status Filter"
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: { xs: 1.5, sm: 2 },
+                      }
+                    }}
+                  >
+                    <MenuItem value="all">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <FilterListIcon fontSize="small" color="action" />
+                        All Status
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="active">Active</MenuItem>
+                    <MenuItem value="inactive">Inactive</MenuItem>
+                  </Select>
+                </FormControl>
+                
+                <Box sx={{ 
+                  display: { xs: 'flex', sm: 'flex' }, 
+                  alignItems: 'center', 
+                  justifyContent: { xs: 'center', sm: 'flex-end' },
+                  mt: { xs: 1, sm: 0 },
+                  px: { xs: 1, sm: 0 }
+                }}>
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary"
+                    sx={{ 
+                      fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                      textAlign: { xs: 'center', sm: 'right' }
+                    }}
+                  >
+                    Showing {filteredStaff.length} of {staff.length} staff members
+                  </Typography>
+                </Box>
+              </Box>
+            
               {loading ? (
                 <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
-                  Loading staff...
+                  Loading staff members...
                 </Typography>
-              ) : users.length === 0 ? (
+              ) : filteredStaff.length === 0 ? (
                 <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
-                  No staff members found.
+                  {staff.length === 0 ? 'No staff members found.' : 'No staff members match your search criteria.'}
                 </Typography>
               ) : isMobile ? (
                 // Mobile Card Layout
-                <Stack spacing={2}>
-                  {users.map((user) => (
-                    <Card 
-                      key={user.id} 
-                      variant="outlined" 
-                      sx={{ 
-                        p: 2, 
-                        borderRadius: 2,
-                        '&:hover': { 
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                          borderColor: 'primary.main'
+                <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+                  {filteredStaff.map((member) => (
+                    <Grid item xs={12} key={member.id}>
+                      <Card sx={{
+                        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.06)',
+                        border: 'none',
+                        borderRadius: { xs: 3, sm: 4 },
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          outline: '2px solid #8B0000',
+                          outlineOffset: '-2px'
                         }
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
-                          <Avatar sx={{ width: 48, height: 48, bgcolor: 'primary.main', fontSize: '1.2rem' }}>
-                            {user.name.charAt(0)}
-                          </Avatar>
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
-                              {user.name}
-                            </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                              <EmailIcon fontSize="small" color="action" />
-                              <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-all' }}>
-                                {user.email}
+                      }}>
+                        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                          <Stack direction="row" alignItems="center" spacing={2}>
+                            <Avatar 
+                              sx={{ 
+                                bgcolor: 'primary.main',
+                                width: 48,
+                                height: 48,
+                                fontSize: '1.2rem',
+                                fontWeight: 600
+                              }}
+                            >
+                              {member.name.charAt(0)}
+                            </Avatar>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Typography variant="h6" fontWeight={600} sx={{ fontSize: '1rem', mb: 0.5 }}>
+                                {member.name}
+                              </Typography>
+                              <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+                                <Chip 
+                                  label={member.role}
+                                  color={getRoleColor(member.role) as any}
+                                  size="small"
+                                  sx={{ fontSize: '0.75rem' }}
+                                />
+                                <Chip 
+                                  label={member.status}
+                                  color={getStatusColor(member.status) as any}
+                                  size="small"
+                                  sx={{ fontSize: '0.75rem' }}
+                                />
+                              </Stack>
+                              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                                {member.email} • {member.phone}
                               </Typography>
                             </Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                              <Chip 
-                                icon={getRoleIcon(user.role)}
-                                label={user.role}
-                                color={getRoleColor(user.role) as any}
-                                size="small"
-                                variant="outlined"
-                              />
-                              <Chip 
-                                label={getStatusLabel(user.isActive)}
-                                color={getStatusColor(user.isActive) as any}
-                                size="small"
-                                variant="filled"
-                              />
-                              <Typography variant="caption" color="text.secondary">
-                                Joined {formatDate(user.createdAt)}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Box>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => handleRoleMenuOpen(e, user)}
-                          disabled={isUpdatingRole}
-                          sx={{ ml: 1 }}
-                        >
-                          <MoreVertIcon />
-                        </IconButton>
-                      </Box>
-                    </Card>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    </Grid>
                   ))}
-                </Stack>
+                </Grid>
               ) : (
                 // Desktop Table Layout
-                <TableContainer component={Paper} variant="outlined">
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
                   <Table>
                     <TableHead>
                       <TableRow>
-                        <TableCell><strong>Name</strong></TableCell>
-                        <TableCell><strong>Email</strong></TableCell>
+                        <TableCell><strong>Staff Member</strong></TableCell>
                         <TableCell><strong>Role</strong></TableCell>
                         <TableCell><strong>Status</strong></TableCell>
-                        <TableCell><strong>Joined Date</strong></TableCell>
+                        <TableCell><strong>Contact</strong></TableCell>
+                        <TableCell><strong>Join Date</strong></TableCell>
+                        <TableCell><strong>Performance</strong></TableCell>
                         <TableCell><strong>Actions</strong></TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {users.map((user) => (
-                        <TableRow key={user.id} hover>
+                      {filteredStaff.map((member) => (
+                        <TableRow key={member.id} hover>
                           <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                                {user.name.charAt(0)}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main' }}>
+                                {member.name.charAt(0)}
                               </Avatar>
-                              <Typography variant="body2" fontWeight={500}>
-                                {user.name}
-                              </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <EmailIcon fontSize="small" color="action" />
-                              <Typography variant="body2">
-                                {user.email}
-                              </Typography>
+                              <Box>
+                                <Typography variant="body2" fontWeight={500}>
+                                  {member.name}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  ID: {member.id}
+                                </Typography>
+                              </Box>
                             </Box>
                           </TableCell>
                           <TableCell>
                             <Chip 
-                              icon={getRoleIcon(user.role)}
-                              label={user.role}
-                              color={getRoleColor(user.role) as any}
+                              label={member.role}
+                              color={getRoleColor(member.role) as any}
                               size="small"
                               variant="outlined"
                             />
                           </TableCell>
                           <TableCell>
                             <Chip 
-                              label={getStatusLabel(user.isActive)}
-                              color={getStatusColor(user.isActive) as any}
+                              label={member.status}
+                              color={getStatusColor(member.status) as any}
                               size="small"
-                              variant="filled"
+                              variant="outlined"
                             />
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" color="text.secondary">
-                              {formatDate(user.createdAt)}
+                            <Typography variant="body2">{member.email}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {member.phone}
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => handleRoleMenuOpen(e, user)}
-                              disabled={isUpdatingRole}
-                            >
+                            <Typography variant="body2">
+                              {formatDate(member.joinDate)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={500}>
+                              {member.totalAppointments} appointments
+                            </Typography>
+                            <Typography variant="caption" color="success.main">
+                              RM{member.totalRevenue} revenue
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <IconButton size="small">
                               <MoreVertIcon />
                             </IconButton>
                           </TableCell>
@@ -521,79 +711,30 @@ export default function StaffPage() {
         </Grid>
       </Grid>
 
-      {/* Role Change Menu */}
-      <Menu
-        anchorEl={roleMenuAnchor}
-        open={Boolean(roleMenuAnchor)}
-        onClose={handleRoleMenuClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-      >
-        <MenuItem 
-          onClick={() => handleRoleUpdate('Boss')}
-          disabled={isUpdatingRole || selectedUserForRole?.role === 'Boss'}
-        >
-          <AdminPanelSettingsIcon fontSize="small" sx={{ mr: 1 }} />
-          Make Boss
-        </MenuItem>
-        <MenuItem 
-          onClick={() => handleRoleUpdate('Staff')}
-          disabled={isUpdatingRole || selectedUserForRole?.role === 'Staff'}
-        >
-          <PersonIcon fontSize="small" sx={{ mr: 1 }} />
-          Make Staff
-        </MenuItem>
-        <MenuItem 
-          onClick={() => selectedUserForRole && handleToggleStatus(selectedUserForRole)}
-          disabled={isUpdatingRole}
-        >
-          {selectedUserForRole?.isActive ? (
-            <>
-              <BlockIcon fontSize="small" sx={{ mr: 1 }} />
-              Deactivate Account
-            </>
-          ) : (
-            <>
-              <CheckCircleIcon fontSize="small" sx={{ mr: 1 }} />
-              Activate Account
-            </>
-          )}
-        </MenuItem>
-        <MenuItem 
-          onClick={() => selectedUserForRole && handleDeleteUser(selectedUserForRole)}
-          disabled={isUpdatingRole}
-          sx={{ color: 'error.main' }}
-        >
-          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-          Delete Account
-        </MenuItem>
-      </Menu>
-
       {/* Create Staff Modal */}
       <Dialog 
         open={createStaffOpen} 
         onClose={() => setCreateStaffOpen(false)} 
         maxWidth="sm" 
         fullWidth
-        PaperProps={{
-          sx: {
-            m: isMobile ? 1 : 3,
-            width: isMobile ? 'calc(100% - 16px)' : 'auto'
+        sx={{
+          '& .MuiDialog-paper': {
+            margin: { xs: 1, sm: 2 },
+            borderRadius: { xs: 2, sm: 2 },
+            maxHeight: { xs: '90vh', sm: 'none' }
           }
         }}
       >
-        <DialogTitle>
-          <Typography variant="h6" fontWeight={600}>
+        <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
+          <Typography 
+            variant="h6" 
+            fontWeight={600}
+            sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+          >
             Add New Staff Member
           </Typography>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
           <Stack spacing={3} sx={{ mt: 1 }}>
             <TextField
               label="Full Name"
@@ -601,35 +742,31 @@ export default function StaffPage() {
               onChange={(e) => setNewStaff({...newStaff, name: e.target.value})}
               fullWidth
               required
-              placeholder="Enter staff member's name"
             />
-
+            
             <TextField
-              label="Email"
+              label="Email Address"
               type="email"
               value={newStaff.email}
               onChange={(e) => setNewStaff({...newStaff, email: e.target.value})}
               fullWidth
               required
-              placeholder="Enter email address"
             />
-
+            
             <TextField
-              label="Password"
-              type="password"
-              value={newStaff.password}
-              onChange={(e) => setNewStaff({...newStaff, password: e.target.value})}
+              label="Phone Number"
+              value={newStaff.phone}
+              onChange={(e) => setNewStaff({...newStaff, phone: e.target.value})}
               fullWidth
               required
-              placeholder="Enter password (min 6 characters)"
-              helperText="Password must be at least 6 characters long"
+              placeholder="012-3456789"
             />
-
+            
             <FormControl fullWidth>
               <InputLabel>Role</InputLabel>
               <Select
                 value={newStaff.role}
-                onChange={(e) => setNewStaff({...newStaff, role: e.target.value})}
+                onChange={(e) => setNewStaff({...newStaff, role: e.target.value as 'Boss' | 'Staff'})}
                 label="Role"
               >
                 <MenuItem value="Staff">Staff</MenuItem>
@@ -639,47 +776,36 @@ export default function StaffPage() {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ 
-          p: 3, 
-          gap: 2,
-          flexDirection: isMobile ? 'column' : 'row',
-          alignItems: isMobile ? 'stretch' : 'center'
+          px: { xs: 2, sm: 3 }, 
+          pb: { xs: 2, sm: 3 },
+          gap: { xs: 1.5, sm: 2 },
+          flexDirection: { xs: 'column', sm: 'row' }
         }}>
-          <GradientButton
-            variant="red"
+          <Button
             onClick={() => setCreateStaffOpen(false)}
-            sx={{ px: 3, py: 1.2, fontSize: 14 }}
+            sx={{ 
+              width: { xs: '100%', sm: 'auto' },
+              order: { xs: 2, sm: 1 }
+            }}
           >
             Cancel
-          </GradientButton>
+          </Button>
           <GradientButton
             variant="blue"
             onClick={handleCreateStaff}
-            disabled={!newStaff.name.trim() || !newStaff.email.trim() || !newStaff.password.trim()}
-            sx={{ px: 3, py: 1.2, fontSize: 14 }}
+            disabled={!newStaff.name || !newStaff.email || !newStaff.phone}
+            sx={{ 
+              px: { xs: 2, sm: 3 }, 
+              py: { xs: 1, sm: 1.2 }, 
+              fontSize: { xs: 13, sm: 14 },
+              width: { xs: '100%', sm: 'auto' },
+              order: { xs: 1, sm: 2 }
+            }}
           >
-            Add Staff
+            Add Staff Member
           </GradientButton>
         </DialogActions>
       </Dialog>
-
-      {/* Success/Error Notification */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={4000}
-        onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
-
-      </RoleGuard>
     </DashboardLayout>
   );
 }

@@ -13,7 +13,11 @@ import {
   Box,
   Link as MUILink,
   Alert,
+  IconButton,
+  InputAdornment,
 } from "@mui/material";
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,6 +33,7 @@ type LoginForm = z.infer<typeof LoginSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [showPassword, setShowPassword] = React.useState(false);
   const {
     register,
     handleSubmit,
@@ -36,8 +41,17 @@ export default function LoginPage() {
   } = useForm<LoginForm>({ resolver: zodResolver(LoginSchema) });
 
   React.useEffect(() => {
+    document.documentElement.classList.add('auth-locked');
     document.body.classList.add('auth-fixed');
-    return () => document.body.classList.remove('auth-fixed');
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    
+    return () => {
+      document.documentElement.classList.remove('auth-locked');
+      document.body.classList.remove('auth-fixed');
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
   }, []);
 
   const onSubmit = async (data: LoginForm) => {
@@ -58,21 +72,19 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="relative min-h-screen w-full overflow-hidden select-none">
-      {/* Background image */}
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url(/images/littlewp2.jpg)" }}
-        aria-hidden
-      />
-
-      {/* Subtle dark backdrop for readability */}
-      <div
-        className="absolute inset-0"
-        style={{ background: "rgba(0,0,0,0.25)" }}
-        aria-hidden
-      />
-
+    <main 
+      className="auth-page select-none"
+      style={{
+        background: `
+          radial-gradient(circle at 20% 80%, rgba(220, 38, 38, 0.8) 0%, transparent 50%),
+          radial-gradient(circle at 80% 20%, rgba(239, 68, 68, 0.6) 0%, transparent 50%),
+          radial-gradient(circle at 40% 40%, rgba(185, 28, 28, 0.4) 0%, transparent 50%),
+          linear-gradient(135deg, #000000 0%, #1a1a1a 25%, #dc2626 50%, #991b1b 75%, #000000 100%)
+        `,
+        backgroundSize: '400% 400%',
+        animation: 'gradientShift 15s ease infinite'
+      }}
+    >
       {/* Grain PNG overlay */}
       <div
         className="pointer-events-none absolute inset-0"
@@ -80,15 +92,15 @@ export default function LoginPage() {
           backgroundImage: "url(/images/Grain%20Overlay.png)",
           backgroundSize: "cover",
           backgroundPosition: "center",
-          opacity: 1,
-          mixBlendMode: "multiply",
+          opacity: 0.3,
+          mixBlendMode: "multiply" as const,
         }}
         aria-hidden
       />
 
       {/* Content */}
-      <Container maxWidth="sm" sx={{ position: "relative", zIndex: 10, minHeight: "100vh" }}>
-        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="flex-start" minHeight="100vh" px={{ xs: 1.5, sm: 2 }} pt={{ xs: 6, sm: 8, md: 12 }}>
+      <Container maxWidth="sm" sx={{ position: "relative", zIndex: 10, height: "100vh", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" width="100%" px={{ xs: 1.5, sm: 2 }}>
           <Box textAlign="center" sx={{ mb: { xs: 10, sm: 9 } }}>
             <Box component="img" src="/images/LITTLE-BARBERSHOP-LOGO.svg" alt="Little Barbershop" sx={{ width: { xs: 80, sm: 96 }, height: 'auto', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.35))' }} />
           </Box>
@@ -129,13 +141,28 @@ export default function LoginPage() {
                 />
                 <TextField
                   label="Password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   fullWidth
                   size="small"
                   sx={{ mt: 2 }}
                   {...register("password")}
                   error={!!errors.password}
                   helperText={errors.password?.message}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle password visibility"
+                          onClick={() => setShowPassword(!showPassword)}
+                          onMouseDown={(e) => e.preventDefault()}
+                          edge="end"
+                          size="small"
+                        >
+                          {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
                 />
                 <Button
                   type="submit"

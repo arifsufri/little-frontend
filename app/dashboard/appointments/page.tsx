@@ -414,16 +414,36 @@ export default function AppointmentsPage() {
 
   return (
     <DashboardLayout>
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, pb: 2, borderBottom: '1px solid #e5e7eb' }}>
-          <Typography variant="h4" fontWeight={800} sx={{ fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif' }}>
+      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: { xs: 'flex-start', sm: 'center' }, 
+          justifyContent: 'space-between', 
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 2, sm: 2 }, 
+          pb: 2, 
+          borderBottom: '1px solid #e5e7eb' 
+        }}>
+          <Typography 
+            variant="h4" 
+            fontWeight={800} 
+            sx={{ 
+              fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
+              fontSize: { xs: '1.75rem', sm: '2.125rem' }
+            }}
+          >
             Appointments
           </Typography>
           {userRole === 'Boss' && (
             <GradientButton
               variant="blue"
               onClick={() => setCreateAppointmentOpen(true)}
-              sx={{ px: 3, py: 1.2, fontSize: 14 }}
+              sx={{ 
+                px: { xs: 2, sm: 3 }, 
+                py: { xs: 1, sm: 1.2 }, 
+                fontSize: { xs: 13, sm: 14 },
+                width: { xs: '100%', sm: 'auto' }
+              }}
             >
               Create Appointment
             </GradientButton>
@@ -431,25 +451,55 @@ export default function AppointmentsPage() {
         </Box>
       </Box>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={{ xs: 2, sm: 3 }}>
         <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ boxShadow: 'none', border: '1px solid #e5e7eb', borderRadius: 3, backgroundColor: '#fff' }}>
+          <Card sx={{ 
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+            border: 'none', 
+            borderRadius: { xs: 4, sm: 5 }, 
+            backgroundColor: '#fff',
+            height: '100%',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              outline: '2px solid #8B0000',
+              outlineOffset: '-2px'
+            }
+          }}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      fontWeight: 600,
+                      mb: { xs: 1, sm: 1.5 },
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
                     Pending
                   </Typography>
-                  <Typography variant="h4" fontWeight={700} color="#d97706" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
+                  <Typography 
+                    variant="h4" 
+                    fontWeight={800} 
+                    color="#d97706" 
+                    sx={{ 
+                      fontSize: { xs: '1.5rem', sm: '2.25rem' },
+                      lineHeight: 1.1
+                    }}
+                  >
                     {statusCounts.pending}
                   </Typography>
                 </Box>
                 <Avatar sx={{ 
-                  bgcolor: '#f3f4f6', 
-                  color: '#111827', 
-                  border: '1px solid #e5e7eb',
-                  width: { xs: 32, sm: 40 },
-                  height: { xs: 32, sm: 40 }
+                  bgcolor: '#fef3c7', 
+                  color: '#d97706', 
+                  border: 'none',
+                  width: { xs: 32, sm: 44 },
+                  height: { xs: 32, sm: 44 },
+                  boxShadow: '0 4px 12px rgba(217, 119, 6, 0.2)'
                 }}>
                   <PendingActionsIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                 </Avatar>
@@ -458,23 +508,53 @@ export default function AppointmentsPage() {
           </Card>
         </Grid>
         <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ boxShadow: 'none', border: '1px solid #e5e7eb', borderRadius: 3, backgroundColor: '#fff' }}>
+          <Card sx={{ 
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+            border: 'none', 
+            borderRadius: { xs: 4, sm: 5 }, 
+            backgroundColor: '#fff',
+            height: '100%',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              outline: '2px solid #8B0000',
+              outlineOffset: '-2px'
+            }
+          }}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      fontWeight: 600,
+                      mb: { xs: 1, sm: 1.5 },
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
                     Confirmed
                   </Typography>
-                  <Typography variant="h4" fontWeight={700} color="#059669" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
+                  <Typography 
+                    variant="h4" 
+                    fontWeight={800} 
+                    color="#059669" 
+                    sx={{ 
+                      fontSize: { xs: '1.5rem', sm: '2.25rem' },
+                      lineHeight: 1.1
+                    }}
+                  >
                     {statusCounts.confirmed}
                   </Typography>
                 </Box>
                 <Avatar sx={{ 
-                  bgcolor: '#f3f4f6', 
-                  color: '#111827', 
-                  border: '1px solid #e5e7eb',
-                  width: { xs: 32, sm: 40 },
-                  height: { xs: 32, sm: 40 }
+                  bgcolor: '#d1fae5', 
+                  color: '#059669', 
+                  border: 'none',
+                  width: { xs: 32, sm: 44 },
+                  height: { xs: 32, sm: 44 },
+                  boxShadow: '0 4px 12px rgba(5, 150, 105, 0.2)'
                 }}>
                   <CheckCircleIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                 </Avatar>
@@ -483,23 +563,53 @@ export default function AppointmentsPage() {
           </Card>
         </Grid>
         <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ boxShadow: 'none', border: '1px solid #e5e7eb', borderRadius: 3, backgroundColor: '#fff' }}>
+          <Card sx={{ 
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+            border: 'none', 
+            borderRadius: { xs: 4, sm: 5 }, 
+            backgroundColor: '#fff',
+            height: '100%',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              outline: '2px solid #8B0000',
+              outlineOffset: '-2px'
+            }
+          }}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      fontWeight: 600,
+                      mb: { xs: 1, sm: 1.5 },
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
                     Completed
                   </Typography>
-                  <Typography variant="h4" fontWeight={700} color="#2563eb" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
+                  <Typography 
+                    variant="h4" 
+                    fontWeight={800} 
+                    color="#2563eb" 
+                    sx={{ 
+                      fontSize: { xs: '1.5rem', sm: '2.25rem' },
+                      lineHeight: 1.1
+                    }}
+                  >
                     {statusCounts.completed}
                   </Typography>
                 </Box>
                 <Avatar sx={{ 
-                  bgcolor: '#f3f4f6', 
-                  color: '#111827', 
-                  border: '1px solid #e5e7eb',
-                  width: { xs: 32, sm: 40 },
-                  height: { xs: 32, sm: 40 }
+                  bgcolor: '#dbeafe', 
+                  color: '#2563eb', 
+                  border: 'none',
+                  width: { xs: 32, sm: 44 },
+                  height: { xs: 32, sm: 44 },
+                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
                 }}>
                   <EventIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                 </Avatar>
@@ -508,23 +618,53 @@ export default function AppointmentsPage() {
           </Card>
         </Grid>
         <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ boxShadow: 'none', border: '1px solid #e5e7eb', borderRadius: 3, backgroundColor: '#fff' }}>
+          <Card sx={{ 
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+            border: 'none', 
+            borderRadius: { xs: 4, sm: 5 }, 
+            backgroundColor: '#fff',
+            height: '100%',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              outline: '2px solid #8B0000',
+              outlineOffset: '-2px'
+            }
+          }}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      fontWeight: 600,
+                      mb: { xs: 1, sm: 1.5 },
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
                     Total Revenue
                   </Typography>
-                  <Typography variant="h4" fontWeight={700} color="#dc2626" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
+                  <Typography 
+                    variant="h4" 
+                    fontWeight={800} 
+                    color="#dc2626" 
+                    sx={{ 
+                      fontSize: { xs: '1.5rem', sm: '2.25rem' },
+                      lineHeight: 1.1
+                    }}
+                  >
                     RM{totalRevenue}
                   </Typography>
                 </Box>
                 <Avatar sx={{ 
-                  bgcolor: '#f3f4f6', 
-                  color: '#111827', 
-                  border: '1px solid #e5e7eb',
-                  width: { xs: 32, sm: 40 },
-                  height: { xs: 32, sm: 40 }
+                  bgcolor: '#fee2e2', 
+                  color: '#dc2626', 
+                  border: 'none',
+                  width: { xs: 32, sm: 44 },
+                  height: { xs: 32, sm: 44 },
+                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)'
                 }}>
                   <AttachMoneyIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                 </Avatar>
@@ -533,22 +673,46 @@ export default function AppointmentsPage() {
           </Card>
         </Grid>
         <Grid item xs={12}>
-          <Card sx={{ boxShadow: 'none', border: '1px solid #e5e7eb', borderRadius: 3, backgroundColor: '#fff' }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
+          <Card sx={{ 
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+            border: 'none', 
+            borderRadius: { xs: 4, sm: 5 }, 
+            backgroundColor: '#fff',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              outline: '2px solid #8B0000',
+              outlineOffset: '-2px'
+            }
+          }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Typography 
+                variant="h6" 
+                fontWeight={600} 
+                sx={{ 
+                  mb: { xs: 2, sm: 3 },
+                  fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                }}
+              >
                 Recent Appointments
               </Typography>
 
               {/* Filters and Search */}
-              <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Box sx={{ 
+                mb: { xs: 2, sm: 3 }, 
+                display: 'flex', 
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: { xs: 1.5, sm: 2 }, 
+                alignItems: { xs: 'stretch', sm: 'center' }
+              }}>
                 <TextField
                   placeholder="Search by client, service, or notes..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   sx={{ 
-                    minWidth: { xs: '100%', sm: 300 },
+                    flex: { xs: 'none', sm: 1 },
+                    maxWidth: { xs: '100%', sm: 400 },
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
+                      borderRadius: { xs: 1.5, sm: 2 },
                     }
                   }}
                   InputProps={{
@@ -561,19 +725,30 @@ export default function AppointmentsPage() {
                   size="small"
                 />
                 
-                <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 150 } }}>
+                <FormControl 
+                  size="small" 
+                  sx={{ 
+                    minWidth: { xs: '100%', sm: 150 },
+                    maxWidth: { xs: '100%', sm: 200 }
+                  }}
+                >
                   <InputLabel>Status Filter</InputLabel>
                   <Select
                     value={statusFilter}
                     label="Status Filter"
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    startAdornment={
-                      <InputAdornment position="start" sx={{ ml: 1 }}>
-                        <FilterListIcon color="action" fontSize="small" />
-                      </InputAdornment>
-                    }
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: { xs: 1.5, sm: 2 },
+                      }
+                    }}
                   >
-                    <MenuItem value="all">All Status</MenuItem>
+                    <MenuItem value="all">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <FilterListIcon fontSize="small" color="action" />
+                        All Status
+                      </Box>
+                    </MenuItem>
                     <MenuItem value="pending">Pending</MenuItem>
                     <MenuItem value="confirmed">Confirmed</MenuItem>
                     <MenuItem value="completed">Completed</MenuItem>
@@ -582,14 +757,20 @@ export default function AppointmentsPage() {
                 </FormControl>
                 
                 <Box sx={{ 
-                  ml: { xs: 0, sm: 'auto' }, 
-                  width: { xs: '100%', sm: 'auto' },
-                  display: 'flex', 
+                  display: { xs: 'flex', sm: 'flex' }, 
                   alignItems: 'center', 
-                  gap: 1,
-                  justifyContent: { xs: 'center', sm: 'flex-end' }
+                  justifyContent: { xs: 'center', sm: 'flex-end' },
+                  mt: { xs: 1, sm: 0 },
+                  px: { xs: 1, sm: 0 }
                 }}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary"
+                    sx={{ 
+                      fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                      textAlign: { xs: 'center', sm: 'right' }
+                    }}
+                  >
                     Showing {filteredAppointments.length} of {appointments.length} appointments
                   </Typography>
                 </Box>
@@ -605,7 +786,7 @@ export default function AppointmentsPage() {
               </Typography>
             ) : isMobile ? (
               // Mobile Card Layout
-              <Grid container spacing={2}>
+              <Grid container spacing={{ xs: 1.5, sm: 2 }}>
                 {filteredAppointments.map((appointment) => (
                   <Grid item xs={12} key={appointment.id}>
                     <AppointmentCard
@@ -728,72 +909,181 @@ export default function AppointmentsPage() {
         </Menu>
 
         {/* Details Dialog */}
-        <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="sm" fullWidth>
+        <Dialog 
+          open={detailsOpen} 
+          onClose={() => setDetailsOpen(false)} 
+          maxWidth="sm" 
+          fullWidth
+          sx={{
+            '& .MuiDialog-paper': {
+              margin: { xs: 1, sm: 2 },
+              borderRadius: { xs: 2, sm: 2 },
+              maxHeight: { xs: '90vh', sm: 'none' }
+            }
+          }}
+        >
           {selectedAppointment && (
             <>
-              <DialogTitle>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar>
+              <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 } }}>
+                  <Avatar sx={{ width: { xs: 40, sm: 48 }, height: { xs: 40, sm: 48 } }}>
                     <PersonIcon />
                   </Avatar>
-                  <Box>
-                    <Typography variant="h6">
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography 
+                      variant="h6"
+                      sx={{ 
+                        fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
                       {selectedAppointment.client.fullName}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography 
+                      variant="caption" 
+                      color="text.secondary"
+                      sx={{ fontSize: { xs: '0.75rem', sm: '0.8rem' } }}
+                    >
                       {selectedAppointment.client.clientId}
                     </Typography>
                   </Box>
                 </Box>
               </DialogTitle>
-              <DialogContent>
-                <Grid container spacing={2}>
+              <DialogContent sx={{ px: { xs: 2, sm: 3 }, pb: { xs: 1, sm: 2 }, overflow: 'auto' }}>
+                <Grid container spacing={{ xs: 2, sm: 2 }}>
                   <Grid item xs={12}>
-                    <Typography variant="subtitle2" color="text.secondary">Phone</Typography>
-                    <Typography variant="body1">{selectedAppointment.client.phoneNumber}</Typography>
+                    <Typography 
+                      variant="subtitle2" 
+                      color="text.secondary"
+                      sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mb: 0.5 }}
+                    >
+                      Phone
+                    </Typography>
+                    <Typography 
+                      variant="body1"
+                      sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+                    >
+                      {selectedAppointment.client.phoneNumber}
+                    </Typography>
                   </Grid>
                   <Grid item xs={12}>
-                    <Typography variant="subtitle2" color="text.secondary">Service</Typography>
-                    <Typography variant="body1">{selectedAppointment.package.name}</Typography>
+                    <Typography 
+                      variant="subtitle2" 
+                      color="text.secondary"
+                      sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mb: 0.5 }}
+                    >
+                      Service
+                    </Typography>
+                    <Typography 
+                      variant="body1"
+                      sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+                    >
+                      {selectedAppointment.package.name}
+                    </Typography>
                   </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="subtitle2" color="text.secondary">Price</Typography>
-                    <Typography variant="body1">RM{selectedAppointment.finalPrice || selectedAppointment.package.price}</Typography>
+                  <Grid item xs={12} sm={6}>
+                    <Typography 
+                      variant="subtitle2" 
+                      color="text.secondary"
+                      sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mb: 0.5 }}
+                    >
+                      Price
+                    </Typography>
+                    <Typography 
+                      variant="body1"
+                      sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+                    >
+                      RM{selectedAppointment.finalPrice || selectedAppointment.package.price}
+                    </Typography>
                     {selectedAppointment.finalPrice && selectedAppointment.finalPrice !== selectedAppointment.package.price && (
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography 
+                        variant="caption" 
+                        color="text.secondary"
+                        sx={{ fontSize: { xs: '0.75rem', sm: '0.8rem' } }}
+                      >
                         Base: RM{selectedAppointment.package.price}
                       </Typography>
                     )}
                   </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="subtitle2" color="text.secondary">Duration</Typography>
-                    <Typography variant="body1">{selectedAppointment.package.duration} mins</Typography>
+                  <Grid item xs={12} sm={6}>
+                    <Typography 
+                      variant="subtitle2" 
+                      color="text.secondary"
+                      sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mb: 0.5 }}
+                    >
+                      Duration
+                    </Typography>
+                    <Typography 
+                      variant="body1"
+                      sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+                    >
+                      {selectedAppointment.package.duration} mins
+                    </Typography>
                   </Grid>
                   <Grid item xs={12}>
-                    <Typography variant="subtitle2" color="text.secondary">Status</Typography>
+                    <Typography 
+                      variant="subtitle2" 
+                      color="text.secondary"
+                      sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mb: 0.5 }}
+                    >
+                      Status
+                    </Typography>
                     <Chip 
                       label={selectedAppointment.status}
                       color={getStatusColor(selectedAppointment.status) as any}
                       size="small"
+                      sx={{ fontSize: { xs: '0.75rem', sm: '0.8rem' } }}
                     />
                   </Grid>
                   <Grid item xs={12}>
-                    <Typography variant="subtitle2" color="text.secondary">Booked Date</Typography>
-                    <Typography variant="body1">{formatDate(selectedAppointment.createdAt)}</Typography>
+                    <Typography 
+                      variant="subtitle2" 
+                      color="text.secondary"
+                      sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mb: 0.5 }}
+                    >
+                      Booked Date
+                    </Typography>
+                    <Typography 
+                      variant="body1"
+                      sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+                    >
+                      {formatDate(selectedAppointment.createdAt)}
+                    </Typography>
                   </Grid>
                   {selectedAppointment.notes && (
                     <Grid item xs={12}>
-                      <Typography variant="subtitle2" color="text.secondary">Notes</Typography>
-                      <Typography variant="body1">{selectedAppointment.notes}</Typography>
+                      <Typography 
+                        variant="subtitle2" 
+                        color="text.secondary"
+                        sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mb: 0.5 }}
+                      >
+                        Notes
+                      </Typography>
+                      <Typography 
+                        variant="body1"
+                        sx={{ 
+                          fontSize: { xs: '0.9rem', sm: '1rem' },
+                          lineHeight: 1.5
+                        }}
+                      >
+                        {selectedAppointment.notes}
+                      </Typography>
                     </Grid>
                   )}
                 </Grid>
               </DialogContent>
-              <DialogActions>
+              <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: { xs: 2, sm: 3 } }}>
                 <GradientButton 
                   variant="red"
                   animated
-                  sx={{ px: 3, py: 1.2, fontSize: 14 }}
+                  sx={{ 
+                    px: { xs: 2, sm: 3 }, 
+                    py: { xs: 1, sm: 1.2 }, 
+                    fontSize: { xs: 13, sm: 14 },
+                    width: { xs: '100%', sm: 'auto' }
+                  }}
                   onClick={() => setDetailsOpen(false)}
                 >
                   Close
@@ -804,16 +1094,42 @@ export default function AppointmentsPage() {
         </Dialog>
 
         {/* Confirmation Modal for Completion */}
-        <Dialog open={confirmationOpen} onClose={resetConfirmationModal} maxWidth="md" fullWidth>
-          <DialogTitle>
-            <Typography variant="h6" fontWeight={600}>
+        <Dialog 
+          open={confirmationOpen} 
+          onClose={resetConfirmationModal} 
+          maxWidth="md" 
+          fullWidth
+          sx={{
+            '& .MuiDialog-paper': {
+              margin: { xs: 1, sm: 2 },
+              borderRadius: { xs: 2, sm: 2 },
+              maxHeight: { xs: '90vh', sm: 'none' }
+            }
+          }}
+        >
+          <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
+            <Typography 
+              variant="h6" 
+              fontWeight={600}
+              sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+            >
               Complete Appointment
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography 
+              variant="body2" 
+              color="text.secondary"
+              sx={{ 
+                fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                mt: 0.5,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
               {selectedAppointment && `${selectedAppointment.client.fullName} - ${selectedAppointment.package.name}`}
             </Typography>
           </DialogTitle>
-          <DialogContent>
+          <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
             <Stack spacing={3} sx={{ mt: 1 }}>
               {/* Additional Packages */}
               <Box>
@@ -993,11 +1309,21 @@ export default function AppointmentsPage() {
               </Box>
             </Stack>
           </DialogContent>
-          <DialogActions sx={{ p: 3, gap: 2 }}>
+          <DialogActions sx={{ 
+            p: { xs: 2, sm: 3 }, 
+            gap: { xs: 1.5, sm: 2 },
+            flexDirection: { xs: 'column', sm: 'row' }
+          }}>
             <GradientButton
               variant="red"
               onClick={resetConfirmationModal}
-              sx={{ px: 3, py: 1.2, fontSize: 14 }}
+              sx={{ 
+                px: { xs: 2, sm: 3 }, 
+                py: { xs: 1, sm: 1.2 }, 
+                fontSize: { xs: 13, sm: 14 },
+                width: { xs: '100%', sm: 'auto' },
+                order: { xs: 2, sm: 1 }
+              }}
             >
               Cancel
             </GradientButton>
@@ -1008,7 +1334,13 @@ export default function AppointmentsPage() {
                 handleConfirmCompletion();
               }}
               disabled={isCompleting}
-              sx={{ px: 3, py: 1.2, fontSize: 14 }}
+              sx={{ 
+                px: { xs: 2, sm: 3 }, 
+                py: { xs: 1, sm: 1.2 }, 
+                fontSize: { xs: 13, sm: 14 },
+                width: { xs: '100%', sm: 'auto' },
+                order: { xs: 1, sm: 2 }
+              }}
             >
               {isCompleting ? 'Completing...' : 'Confirm & Complete'}
             </GradientButton>
@@ -1016,13 +1348,29 @@ export default function AppointmentsPage() {
         </Dialog>
 
         {/* Create Appointment Modal */}
-        <Dialog open={createAppointmentOpen} onClose={() => setCreateAppointmentOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>
-            <Typography variant="h6" fontWeight={600}>
+        <Dialog 
+          open={createAppointmentOpen} 
+          onClose={() => setCreateAppointmentOpen(false)} 
+          maxWidth="sm" 
+          fullWidth
+          sx={{
+            '& .MuiDialog-paper': {
+              margin: { xs: 1, sm: 2 },
+              borderRadius: { xs: 2, sm: 2 },
+              maxHeight: { xs: '90vh', sm: 'none' }
+            }
+          }}
+        >
+          <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
+            <Typography 
+              variant="h6" 
+              fontWeight={600}
+              sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+            >
               Create New Appointment
             </Typography>
           </DialogTitle>
-          <DialogContent>
+          <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
             <Stack spacing={3} sx={{ mt: 1 }}>
               {/* Client Selection */}
               <FormControl fullWidth>
@@ -1096,11 +1444,21 @@ export default function AppointmentsPage() {
               />
             </Stack>
           </DialogContent>
-          <DialogActions sx={{ p: 3, gap: 2 }}>
+          <DialogActions sx={{ 
+            p: { xs: 2, sm: 3 }, 
+            gap: { xs: 1.5, sm: 2 },
+            flexDirection: { xs: 'column', sm: 'row' }
+          }}>
             <GradientButton
               variant="red"
               onClick={() => setCreateAppointmentOpen(false)}
-              sx={{ px: 3, py: 1.2, fontSize: 14 }}
+              sx={{ 
+                px: { xs: 2, sm: 3 }, 
+                py: { xs: 1, sm: 1.2 }, 
+                fontSize: { xs: 13, sm: 14 },
+                width: { xs: '100%', sm: 'auto' },
+                order: { xs: 2, sm: 1 }
+              }}
             >
               Cancel
             </GradientButton>
@@ -1108,7 +1466,13 @@ export default function AppointmentsPage() {
               variant="green"
               onClick={handleCreateAppointment}
               disabled={!newAppointment.clientId || !newAppointment.packageId}
-              sx={{ px: 3, py: 1.2, fontSize: 14 }}
+              sx={{ 
+                px: { xs: 2, sm: 3 }, 
+                py: { xs: 1, sm: 1.2 }, 
+                fontSize: { xs: 13, sm: 14 },
+                width: { xs: '100%', sm: 'auto' },
+                order: { xs: 1, sm: 2 }
+              }}
             >
               Create Appointment
             </GradientButton>

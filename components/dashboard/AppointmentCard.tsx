@@ -101,29 +101,35 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   return (
     <Card 
       sx={{ 
-        boxShadow: 'none', 
-        border: '1px solid #e5e7eb', 
-        borderRadius: 3, 
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+        border: 'none', 
+        borderRadius: { xs: 4, sm: 5 }, 
         backgroundColor: '#fff',
         cursor: 'pointer',
-        transition: 'all 0.2s ease-in-out',
-        '&:hover': {
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          transform: 'translateY(-2px)'
-        }
+        transition: 'all 0.3s ease',
+               '&:hover': {
+                 outline: '2px solid #8B0000',
+                 outlineOffset: '-2px'
+               }
       }}
       onClick={() => onViewDetails(appointment)}
     >
-      <CardContent sx={{ p: 3 }}>
+      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
         {/* Header with client info and menu */}
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'flex-start', 
+          justifyContent: 'space-between', 
+          mb: { xs: 1.5, sm: 2 },
+          gap: { xs: 1, sm: 2 }
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 }, flex: 1, minWidth: 0 }}>
             <Avatar 
               sx={{ 
-                width: 48, 
-                height: 48, 
+                width: { xs: 40, sm: 48 }, 
+                height: { xs: 40, sm: 48 }, 
                 bgcolor: 'primary.main',
-                fontSize: '1.2rem',
+                fontSize: { xs: '1rem', sm: '1.2rem' },
                 fontWeight: 600
               }}
             >
@@ -134,9 +140,9 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                 variant="h6" 
                 fontWeight={600} 
                 sx={{ 
-                  fontSize: '1.1rem',
+                  fontSize: { xs: '1rem', sm: '1.1rem' },
                   lineHeight: 1.2,
-                  mb: 0.5,
+                  mb: { xs: 0.25, sm: 0.5 },
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap'
@@ -151,7 +157,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: 0.5,
-                  fontSize: '0.875rem'
+                  fontSize: { xs: '0.8rem', sm: '0.875rem' }
                 }}
               >
                 <PersonIcon fontSize="small" />
@@ -167,94 +173,192 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
             }}
             sx={{ 
               bgcolor: 'grey.50',
-              '&:hover': { bgcolor: 'grey.100' }
+              '&:hover': { bgcolor: 'grey.100' },
+              width: { xs: 32, sm: 36 },
+              height: { xs: 32, sm: 36 }
             }}
           >
-            <MoreVertIcon />
+            <MoreVertIcon fontSize="small" />
           </IconButton>
         </Box>
 
         {/* Status chip */}
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
           <Chip 
             icon={getStatusIcon(appointment.status)}
             label={appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
             color={getStatusColor(appointment.status) as any}
             size="small"
             variant="outlined"
-            sx={{ fontWeight: 500 }}
+            sx={{ 
+              fontWeight: 500,
+              fontSize: { xs: '0.75rem', sm: '0.8125rem' }
+            }}
           />
         </Box>
 
-        <Divider sx={{ my: 2 }} />
+        <Divider sx={{ my: { xs: 1.5, sm: 2 } }} />
 
         {/* Service info */}
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
+        <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
+          <Typography 
+            variant="subtitle1" 
+            fontWeight={600} 
+            sx={{ 
+              mb: { xs: 0.5, sm: 1 }, 
+              color: 'text.primary',
+              fontSize: { xs: '0.95rem', sm: '1rem' },
+              lineHeight: 1.3
+            }}
+          >
             {appointment.package.name}
           </Typography>
           {appointment.package.barber && (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            <Typography 
+              variant="body2" 
+              color="text.secondary" 
+              sx={{ 
+                mb: { xs: 0.5, sm: 1 },
+                fontSize: { xs: '0.8rem', sm: '0.875rem' }
+              }}
+            >
               Barber: {appointment.package.barber}
             </Typography>
           )}
         </Box>
 
         {/* Details grid */}
-        <Stack spacing={1.5}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Stack spacing={{ xs: 1, sm: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 1 } }}>
             <PhoneIcon fontSize="small" color="action" />
-            <Typography variant="body2" color="text.secondary" sx={{ minWidth: 60 }}>
+            <Typography 
+              variant="body2" 
+              color="text.secondary" 
+              sx={{ 
+                minWidth: { xs: 50, sm: 60 },
+                fontSize: { xs: '0.8rem', sm: '0.875rem' }
+              }}
+            >
               Phone:
             </Typography>
-            <Typography variant="body2" fontWeight={500}>
+            <Typography 
+              variant="body2" 
+              fontWeight={500}
+              sx={{ 
+                fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+            >
               {appointment.client.phoneNumber}
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 1 } }}>
             <AttachMoneyIcon fontSize="small" color="action" />
-            <Typography variant="body2" color="text.secondary" sx={{ minWidth: 60 }}>
+            <Typography 
+              variant="body2" 
+              color="text.secondary" 
+              sx={{ 
+                minWidth: { xs: 50, sm: 60 },
+                fontSize: { xs: '0.8rem', sm: '0.875rem' }
+              }}
+            >
               Price:
             </Typography>
             <Box>
-              <Typography variant="body2" fontWeight={600} color="success.main">
+              <Typography 
+                variant="body2" 
+                fontWeight={600} 
+                color="success.main"
+                sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}
+              >
                 RM{appointment.finalPrice || appointment.package.price}
               </Typography>
               {appointment.finalPrice && appointment.finalPrice !== appointment.package.price && (
-                <Typography variant="caption" color="text.secondary">
+                <Typography 
+                  variant="caption" 
+                  color="text.secondary"
+                  sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+                >
                   Base: RM{appointment.package.price}
                 </Typography>
               )}
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 1 } }}>
             <AccessTimeIcon fontSize="small" color="action" />
-            <Typography variant="body2" color="text.secondary" sx={{ minWidth: 60 }}>
+            <Typography 
+              variant="body2" 
+              color="text.secondary" 
+              sx={{ 
+                minWidth: { xs: 50, sm: 60 },
+                fontSize: { xs: '0.8rem', sm: '0.875rem' }
+              }}
+            >
               Duration:
             </Typography>
-            <Typography variant="body2" fontWeight={500}>
+            <Typography 
+              variant="body2" 
+              fontWeight={500}
+              sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}
+            >
               {appointment.package.duration} mins
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 1 } }}>
             <CalendarTodayIcon fontSize="small" color="action" />
-            <Typography variant="body2" color="text.secondary" sx={{ minWidth: 60 }}>
+            <Typography 
+              variant="body2" 
+              color="text.secondary" 
+              sx={{ 
+                minWidth: { xs: 50, sm: 60 },
+                fontSize: { xs: '0.8rem', sm: '0.875rem' }
+              }}
+            >
               Booked:
             </Typography>
-            <Typography variant="body2" fontWeight={500}>
+            <Typography 
+              variant="body2" 
+              fontWeight={500}
+              sx={{ 
+                fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+            >
               {formatDate(appointment.createdAt)}
             </Typography>
           </Box>
 
           {appointment.notes && (
-            <Box sx={{ mt: 1, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
+            <Box sx={{ 
+              mt: { xs: 1, sm: 1 }, 
+              p: { xs: 1.5, sm: 2 }, 
+              bgcolor: 'grey.50', 
+              borderRadius: { xs: 1.5, sm: 2 } 
+            }}>
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ 
+                  mb: 0.5, 
+                  fontWeight: 500,
+                  fontSize: { xs: '0.8rem', sm: '0.875rem' }
+                }}
+              >
                 Notes:
               </Typography>
-              <Typography variant="body2" color="text.primary">
+              <Typography 
+                variant="body2" 
+                color="text.primary"
+                sx={{ 
+                  fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                  lineHeight: 1.4
+                }}
+              >
                 {appointment.notes}
               </Typography>
             </Box>

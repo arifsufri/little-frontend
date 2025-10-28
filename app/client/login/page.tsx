@@ -41,8 +41,17 @@ export default function ClientLoginPage() {
   } = useForm<LoginForm>({ resolver: zodResolver(LoginSchema) });
 
   React.useEffect(() => {
+    document.documentElement.classList.add('auth-locked');
     document.body.classList.add('auth-fixed');
-    return () => document.body.classList.remove('auth-fixed');
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    
+    return () => {
+      document.documentElement.classList.remove('auth-locked');
+      document.body.classList.remove('auth-fixed');
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
   }, []);
 
   const onSubmit = async (data: LoginForm) => {
@@ -71,21 +80,19 @@ export default function ClientLoginPage() {
   };
 
   return (
-    <main className="relative min-h-screen w-full overflow-hidden select-none">
-      {/* Background image */}
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url(/images/littlewp2.jpg)" }}
-        aria-hidden
-      />
-
-      {/* Subtle dark backdrop for readability */}
-      <div
-        className="absolute inset-0"
-        style={{ background: "rgba(0,0,0,0.25)" }}
-        aria-hidden
-      />
-
+    <main 
+      className="auth-page select-none"
+      style={{
+        background: `
+          radial-gradient(circle at 20% 80%, rgba(220, 38, 38, 0.8) 0%, transparent 50%),
+          radial-gradient(circle at 80% 20%, rgba(239, 68, 68, 0.6) 0%, transparent 50%),
+          radial-gradient(circle at 40% 40%, rgba(185, 28, 28, 0.4) 0%, transparent 50%),
+          linear-gradient(135deg, #000000 0%, #1a1a1a 25%, #dc2626 50%, #991b1b 75%, #000000 100%)
+        `,
+        backgroundSize: '400% 400%',
+        animation: 'gradientShift 15s ease infinite'
+      }}
+    >
       {/* Grain PNG overlay */}
       <div
         className="pointer-events-none absolute inset-0"
@@ -93,22 +100,21 @@ export default function ClientLoginPage() {
           backgroundImage: "url(/images/Grain%20Overlay.png)",
           backgroundSize: "cover",
           backgroundPosition: "center",
-          opacity: 1,
-          mixBlendMode: "multiply",
+          opacity: 0.3,
+          mixBlendMode: "multiply" as const,
         }}
         aria-hidden
       />
 
       {/* Content */}
-      <Container maxWidth="sm" sx={{ position: "relative", zIndex: 10, minHeight: "100vh" }}>
+      <Container maxWidth="sm" sx={{ position: "relative", zIndex: 10, height: "100vh", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Box 
           display="flex" 
           flexDirection="column" 
           alignItems="center" 
-          justifyContent="flex-start" 
-          minHeight="100vh" 
-          px={{ xs: 1.5, sm: 2 }} 
-          pt={{ xs: 6, sm: 8, md: 12 }}
+          justifyContent="center" 
+          width="100%" 
+          px={{ xs: 1.5, sm: 2 }}
         >
           {/* Logo */}
           <Box textAlign="center" sx={{ mb: { xs: 10, sm: 9 } }}>

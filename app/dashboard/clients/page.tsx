@@ -199,32 +199,40 @@ export default function ClientsPage() {
 
   return (
     <DashboardLayout>
-      <Box sx={{ mb: 3 }}>
+      <Box sx={{ mb: { xs: 3, sm: 4 } }}>
         <Box sx={{ 
           display: 'flex', 
-          alignItems: isMobile ? 'flex-start' : 'center', 
+          alignItems: { xs: 'flex-start', sm: 'center' }, 
           justifyContent: 'space-between', 
-          gap: 2, 
-          pb: 2, 
-          borderBottom: '1px solid #e5e7eb',
-          flexDirection: isMobile ? 'column' : 'row'
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 2, sm: 2 }, 
+          pb: 2
         }}>
-          <Typography variant="h4" fontWeight={800} sx={{ fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif' }}>
-            List of Clients
+          <Typography 
+            variant="h4" 
+            fontWeight={900} 
+            sx={{ 
+              fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
+              fontSize: { xs: '1.75rem', sm: '3rem' },
+              color: '#000000',
+              lineHeight: 1.2
+            }}
+          >
+            Clients
           </Typography>
           {userRole === 'Boss' && (
             <GradientButton
               variant="green"
               onClick={() => setCreateClientOpen(true)}
               sx={{ 
-                px: 3, 
-                py: 1.2, 
-                fontSize: 14,
-                alignSelf: isMobile ? 'flex-start' : 'auto',
-                minWidth: isMobile ? 'auto' : undefined
+                px: { xs: 2, sm: 3 }, 
+                py: { xs: 1, sm: 1.2 }, 
+                fontSize: { xs: 13, sm: 14 },
+                width: { xs: '100%', sm: 'auto' },
+                borderRadius: { xs: 3, sm: 4 }
               }}
             >
-              Create Client
+              Add New Client
             </GradientButton>
           )}
         </Box>
@@ -232,8 +240,18 @@ export default function ClientsPage() {
 
       <Grid container spacing={3}>
         <Grid item xs={12}>
-          <Card sx={{ boxShadow: 'none', border: '1px solid #e5e7eb', borderRadius: 3, backgroundColor: '#fff' }}>
-            <CardContent>
+          <Card sx={{ 
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+            border: 'none', 
+            borderRadius: { xs: 4, sm: 5 }, 
+            backgroundColor: '#fff',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              outline: '2px solid #8B0000',
+              outlineOffset: '-2px'
+            }
+          }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               {/* Filters and Search */}
               <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
                 <TextField
@@ -304,8 +322,8 @@ export default function ClientsPage() {
                         p: 2, 
                         borderRadius: 2,
                         '&:hover': { 
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                          borderColor: 'primary.main'
+                          outline: '2px solid #8B0000',
+                          outlineOffset: '-2px'
                         }
                       }}
                     >

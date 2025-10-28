@@ -16,7 +16,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar open={openMobile} onClose={() => setOpenMobile(false)} />
       <SidebarPermanent width={drawerWidth} />
 
-      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 3 }, ml: { md: `${drawerWidth}px` } }}>
+      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 3 }, ml: { md: `${drawerWidth}px` }, backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
         <Toolbar />
         {children}
       </Box>

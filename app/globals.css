@@ -6,6 +6,56 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* Completely lock the page for auth pages */
+html.auth-locked, 
 body.auth-fixed {
-  overflow: hidden;
+  overflow: hidden !important;
+  position: fixed !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+}
+
+/* Prevent scrolling and ensure full coverage */
+.auth-page {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Gradient animations for auth pages */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes gradientMove {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
+/* Auth page gradient background */
+.auth-gradient-bg {
+  background: radial-gradient(circle at 20% 80%, rgba(220, 38, 38, 0.8) 0%, transparent 50%), 
+              radial-gradient(circle at 80% 20%, rgba(239, 68, 68, 0.6) 0%, transparent 50%), 
+              radial-gradient(circle at 40% 40%, rgba(185, 28, 28, 0.4) 0%, transparent 50%), 
+              linear-gradient(135deg, #000000 0%, #1a1a1a 25%, #dc2626 50%, #991b1b 75%, #000000 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+}
+
+.auth-gradient-overlay {
+  background: linear-gradient(45deg, transparent 30%, rgba(220, 38, 38, 0.1) 50%, transparent 70%), 
+              linear-gradient(-45deg, transparent 30%, rgba(0, 0, 0, 0.3) 50%, transparent 70%);
+  background-size: 200% 200%;
+  animation: gradientMove 8s ease-in-out infinite alternate;
 }
