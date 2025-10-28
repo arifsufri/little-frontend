@@ -63,7 +63,7 @@ export default function RoleGuard({ allowedRoles, children, fallback }: RoleGuar
               Access Denied
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-              You don't have permission to access this page.
+              You don&apos;t have permission to access this page.
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Required role: {allowedRoles.join(' or ')}<br/>

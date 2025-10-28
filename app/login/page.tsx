@@ -149,7 +149,7 @@ export default function LoginPage() {
               </Box>
 
               <Typography variant="body2" textAlign="center" mt={2} color="text.secondary">
-                Don't have an account yet?{" "}
+                Don&apos;t have an account yet?{" "}
                 <MUILink component={NextLink} href="/register" underline="always" sx={{ fontWeight: 600 }}>
                   Create an account
                 </MUILink>

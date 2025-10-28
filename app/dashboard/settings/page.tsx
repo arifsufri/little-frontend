@@ -147,18 +147,6 @@ export default function SettingsPage() {
     defaultValues: businessSettings
   });
 
-  // Load user profile on mount
-  React.useEffect(() => {
-    loadUserProfile();
-    loadBusinessSettings();
-    loadNotificationSettings();
-  }, []);
-
-  // Update form when userProfile changes
-  React.useEffect(() => {
-    profileForm.reset({ name: userProfile.name, email: userProfile.email });
-  }, [userProfile, profileForm]);
-
   const loadUserProfile = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -181,7 +169,7 @@ export default function SettingsPage() {
     }
   };
 
-  const loadBusinessSettings = () => {
+  const loadBusinessSettings = React.useCallback(() => {
     // Load from localStorage or API
     const savedSettings = localStorage.getItem('businessSettings');
     if (savedSettings) {
@@ -193,7 +181,7 @@ export default function SettingsPage() {
         console.error('Error parsing business settings:', error);
       }
     }
-  };
+  }, [businessForm]);
 
   const loadNotificationSettings = () => {
     // Load from localStorage
@@ -418,6 +406,18 @@ export default function SettingsPage() {
     localStorage.setItem('businessSettings', JSON.stringify(businessSettings));
     setSuccessMsg('Opening hours updated successfully!');
   };
+
+  // Load user profile on mount
+  React.useEffect(() => {
+    loadUserProfile();
+    loadBusinessSettings();
+    loadNotificationSettings();
+  }, [loadBusinessSettings]);
+
+  // Update form when userProfile changes
+  React.useEffect(() => {
+    profileForm.reset({ name: userProfile.name, email: userProfile.email });
+  }, [userProfile, profileForm]);
 
   return (
     <DashboardLayout>

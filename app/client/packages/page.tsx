@@ -335,7 +335,7 @@ export default function ClientPackagesPage() {
             <DialogContent sx={{ p: 3 }}>
               {bookingSuccess && (
                 <Alert severity="success" sx={{ mb: 2 }}>
-                  Booking successful! We'll contact you soon to confirm your appointment.
+                  Booking successful! We&apos;ll contact you soon to confirm your appointment.
                 </Alert>
               )}
 

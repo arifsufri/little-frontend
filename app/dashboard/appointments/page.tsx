@@ -298,7 +298,7 @@ export default function AppointmentsPage() {
     setCustomPackages(customPackages.filter((_, i) => i !== index));
   };
 
-  const calculateTotalPrice = () => {
+  const calculateTotalPrice = React.useCallback(() => {
     if (!selectedAppointment) return 0;
     
     let total = selectedAppointment.package.price;
@@ -315,7 +315,7 @@ export default function AppointmentsPage() {
     });
     
     return total;
-  };
+  }, [selectedAppointment, selectedAdditionalPackages, packages, customPackages]);
 
   const resetConfirmationModal = () => {
     setConfirmationOpen(false);
@@ -331,7 +331,7 @@ export default function AppointmentsPage() {
     if (confirmationOpen) {
       setFinalPrice(calculateTotalPrice());
     }
-  }, [selectedAdditionalPackages, customPackages, confirmationOpen, selectedAppointment]);
+  }, [selectedAdditionalPackages, customPackages, confirmationOpen, selectedAppointment, calculateTotalPrice]);
 
   const handleViewDetails = (appointment: Appointment) => {
     setSelectedAppointment(appointment);

@@ -177,7 +177,7 @@ export default function ClientLoginPage() {
               </Box>
 
               <Typography variant="body2" textAlign="center" mt={2} color="text.secondary">
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
                 <MUILink 
                   component={NextLink}
                   href="/client/onboarding"

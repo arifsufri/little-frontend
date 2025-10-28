@@ -487,7 +487,7 @@ export default function ProductsPage() {
                   mb: 1.5
                 }}
               >
-                What's Included
+                What&apos;s Included
               </Typography>
               <Box sx={{ 
                 display: 'flex', 

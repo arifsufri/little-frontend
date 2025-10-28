@@ -75,11 +75,7 @@ export default function DashboardPage() {
   const [recentActivity, setRecentActivity] = React.useState<RecentActivity[]>([]);
   const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = React.useCallback(async () => {
     try {
       setLoading(true);
       
@@ -135,7 +131,11 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  React.useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const formatTimeAgo = (dateString: string) => {
     const now = new Date();
@@ -269,7 +269,7 @@ export default function DashboardPage() {
               <Stack spacing={2}>
                 <Box>
                   <Typography variant="body2" color="text.secondary">
-                    Today's Revenue Target
+                    Today&apos;s Revenue Target
                   </Typography>
                   <Typography variant="h6" fontWeight={600}>
                     RM{Math.max(500, stats.totalRevenueToday)}
