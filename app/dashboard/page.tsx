@@ -369,7 +369,7 @@ export default function DashboardPage() {
               lineHeight: 1.3
             }}
           >
-            Welcome back, Boss! Here's your barbershop overview
+            Welcome back, Boss! Here&apos;s your barbershop overview
           </Typography>
         </Box>
       </Box>
@@ -463,7 +463,7 @@ export default function DashboardPage() {
                       fontSize: { xs: '0.8rem', sm: '0.875rem' }
                     }}
                   >
-                    Today's key indicators
+                    Today&apos;s key indicators
                   </Typography>
                 </Box>
               </Stack>
