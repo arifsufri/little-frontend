@@ -3,6 +3,11 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
+  "functions": {
+    "app/**/*.{js,ts,jsx,tsx}": {
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
     {
       "source": "/api/:path*",
