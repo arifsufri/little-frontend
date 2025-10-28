@@ -29,6 +29,6 @@
     }
   ],
   "env": {
-    "NEXT_PUBLIC_API_URL": "@next_public_api_url"
+    "NEXT_PUBLIC_API_BASE_URL": "https://little-backend.onrender.com"
   }
 }
