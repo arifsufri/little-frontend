@@ -1,6 +1,6 @@
 module.exports = {
   plugins: {
-    tailwindcss: {},
+    // tailwindcss: {}, // Temporarily disabled to fix webpack error
     autoprefixer: {},
   },
 };
