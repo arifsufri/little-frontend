@@ -1,12 +1,13 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // Debug logging for mobile issues
 if (typeof window !== 'undefined') {
   console.log('🔍 API Base URL:', BASE_URL);
   console.log('🔍 Environment:', process.env.NODE_ENV);
   console.log('🔍 All NEXT_PUBLIC vars:', Object.keys(process.env).filter(key => key.startsWith('NEXT_PUBLIC')));
+  console.log('🔍 NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
 }
 
 // Default axios instance (matches your other project's pattern)
