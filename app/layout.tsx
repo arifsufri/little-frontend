@@ -1,4 +1,4 @@
-import "./styles.css";
+// import "./styles.css"; // Temporarily disabled to fix webpack error
 import type { ReactNode } from "react";
 import Providers from "./providers";
 
