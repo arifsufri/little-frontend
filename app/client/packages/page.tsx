@@ -48,6 +48,7 @@ interface Package {
   duration: number;
   discountCode?: string;
   imageUrl?: string;
+  isActive: boolean;
   createdAt: string;
 }
 
@@ -110,7 +111,9 @@ export default function ClientPackagesPage() {
         apiGet<{ success: boolean; data: Barber[] }>('/users/barbers')
       ]);
       
-      setPackages(packagesResponse.data || []);
+      // Filter to only show active packages for clients
+      const activePackages = (packagesResponse.data || []).filter(pkg => pkg.isActive);
+      setPackages(activePackages);
       setBarbers(barbersResponse.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);

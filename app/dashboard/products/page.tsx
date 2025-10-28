@@ -2,11 +2,12 @@
 
 import * as React from 'react';
 import DashboardLayout from '../../../components/dashboard/Layout';
-import { Grid, Typography, Box, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, FormControlLabel, Checkbox, MenuItem, Select, InputLabel, FormControl, IconButton, Container, Divider } from '@mui/material';
+import { Grid, Typography, Box, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, FormControlLabel, Checkbox, MenuItem, Select, InputLabel, FormControl, IconButton, Container, Divider, Alert, Snackbar } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ProductCard from '../../../components/dashboard/ProductCard';
 import GradientButton from '../../../components/GradientButton';
-import { apiGet, uploadFile } from '../../../src/utils/axios';
+import { apiGet, uploadFile, apiPut, apiDelete } from '../../../src/utils/axios';
+import { useUserRole } from '../../../hooks/useUserRole';
 
 interface Package {
   id: number;
@@ -17,6 +18,7 @@ interface Package {
   duration: number;
   discountCode?: string;
   imageUrl?: string;
+  isActive: boolean;
   createdAt: string;
 }
 
@@ -28,8 +30,13 @@ const getImageUrl = (imageUrl?: string | null) => {
 };
 
 export default function ProductsPage() {
+  const { userRole } = useUserRole();
   const [open, setOpen] = React.useState(false);
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [selectedPackage, setSelectedPackage] = React.useState<Package | null>(null);
+  const [editingPackage, setEditingPackage] = React.useState<Package | null>(null);
+  const [deletingPackage, setDeletingPackage] = React.useState<Package | null>(null);
   const [packages, setPackages] = React.useState<Package[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [name, setName] = React.useState('');
@@ -42,6 +49,9 @@ export default function ProductsPage() {
   const [modalStep, setModalStep] = React.useState(1);
   const [packageImage, setPackageImage] = React.useState<File | null>(null);
   const [creating, setCreating] = React.useState(false);
+  const [updating, setUpdating] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  const [snackbar, setSnackbar] = React.useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
   // Fetch packages on component mount
   React.useEffect(() => {
@@ -129,6 +139,127 @@ export default function ProductsPage() {
     setPackageImage(null);
   };
 
+  const resetEditModal = () => {
+    setEditOpen(false);
+    setEditingPackage(null);
+    setModalStep(1);
+    setName('');
+    setDesc('');
+    setPrice('');
+    setBarber('');
+    setDuration(30);
+    setHasDiscount(false);
+    setDiscountCode('');
+    setPackageImage(null);
+  };
+
+  const handleEdit = (pkg: Package) => {
+    setEditingPackage(pkg);
+    setName(pkg.name);
+    setDesc(pkg.description);
+    setPrice(pkg.price.toString());
+    setBarber(pkg.barber || '');
+    setDuration(pkg.duration);
+    setHasDiscount(!!pkg.discountCode);
+    setDiscountCode(pkg.discountCode || '');
+    setEditOpen(true);
+  };
+
+  const handleDelete = (pkg: Package) => {
+    setDeletingPackage(pkg);
+    setDeleteOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingPackage || !name || !desc || !price) {
+      setSnackbar({ open: true, message: 'Please fill in all required fields', severity: 'error' });
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('description', desc);
+      formData.append('price', price);
+      formData.append('barber', barber);
+      formData.append('duration', duration.toString());
+      if (hasDiscount && discountCode) {
+        formData.append('discountCode', discountCode);
+      }
+      if (packageImage) {
+        formData.append('image', packageImage);
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'}/packages/${editingPackage.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update package');
+      }
+      setSnackbar({ open: true, message: 'Package updated successfully', severity: 'success' });
+      resetEditModal();
+      fetchPackages();
+    } catch (error: any) {
+      console.error('Error updating package:', error);
+      setSnackbar({ open: true, message: error.message || 'Failed to update package', severity: 'error' });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingPackage) return;
+
+    setDeleting(true);
+    try {
+      await apiDelete(`/packages/${deletingPackage.id}`);
+      setSnackbar({ open: true, message: 'Package deleted successfully', severity: 'success' });
+      setDeleteOpen(false);
+      setDeletingPackage(null);
+      fetchPackages();
+    } catch (error: any) {
+      console.error('Error deleting package:', error);
+      setSnackbar({ open: true, message: error.message || 'Failed to delete package', severity: 'error' });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleToggleStatus = async (pkg: Package) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'}/packages/${pkg.id}/toggle-status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to toggle package status');
+      }
+
+      const result = await response.json();
+      setSnackbar({ 
+        open: true, 
+        message: `Package ${result.data.isActive ? 'activated' : 'deactivated'} successfully`, 
+        severity: 'success' 
+      });
+      fetchPackages();
+    } catch (error: any) {
+      console.error('Error toggling package status:', error);
+      setSnackbar({ open: true, message: error.message || 'Failed to toggle package status', severity: 'error' });
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -147,14 +278,16 @@ export default function ProductsPage() {
             <Typography variant="h4" fontWeight={800} sx={{ fontFamily: 'Soria, Georgia, Cambria, \"Times New Roman\", Times, serif' }}>
               Packages
             </Typography>
-            <GradientButton
-              variant="red"
-              animated
-              sx={{ px: { xs: 2, sm: 3 }, py: { xs: 0.6, sm: 1.2 }, fontSize: { xs: 12, sm: 14 } }}
-              onClick={() => setOpen(true)}
-            >
-              New Package
-            </GradientButton>
+            {userRole === 'Boss' && (
+              <GradientButton
+                variant="red"
+                animated
+                sx={{ px: { xs: 2, sm: 3 }, py: { xs: 0.6, sm: 1.2 }, fontSize: { xs: 12, sm: 14 } }}
+                onClick={() => setOpen(true)}
+              >
+                New Package
+              </GradientButton>
+            )}
           </Box>
         </Box>
 
@@ -164,8 +297,12 @@ export default function ProductsPage() {
               <ProductCard 
                 title={pkg.name} 
                 price={`RM${pkg.price}`} 
-                imageSrc={getImageUrl(pkg.imageUrl)} 
-                onClick={() => handleCardClick(pkg)} 
+                imageSrc={getImageUrl(pkg.imageUrl)}
+                isActive={pkg.isActive}
+                onClick={() => handleCardClick(pkg)}
+                onEdit={userRole === 'Boss' ? () => handleEdit(pkg) : undefined}
+                onDelete={userRole === 'Boss' ? () => handleDelete(pkg) : undefined}
+                onToggleStatus={userRole === 'Boss' ? () => handleToggleStatus(pkg) : undefined}
               />
             </Grid>
           )) : (
@@ -681,6 +818,197 @@ export default function ProductsPage() {
           )}
         </DialogActions>
       </Dialog>
+
+      {/* Edit Package Modal */}
+      <Dialog open={editOpen} onClose={resetEditModal} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800, fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif', pr: 6 }}>
+          Edit Package
+          <IconButton onClick={resetEditModal} sx={{ position: 'absolute', right: 12, top: 12 }} aria-label="close">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          {modalStep === 1 && (
+            <Box sx={{ display: 'grid', gap: 2, mt: 1 }}>
+              <TextField label="Package Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth required />
+              <TextField label="Description" value={desc} onChange={(e) => setDesc(e.target.value)} fullWidth multiline minRows={3} />
+              <TextField label="Price (RM)" type="number" value={price} onChange={(e) => setPrice(e.target.value)} fullWidth inputProps={{ min: 0 }} />
+              <FormControl fullWidth>
+                <InputLabel id="duration-label">Duration</InputLabel>
+                <Select labelId="duration-label" label="Duration" value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
+                  {[10, 20, 30, 40, 50, 60].map((d) => (
+                    <MenuItem key={d} value={d}>{`${d} mins`}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControlLabel
+                control={<Checkbox checked={hasDiscount} onChange={(e) => setHasDiscount(e.target.checked)} />}
+                label="Discount Code (optional)"
+              />
+              <TextField label="Discount Code" value={discountCode} onChange={(e) => setDiscountCode(e.target.value)} fullWidth disabled={!hasDiscount} />
+            </Box>
+          )}
+          {modalStep === 2 && (
+            <Box sx={{ display: 'grid', gap: 2, mt: 1 }}>
+              <Typography variant="h6" fontWeight={600} color="text.primary" sx={{ mb: 1 }}>
+                Update Package Image
+              </Typography>
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleImageUpload}
+                style={{ 
+                  padding: '12px',
+                  border: '2px dashed #d1d5db',
+                  borderRadius: '8px',
+                  backgroundColor: '#f9fafb',
+                  cursor: 'pointer'
+                }}
+              />
+              {packageImage && (
+                <Box sx={{ p: 2, backgroundColor: '#f0f9ff', borderRadius: 2, border: '1px solid #0ea5e9' }}>
+                  <Typography variant="body2" color="primary">
+                    Selected: {packageImage.name}
+                  </Typography>
+                </Box>
+              )}
+              <Typography variant="caption" color="text.secondary">
+                Supported formats: JPG, PNG, GIF. Maximum size: 5MB. Leave empty to keep current image.
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pt: 2, pb: 3, gap: 1.5 }}>
+          {modalStep === 1 && (
+            <>
+              <Button
+                onClick={resetEditModal}
+                sx={{
+                  borderRadius: 9999,
+                  px: { xs: 2, sm: 3 },
+                  py: { xs: 0.6, sm: 1.2 },
+                  fontSize: { xs: 12, sm: 14 },
+                  color: '#000',
+                  fontWeight: 800,
+                  letterSpacing: 1,
+                  textTransform: 'uppercase',
+                  backgroundColor: '#fff',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 6px 0 #000000, 0 12px 24px rgba(0,0,0,0.25)',
+                  '&:hover': { backgroundColor: '#f9fafb' },
+                }}
+              >
+                Cancel
+              </Button>
+              <GradientButton variant="red" animated sx={{ px: { xs: 2, sm: 3 }, py: { xs: 0.6, sm: 1.2 }, fontSize: { xs: 12, sm: 14 } }} onClick={handleNext}>Next</GradientButton>
+            </>
+          )}
+          {modalStep === 2 && (
+            <>
+              <Button
+                onClick={handleBack}
+                sx={{
+                  borderRadius: 9999,
+                  px: { xs: 2, sm: 3 },
+                  py: { xs: 0.6, sm: 1.2 },
+                  fontSize: { xs: 12, sm: 14 },
+                  color: '#000',
+                  fontWeight: 800,
+                  letterSpacing: 1,
+                  textTransform: 'uppercase',
+                  backgroundColor: '#fff',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 6px 0 #000000, 0 12px 24px rgba(0,0,0,0.25)',
+                  '&:hover': { backgroundColor: '#f9fafb' },
+                }}
+              >
+                Back
+              </Button>
+              <GradientButton 
+                variant="red" 
+                animated 
+                sx={{ px: { xs: 2, sm: 3 }, py: { xs: 0.6, sm: 1.2 }, fontSize: { xs: 12, sm: 14 } }} 
+                onClick={handleUpdate}
+                disabled={updating}
+              >
+                {updating ? 'Updating...' : 'Update'}
+              </GradientButton>
+            </>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 600, color: 'error.main' }}>
+          Delete Package
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Are you sure you want to delete the package &quot;{deletingPackage?.name}&quot;?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            This action cannot be undone. All associated data will be permanently removed.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1.5 }}>
+          <Button
+            onClick={() => setDeleteOpen(false)}
+            sx={{
+              borderRadius: 9999,
+              px: { xs: 2, sm: 3 },
+              py: { xs: 0.6, sm: 1.2 },
+              fontSize: { xs: 12, sm: 14 },
+              color: '#000',
+              fontWeight: 800,
+              letterSpacing: 1,
+              textTransform: 'uppercase',
+              backgroundColor: '#fff',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 6px 0 #000000, 0 12px 24px rgba(0,0,0,0.25)',
+              '&:hover': { backgroundColor: '#f9fafb' },
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmDelete}
+            disabled={deleting}
+            sx={{
+              borderRadius: 9999,
+              px: { xs: 2, sm: 3 },
+              py: { xs: 0.6, sm: 1.2 },
+              fontSize: { xs: 12, sm: 14 },
+              color: '#fff',
+              fontWeight: 800,
+              letterSpacing: 1,
+              textTransform: 'uppercase',
+              backgroundColor: 'error.main',
+              boxShadow: '0 6px 0 #b91c1c, 0 12px 24px rgba(185,28,28,0.25)',
+              '&:hover': { backgroundColor: 'error.dark' },
+              '&:disabled': { backgroundColor: 'grey.400' }
+            }}
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </DashboardLayout>
   );
 }

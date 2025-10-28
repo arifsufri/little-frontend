@@ -2,6 +2,13 @@ import axios, { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestCo
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
 
+// Debug logging for mobile issues
+if (typeof window !== 'undefined') {
+  console.log('🔍 API Base URL:', BASE_URL);
+  console.log('🔍 Environment:', process.env.NODE_ENV);
+  console.log('🔍 All NEXT_PUBLIC vars:', Object.keys(process.env).filter(key => key.startsWith('NEXT_PUBLIC')));
+}
+
 // Default axios instance (matches your other project's pattern)
 const axiosInstance: AxiosInstance = axios.create({ baseURL: BASE_URL });
 
@@ -26,7 +33,10 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (res: AxiosResponse) => res,
   (error: AxiosError) => {
-    console.error('Axios error:', error);
+    console.error('🚨 Axios error:', error);
+    console.error('🚨 Request URL:', error.config?.url);
+    console.error('🚨 Base URL:', error.config?.baseURL);
+    console.error('🚨 Full URL:', `${error.config?.baseURL}${error.config?.url}`);
     
     // Handle authentication errors
     if (error.response?.status === 401) {
