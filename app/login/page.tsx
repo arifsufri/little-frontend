@@ -15,6 +15,7 @@ import {
   Alert,
   IconButton,
   InputAdornment,
+  CircularProgress,
 } from "@mui/material";
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
@@ -56,6 +57,7 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginForm) => {
     setErrorMsg(null);
+    
     try {
       const res = await apiPost<{ success: boolean; data: { token: string } }>(
         '/auth/login',
@@ -66,8 +68,33 @@ export default function LoginPage() {
       localStorage.setItem('token', token);
       router.push('/dashboard');
     } catch (e: any) {
-      const msg = e?.response?.data?.error || e?.message || 'Login failed';
+      // Get the specific error message from the backend
+      const errorResponse = e?.response?.data;
+      let msg = 'Login failed. Please try again.';
+      
+      if (errorResponse?.error === 'Email not registered') {
+        msg = 'This email is not registered. Please check your email or create an account.';
+      } else if (errorResponse?.error === 'Wrong password') {
+        msg = 'The password you entered is incorrect. Please try again.';
+      } else if (errorResponse?.error === 'Account not activated') {
+        msg = 'Your account is pending activation. Please contact your administrator.';
+      } else if (errorResponse?.message) {
+        msg = errorResponse.message;
+      } else if (e?.message) {
+        msg = e.message;
+      }
+      
       setErrorMsg(msg);
+      
+      // Don't reset form fields on error - keep user's input
+      // The error message will persist until user tries again or types in fields
+    }
+  };
+
+  // Clear error message when user starts typing
+  const handleInputChange = () => {
+    if (errorMsg) {
+      setErrorMsg(null);
     }
   };
 
@@ -129,13 +156,22 @@ export default function LoginPage() {
                 </Alert>
               )}
 
-              <Box component="form" onSubmit={handleSubmit(onSubmit)} mt={{ xs: 2, sm: 3 }}>
+              <Box 
+                component="form" 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSubmit(onSubmit)(e);
+                }} 
+                mt={{ xs: 2, sm: 3 }}
+              >
                 <TextField
                   label="Email"
                   type="email"
                   fullWidth
                   size="small"
-                  {...register("email")}
+                  {...register("email", {
+                    onChange: () => handleInputChange()
+                  })}
                   error={!!errors.email}
                   helperText={errors.email?.message}
                 />
@@ -145,7 +181,9 @@ export default function LoginPage() {
                   fullWidth
                   size="small"
                   sx={{ mt: 2 }}
-                  {...register("password")}
+                  {...register("password", {
+                    onChange: () => handleInputChange()
+                  })}
                   error={!!errors.password}
                   helperText={errors.password?.message}
                   InputProps={{
@@ -168,10 +206,17 @@ export default function LoginPage() {
                   type="submit"
                   variant="contained"
                   fullWidth
-                  sx={{ mt: { xs: 2.5, sm: 3 }, bgcolor: "#111827", "&:hover": { bgcolor: "#1f2937" } }}
+                  sx={{ 
+                    mt: { xs: 2.5, sm: 3 }, 
+                    bgcolor: "#111827", 
+                    "&:hover": { bgcolor: "#1f2937" },
+                    "&:disabled": { bgcolor: "#374151" },
+                    minHeight: 42
+                  }}
                   disabled={isSubmitting}
+                  startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
                 >
-                  Sign in
+                  {isSubmitting ? 'Signing in...' : 'Sign in'}
                 </Button>
               </Box>
 

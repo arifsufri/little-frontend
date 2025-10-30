@@ -46,6 +46,12 @@ interface Appointment {
     barber: string | null;
     imageUrl: string | null;
   };
+  barber?: {
+    id: number;
+    name: string;
+    role: string;
+    commissionRate: number;
+  } | null;
 }
 
 interface AppointmentCardProps {
@@ -213,18 +219,16 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
           >
             {appointment.package.name}
           </Typography>
-          {appointment.package.barber && (
-            <Typography 
-              variant="body2" 
-              color="text.secondary" 
-              sx={{ 
-                mb: { xs: 0.5, sm: 1 },
-                fontSize: { xs: '0.8rem', sm: '0.875rem' }
-              }}
-            >
-              Barber: {appointment.package.barber}
-            </Typography>
-          )}
+          <Typography 
+            variant="body2" 
+            color="text.secondary" 
+            sx={{ 
+              mb: { xs: 0.5, sm: 1 },
+              fontSize: { xs: '0.8rem', sm: '0.875rem' }
+            }}
+          >
+            Barber: {appointment.barber?.name || appointment.package.barber || 'Not assigned'}
+          </Typography>
         </Box>
 
         {/* Details grid */}

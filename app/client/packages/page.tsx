@@ -375,7 +375,7 @@ export default function ClientPackagesPage() {
                     </MenuItem>
                     {barbers.map((barber) => (
                       <MenuItem key={barber.id} value={barber.id}>
-                        {barber.name} ({barber.role})
+                        {barber.name}
                       </MenuItem>
                     ))}
                   </Select>

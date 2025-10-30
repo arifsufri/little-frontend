@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Container, Card, CardContent, Typography, TextField, Button, Box, Stack, Alert, IconButton, InputAdornment } from "@mui/material";
+import { Container, Card, CardContent, Typography, TextField, Button, Box, Stack, Alert, IconButton, InputAdornment, CircularProgress } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -242,10 +242,17 @@ export default function RegisterPage() {
                   type="submit"
                   variant="contained"
                   fullWidth
-                  sx={{ mt: { xs: 2.5, sm: 3 }, bgcolor: "#111827", "&:hover": { bgcolor: "#1f2937" } }}
+                  sx={{ 
+                    mt: { xs: 2.5, sm: 3 }, 
+                    bgcolor: "#111827", 
+                    "&:hover": { bgcolor: "#1f2937" },
+                    "&:disabled": { bgcolor: "#374151" },
+                    minHeight: 42
+                  }}
                   disabled={isSubmitting}
+                  startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
                 >
-                  Create account
+                  {isSubmitting ? 'Creating account...' : 'Create account'}
                 </Button>
               </Box>
 

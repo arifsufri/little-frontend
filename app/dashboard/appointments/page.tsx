@@ -35,7 +35,9 @@ import {
   Select,
   InputAdornment,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import EventIcon from '@mui/icons-material/Event';
 import PendingIcon from '@mui/icons-material/Pending';
@@ -88,6 +90,12 @@ interface Appointment {
     barber: string | null;
     imageUrl: string | null;
   };
+  barber?: {
+    id: number;
+    name: string;
+    role: string;
+    commissionRate: number;
+  } | null;
 }
 
 export default function AppointmentsPage() {
@@ -109,8 +117,16 @@ export default function AppointmentsPage() {
   const [customPackageName, setCustomPackageName] = React.useState('');
   const [customPackagePrice, setCustomPackagePrice] = React.useState<number>(0);
   const [isCompleting, setIsCompleting] = React.useState(false);
+  const [snackbar, setSnackbar] = React.useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info'
+  });
   const [createAppointmentOpen, setCreateAppointmentOpen] = React.useState(false);
+  const [changeBarberOpen, setChangeBarberOpen] = React.useState(false);
   const [clients, setClients] = React.useState<any[]>([]);
+  const [staff, setStaff] = React.useState<any[]>([]);
+  const [selectedBarberId, setSelectedBarberId] = React.useState<string>('');
   const [newAppointment, setNewAppointment] = React.useState({
     clientId: '',
     packageId: '',
@@ -118,16 +134,52 @@ export default function AppointmentsPage() {
     notes: ''
   });
 
+  const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
   React.useEffect(() => {
     fetchAppointments();
     fetchPackages();
     fetchClients();
-  }, []);
+    if (userRole === 'Boss' || userRole === 'Staff') {
+      fetchStaff();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userRole]);
 
   const fetchAppointments = async () => {
     try {
       const response = await apiGet<{ success: boolean; data: Appointment[] }>('/appointments');
-      setAppointments(response.data || []);
+      let appointmentsData = response.data || [];
+      
+      // Filter appointments based on user role
+      if (userRole === 'Staff') {
+        // Get current user ID from token
+        const token = localStorage.getItem('token');
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const currentUserId = payload.userId;
+            
+            // Staff can only see appointments assigned to them or unassigned appointments
+            appointmentsData = appointmentsData.filter(appointment => 
+              appointment.barber?.id === currentUserId || 
+              appointment.barber === null || 
+              appointment.barber === undefined
+            );
+          } catch (tokenError) {
+            console.error('Error parsing token:', tokenError);
+          }
+        }
+      }
+      // Boss can see all appointments (no filtering needed)
+      
+      setAppointments(appointmentsData);
     } catch (error) {
       console.error('Error fetching appointments:', error);
       setAppointments([]);
@@ -156,6 +208,43 @@ export default function AppointmentsPage() {
     }
   };
 
+  const fetchStaff = async () => {
+    try {
+      const response = await apiGet<{ success: boolean; data: any[] }>('/staff');
+      setStaff(response.data || []);
+    } catch (error) {
+      console.error('Error fetching staff:', error);
+      setStaff([]);
+    }
+  };
+
+
+  const handleChangeBarber = async () => {
+    if (!selectedAppointment) return;
+
+    try {
+      const barberId = selectedBarberId === 'unassign' ? null : parseInt(selectedBarberId);
+      
+      await apiPut(`/appointments/${selectedAppointment.id}`, { 
+        barberId: barberId 
+      });
+      
+      // Refresh appointments
+      fetchAppointments();
+      
+      // Close dialog and reset state
+      setChangeBarberOpen(false);
+      setSelectedBarberId('');
+      handleMenuClose();
+      
+      const barberName = barberId ? staff.find(s => s.id === barberId)?.name : 'Unassigned';
+      showNotification(`Barber changed to: ${barberName}`, 'success');
+    } catch (error: any) {
+      console.error('Error changing barber:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to change barber. Please try again.';
+      showNotification(errorMessage, 'error');
+    }
+  };
 
   const handleCreateAppointment = async () => {
     try {
@@ -197,6 +286,7 @@ export default function AppointmentsPage() {
     setAnchorEl(null);
     setSelectedAppointment(null);
   };
+
 
   const handleStatusUpdate = async (newStatus: string) => {
     if (!selectedAppointment) return;
@@ -258,7 +348,7 @@ export default function AppointmentsPage() {
 
       console.log('Sending update data:', updateData);
       
-      const response = await apiPut(`/appointments/${selectedAppointment.id}`, updateData);
+      const response = await apiPut(`/appointments/${selectedAppointment.id}`, updateData) as any;
       console.log('Update response:', response);
       
       // Reset modal state
@@ -266,6 +356,44 @@ export default function AppointmentsPage() {
       
       // Refresh appointments
       await fetchAppointments();
+      
+      // Fetch updated financial data and show comprehensive notification
+      if (response.data && response.data.barber) {
+        const earnings = finalPrice * (response.data.barber.commissionRate / 100);
+        
+        // Fetch updated financial summary for today
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          const financialResponse = await apiGet(`/financial/staff-report?startDate=${today}&endDate=${today}`) as any;
+          
+          if (financialResponse.success) {
+            const summary = financialResponse.data.summary;
+            const serviceBreakdown = financialResponse.data.serviceBreakdown;
+            
+            // Find the current service in breakdown
+            const currentService = serviceBreakdown.find((s: any) => s.name === response.data.package.name);
+            const serviceCount = currentService ? currentService.count : 1;
+            
+            showNotification(
+              `🎉 Appointment completed! +RM${earnings.toFixed(2)} | Today: RM${summary.totalEarnings.toFixed(2)} (${summary.totalCustomers} customers, ${summary.totalServices} services) | ${response.data.package.name}: ${serviceCount}x`,
+              'success'
+            );
+          } else {
+            showNotification(
+              `Appointment completed! You earned RM${earnings.toFixed(2)} (${response.data.barber.commissionRate}% commission)`,
+              'success'
+            );
+          }
+        } catch (error) {
+          showNotification(
+            `Appointment completed! You earned RM${earnings.toFixed(2)} (${response.data.barber.commissionRate}% commission)`,
+            'success'
+          );
+        }
+      } else {
+        showNotification('Appointment completed successfully!', 'success');
+      }
+      
       console.log('Appointment completion successful');
     } catch (error: any) {
       console.error('Error completing appointment:', error);
@@ -280,7 +408,7 @@ export default function AppointmentsPage() {
       
       // Show user-friendly error message
       const errorMessage = error?.message || error?.error || 'Failed to complete appointment. Please try again.';
-      alert(errorMessage);
+      showNotification(errorMessage, 'error');
     } finally {
       setIsCompleting(false);
     }
@@ -436,7 +564,8 @@ export default function AppointmentsPage() {
           </Typography>
           {userRole === 'Boss' && (
             <GradientButton
-              variant="blue"
+              variant="red"
+              animated
               onClick={() => setCreateAppointmentOpen(true)}
               sx={{ 
                 px: { xs: 2, sm: 3 }, 
@@ -805,6 +934,7 @@ export default function AppointmentsPage() {
                     <TableRow>
                       <TableCell><strong>Client</strong></TableCell>
                       <TableCell><strong>Service</strong></TableCell>
+                      <TableCell><strong>Barber</strong></TableCell>
                       <TableCell><strong>Price</strong></TableCell>
                       <TableCell><strong>Status</strong></TableCell>
                       <TableCell><strong>Booked Date</strong></TableCell>
@@ -839,6 +969,11 @@ export default function AppointmentsPage() {
                               by {appointment.package.barber}
                             </Typography>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {appointment.barber?.name || appointment.package.barber || 'Not assigned'}
+                          </Typography>
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" fontWeight={600} color="success.main">
@@ -891,6 +1026,11 @@ export default function AppointmentsPage() {
           <MenuItem onClick={() => handleViewDetails(selectedAppointment!)}>
             View Details
           </MenuItem>
+          {(userRole === 'Boss' || userRole === 'Staff') && selectedAppointment?.status !== 'cancelled' && selectedAppointment?.status !== 'completed' && (
+            <MenuItem onClick={() => setChangeBarberOpen(true)}>
+              Change Barber
+            </MenuItem>
+          )}
           {selectedAppointment?.status === 'pending' && (
             <MenuItem onClick={() => handleStatusUpdate('confirmed')}>
               Confirm Appointment
@@ -1312,34 +1452,34 @@ export default function AppointmentsPage() {
           <DialogActions sx={{ 
             p: { xs: 2, sm: 3 }, 
             gap: { xs: 1.5, sm: 2 },
-            flexDirection: { xs: 'column', sm: 'row' }
+            flexDirection: 'row'
           }}>
             <GradientButton
-              variant="red"
+              variant="blue"
+              animated
               onClick={resetConfirmationModal}
               sx={{ 
+                flex: 1,
                 px: { xs: 2, sm: 3 }, 
                 py: { xs: 1, sm: 1.2 }, 
-                fontSize: { xs: 13, sm: 14 },
-                width: { xs: '100%', sm: 'auto' },
-                order: { xs: 2, sm: 1 }
+                fontSize: { xs: 13, sm: 14 }
               }}
             >
               Cancel
             </GradientButton>
             <GradientButton
-              variant="green"
+              variant="red"
+              animated
               onClick={() => {
                 console.log('Confirm & Complete button clicked');
                 handleConfirmCompletion();
               }}
               disabled={isCompleting}
               sx={{ 
+                flex: 1,
                 px: { xs: 2, sm: 3 }, 
                 py: { xs: 1, sm: 1.2 }, 
-                fontSize: { xs: 13, sm: 14 },
-                width: { xs: '100%', sm: 'auto' },
-                order: { xs: 1, sm: 2 }
+                fontSize: { xs: 13, sm: 14 }
               }}
             >
               {isCompleting ? 'Completing...' : 'Confirm & Complete'}
@@ -1447,39 +1587,165 @@ export default function AppointmentsPage() {
           <DialogActions sx={{ 
             p: { xs: 2, sm: 3 }, 
             gap: { xs: 1.5, sm: 2 },
-            flexDirection: { xs: 'column', sm: 'row' }
+            flexDirection: 'row'
           }}>
             <GradientButton
-              variant="red"
+              variant="blue"
+              animated
               onClick={() => setCreateAppointmentOpen(false)}
               sx={{ 
+                flex: 1,
                 px: { xs: 2, sm: 3 }, 
                 py: { xs: 1, sm: 1.2 }, 
-                fontSize: { xs: 13, sm: 14 },
-                width: { xs: '100%', sm: 'auto' },
-                order: { xs: 2, sm: 1 }
+                fontSize: { xs: 13, sm: 14 }
               }}
             >
               Cancel
             </GradientButton>
             <GradientButton
-              variant="green"
+              variant="red"
+              animated
               onClick={handleCreateAppointment}
               disabled={!newAppointment.clientId || !newAppointment.packageId}
               sx={{ 
+                flex: 1,
                 px: { xs: 2, sm: 3 }, 
                 py: { xs: 1, sm: 1.2 }, 
-                fontSize: { xs: 13, sm: 14 },
-                width: { xs: '100%', sm: 'auto' },
-                order: { xs: 1, sm: 2 }
+                fontSize: { xs: 13, sm: 14 }
               }}
             >
-              Create Appointment
+              Create
+            </GradientButton>
+          </DialogActions>
+        </Dialog>
+
+        {/* Change Barber Dialog */}
+        <Dialog 
+          open={changeBarberOpen} 
+          onClose={() => setChangeBarberOpen(false)} 
+          maxWidth="sm" 
+          fullWidth
+          sx={{
+            '& .MuiDialog-paper': {
+              margin: { xs: 1, sm: 2 },
+              borderRadius: { xs: 2, sm: 2 },
+              maxHeight: { xs: '90vh', sm: 'none' }
+            }
+          }}
+        >
+          <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
+            <Typography 
+              variant="h6" 
+              fontWeight={600}
+              sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+            >
+              Change Barber
+            </Typography>
+            {selectedAppointment && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {selectedAppointment.client.fullName} - {selectedAppointment.package.name}
+              </Typography>
+            )}
+          </DialogTitle>
+          <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
+            <Stack spacing={3} sx={{ mt: 1 }}>
+              <FormControl fullWidth>
+                <InputLabel>Select Barber</InputLabel>
+                <Select
+                  value={selectedBarberId}
+                  onChange={(e) => setSelectedBarberId(e.target.value)}
+                  label="Select Barber"
+                >
+                  <MenuItem value="unassign">
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                      <Typography>Unassign (No barber)</Typography>
+                    </Box>
+                  </MenuItem>
+                  {staff.filter(member => member.status === 'active').map((member) => (
+                    <MenuItem key={member.id} value={member.id}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                        <Typography>{member.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {member.role}
+                        </Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              
+              {selectedAppointment && (
+                <Box sx={{ 
+                  p: 2, 
+                  bgcolor: 'grey.50', 
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'grey.200'
+                }}>
+                  <Typography variant="body2" fontWeight={500} gutterBottom>
+                    Current Assignment:
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedAppointment.barber?.name || 'Not assigned'}
+                  </Typography>
+                </Box>
+              )}
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ 
+            px: { xs: 2, sm: 3 }, 
+            pb: { xs: 2, sm: 3 },
+            gap: { xs: 1.5, sm: 2 },
+            flexDirection: 'row'
+          }}>
+            <GradientButton
+              variant="blue"
+              animated
+              onClick={() => setChangeBarberOpen(false)}
+              sx={{ 
+                flex: 1,
+                px: { xs: 2, sm: 3 }, 
+                py: { xs: 1, sm: 1.2 }, 
+                fontSize: { xs: 13, sm: 14 }
+              }}
+            >
+              Cancel
+            </GradientButton>
+            <GradientButton
+              variant="red"
+              animated
+              onClick={handleChangeBarber}
+              disabled={!selectedBarberId}
+              sx={{ 
+                flex: 1,
+                px: { xs: 2, sm: 3 }, 
+                py: { xs: 1, sm: 1.2 }, 
+                fontSize: { xs: 13, sm: 14 }
+              }}
+            >
+              Change Barber
             </GradientButton>
           </DialogActions>
         </Dialog>
 
       </Grid>
+
+      {/* Success/Error Notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={8000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </DashboardLayout>
   );
 }

@@ -13,7 +13,8 @@ import {
   Button,
   Stack,
   IconButton,
-  InputAdornment
+  InputAdornment,
+  CircularProgress
 } from '@mui/material';
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
@@ -270,10 +271,17 @@ export default function BossPortalPage() {
                   type="submit"
                   variant="contained"
                   fullWidth
-                  sx={{ mt: { xs: 2.5, sm: 3 }, bgcolor: "#111827", "&:hover": { bgcolor: "#1f2937" } }}
+                  sx={{ 
+                    mt: { xs: 2.5, sm: 3 }, 
+                    bgcolor: "#111827", 
+                    "&:hover": { bgcolor: "#1f2937" },
+                    "&:disabled": { bgcolor: "#374151" },
+                    minHeight: 42
+                  }}
                   disabled={isSubmitting}
+                  startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
                 >
-                  Create Boss Account
+                  {isSubmitting ? 'Creating account...' : 'Create Boss Account'}
                 </Button>
               </Box>
 

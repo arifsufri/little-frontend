@@ -222,7 +222,8 @@ export default function ClientsPage() {
           </Typography>
           {userRole === 'Boss' && (
             <GradientButton
-              variant="green"
+              variant="red"
+              animated
               onClick={() => setCreateClientOpen(true)}
               sx={{ 
                 px: { xs: 2, sm: 3 }, 
@@ -554,23 +555,34 @@ export default function ClientsPage() {
         <DialogActions sx={{ 
           p: 3, 
           gap: 2,
-          flexDirection: isMobile ? 'column' : 'row',
-          alignItems: isMobile ? 'stretch' : 'center'
+          flexDirection: 'row'
         }}>
           <GradientButton
-            variant="red"
+            variant="blue"
+            animated
             onClick={() => setCreateClientOpen(false)}
-            sx={{ px: 3, py: 1.2, fontSize: 14 }}
+            sx={{ 
+              flex: 1,
+              px: { xs: 2, sm: 3 }, 
+              py: { xs: 1, sm: 1.2 }, 
+              fontSize: { xs: 13, sm: 14 }
+            }}
           >
             Cancel
           </GradientButton>
           <GradientButton
-            variant="green"
+            variant="red"
+            animated
             onClick={handleCreateClient}
             disabled={!newClient.fullName.trim() || !newClient.phoneNumber.trim()}
-            sx={{ px: 3, py: 1.2, fontSize: 14 }}
+            sx={{ 
+              flex: 1,
+              px: { xs: 2, sm: 3 }, 
+              py: { xs: 1, sm: 1.2 }, 
+              fontSize: { xs: 13, sm: 14 }
+            }}
           >
-            Create Client
+            Create
           </GradientButton>
         </DialogActions>
       </Dialog>

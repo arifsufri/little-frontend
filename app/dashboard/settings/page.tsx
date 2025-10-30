@@ -10,9 +10,6 @@ import {
   Grid,
   TextField,
   Button,
-  Switch,
-  FormControlLabel,
-  Divider,
   Alert,
   Avatar,
   IconButton,
@@ -20,20 +17,18 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
-  Chip,
   Tab,
-  Tabs
+  Tabs,
+  useTheme,
+  useMediaQuery,
+  Paper,
+  Stack
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
-import SaveIcon from '@mui/icons-material/Save';
 import PersonIcon from '@mui/icons-material/Person';
-import BusinessIcon from '@mui/icons-material/Business';
-import NotificationsIcon from '@mui/icons-material/Notifications';
 import SecurityIcon from '@mui/icons-material/Security';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import LockIcon from '@mui/icons-material/Lock';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -55,17 +50,8 @@ const PasswordSchema = z.object({
   path: ["confirmPassword"],
 });
 
-const BusinessSchema = z.object({
-  businessName: z.string().min(1, 'Business name is required'),
-  address: z.string().min(1, 'Address is required'),
-  phone: z.string().min(1, 'Phone number is required'),
-  email: z.string().email('Invalid email format'),
-  website: z.string().optional(),
-});
-
 type ProfileForm = z.infer<typeof ProfileSchema>;
 type PasswordForm = z.infer<typeof PasswordSchema>;
-type BusinessForm = z.infer<typeof BusinessSchema>;
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -88,6 +74,9 @@ function TabPanel({ children, value, index, ...other }: TabPanelProps) {
 }
 
 export default function SettingsPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  
   const [activeTab, setActiveTab] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
@@ -103,35 +92,6 @@ export default function SettingsPage() {
     avatar: ''
   });
 
-  // Business settings state
-  const [businessSettings, setBusinessSettings] = React.useState({
-    businessName: 'Little Barbershop',
-    address: '',
-    phone: '',
-    email: '',
-    website: '',
-    openingHours: {
-      monday: { open: '09:00', close: '18:00', closed: false },
-      tuesday: { open: '09:00', close: '18:00', closed: false },
-      wednesday: { open: '09:00', close: '18:00', closed: false },
-      thursday: { open: '09:00', close: '18:00', closed: false },
-      friday: { open: '09:00', close: '18:00', closed: false },
-      saturday: { open: '09:00', close: '17:00', closed: false },
-      sunday: { open: '10:00', close: '16:00', closed: false }
-    }
-  });
-
-  // Notification settings state
-  const [notificationSettings, setNotificationSettings] = React.useState({
-    emailNotifications: true,
-    smsNotifications: false,
-    newAppointments: true,
-    appointmentReminders: true,
-    clientRegistrations: true,
-    dailySummary: false,
-    weeklyReport: true
-  });
-
   // Form handlers
   const profileForm = useForm<ProfileForm>({
     resolver: zodResolver(ProfileSchema),
@@ -140,11 +100,6 @@ export default function SettingsPage() {
 
   const passwordForm = useForm<PasswordForm>({
     resolver: zodResolver(PasswordSchema)
-  });
-
-  const businessForm = useForm<BusinessForm>({
-    resolver: zodResolver(BusinessSchema),
-    defaultValues: businessSettings
   });
 
   const loadUserProfile = async () => {
@@ -169,32 +124,6 @@ export default function SettingsPage() {
     }
   };
 
-  const loadBusinessSettings = React.useCallback(() => {
-    // Load from localStorage or API
-    const savedSettings = localStorage.getItem('businessSettings');
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        setBusinessSettings(prev => ({ ...prev, ...parsed }));
-        businessForm.reset(parsed);
-      } catch (error) {
-        console.error('Error parsing business settings:', error);
-      }
-    }
-  }, [businessForm]);
-
-  const loadNotificationSettings = () => {
-    // Load from localStorage
-    const savedSettings = localStorage.getItem('notificationSettings');
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        setNotificationSettings(prev => ({ ...prev, ...parsed }));
-      } catch (error) {
-        console.error('Error parsing notification settings:', error);
-      }
-    }
-  };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
@@ -366,53 +295,11 @@ export default function SettingsPage() {
     }
   };
 
-  const handleBusinessSubmit = async (data: BusinessForm) => {
-    setLoading(true);
-    setSuccessMsg(null);
-    setErrorMsg(null);
-
-    try {
-      const updatedSettings = { ...businessSettings, ...data };
-      setBusinessSettings(updatedSettings);
-      localStorage.setItem('businessSettings', JSON.stringify(updatedSettings));
-      setSuccessMsg('Business settings updated successfully!');
-    } catch (error) {
-      setErrorMsg('Failed to update business settings. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleNotificationChange = (setting: string, value: boolean) => {
-    const updatedSettings = { ...notificationSettings, [setting]: value };
-    setNotificationSettings(updatedSettings);
-    localStorage.setItem('notificationSettings', JSON.stringify(updatedSettings));
-  };
-
-  const handleHoursChange = (day: string, field: 'open' | 'close' | 'closed', value: string | boolean) => {
-    setBusinessSettings(prev => ({
-      ...prev,
-      openingHours: {
-        ...prev.openingHours,
-        [day]: {
-          ...prev.openingHours[day as keyof typeof prev.openingHours],
-          [field]: value
-        }
-      }
-    }));
-  };
-
-  const saveOpeningHours = () => {
-    localStorage.setItem('businessSettings', JSON.stringify(businessSettings));
-    setSuccessMsg('Opening hours updated successfully!');
-  };
 
   // Load user profile on mount
   React.useEffect(() => {
     loadUserProfile();
-    loadBusinessSettings();
-    loadNotificationSettings();
-  }, [loadBusinessSettings]);
+  }, []);
 
   // Update form when userProfile changes
   React.useEffect(() => {
@@ -421,492 +308,593 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, pb: 2, borderBottom: '1px solid #e5e7eb' }}>
-          <Typography variant="h4" fontWeight={800} sx={{ fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif' }}>
-            Settings
-          </Typography>
-        </Box>
+      {/* Header */}
+      <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+        <Typography 
+          variant="h3" 
+          fontWeight={900} 
+          sx={{ 
+            fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
+            fontSize: { xs: '1.75rem', sm: '3rem' },
+            mb: { xs: 0.5, sm: 1 },
+            color: '#000000',
+            lineHeight: 1.2
+          }}
+        >
+          Settings
+        </Typography>
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            color: '#666666',
+            fontWeight: 400,
+            fontSize: { xs: '0.9rem', sm: '1.25rem' },
+            lineHeight: 1.3
+          }}
+        >
+          Manage your profile and account preferences
+        </Typography>
       </Box>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          {/* Success/Error Messages */}
-          {successMsg && (
-            <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccessMsg(null)}>
-              {successMsg}
-            </Alert>
-          )}
-          {errorMsg && (
-            <Alert severity="error" sx={{ mb: 3 }} onClose={() => setErrorMsg(null)}>
-              {errorMsg}
-            </Alert>
-          )}
+      {/* Success/Error Messages */}
+      {successMsg && (
+        <Alert 
+          severity="success" 
+          sx={{ 
+            mb: 3,
+            borderRadius: { xs: 2, sm: 3 },
+            '& .MuiAlert-message': {
+              fontSize: { xs: '0.875rem', sm: '1rem' }
+            }
+          }} 
+          onClose={() => setSuccessMsg(null)}
+        >
+          {successMsg}
+        </Alert>
+      )}
+      {errorMsg && (
+        <Alert 
+          severity="error" 
+          sx={{ 
+            mb: 3,
+            borderRadius: { xs: 2, sm: 3 },
+            '& .MuiAlert-message': {
+              fontSize: { xs: '0.875rem', sm: '1rem' }
+            }
+          }} 
+          onClose={() => setErrorMsg(null)}
+        >
+          {errorMsg}
+        </Alert>
+      )}
 
-          {/* Settings Tabs */}
-          <Card sx={{ boxShadow: 'none', border: '1px solid #e5e7eb', borderRadius: 3, backgroundColor: '#fff' }}>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs value={activeTab} onChange={handleTabChange} aria-label="settings tabs">
-              <Tab icon={<PersonIcon />} label="Profile" />
-              <Tab icon={<BusinessIcon />} label="Business" />
-              <Tab icon={<NotificationsIcon />} label="Notifications" />
-              <Tab icon={<SecurityIcon />} label="Security" />
-            </Tabs>
-          </Box>
+      {/* Settings Navigation */}
+      <Paper 
+        elevation={0}
+        sx={{ 
+          borderRadius: { xs: 3, sm: 4 },
+          border: '1px solid rgba(0, 0, 0, 0.06)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+          overflow: 'hidden',
+          mb: 3
+        }}
+      >
+        <Tabs 
+          value={activeTab} 
+          onChange={handleTabChange} 
+          variant={isMobile ? "fullWidth" : "standard"}
+          sx={{
+            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+            '& .MuiTab-root': {
+              minHeight: { xs: 64, sm: 72 },
+              fontSize: { xs: '0.875rem', sm: '1rem' },
+              fontWeight: 600,
+              textTransform: 'none',
+              color: '#64748b',
+              '&.Mui-selected': {
+                color: '#dc2626',
+                fontWeight: 700
+              }
+            },
+            '& .MuiTabs-indicator': {
+              backgroundColor: '#dc2626',
+              height: 3
+            }
+          }}
+        >
+          <Tab 
+            icon={<PersonIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />} 
+            label="Profile" 
+            iconPosition="start"
+          />
+          <Tab 
+            icon={<SecurityIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />} 
+            label="Security" 
+            iconPosition="start"
+          />
+        </Tabs>
 
-          {/* Profile Tab */}
-          <TabPanel value={activeTab} index={0}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <Box sx={{ position: 'relative', mr: 3 }}>
-                  <Avatar 
-                    sx={{ width: 80, height: 80, bgcolor: 'primary.main' }}
-                    src={avatarPreview || userProfile.avatar}
+        {/* Profile Tab */}
+        <TabPanel value={activeTab} index={0}>
+          <Box sx={{ p: { xs: 3, sm: 4 } }}>
+            {/* Profile Header */}
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: { xs: 'center', sm: 'flex-start' },
+              gap: { xs: 3, sm: 4 },
+              mb: 4,
+              p: { xs: 3, sm: 4 },
+              borderRadius: { xs: 2, sm: 3 },
+              background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+              border: '1px solid rgba(0, 0, 0, 0.06)'
+            }}>
+              <Box sx={{ position: 'relative' }}>
+                <Avatar 
+                  sx={{ 
+                    width: { xs: 100, sm: 120 }, 
+                    height: { xs: 100, sm: 120 },
+                    bgcolor: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                    fontSize: { xs: '2rem', sm: '2.5rem' },
+                    fontWeight: 700,
+                    boxShadow: '0 8px 32px rgba(220, 38, 38, 0.3)'
+                  }}
+                  src={avatarPreview || userProfile.avatar}
+                >
+                  {userProfile.name.charAt(0).toUpperCase()}
+                </Avatar>
+                
+                {/* Camera overlay */}
+                <IconButton
+                  component="label"
+                  sx={{
+                    position: 'absolute',
+                    bottom: 0,
+                    right: 0,
+                    bgcolor: '#dc2626',
+                    color: 'white',
+                    width: { xs: 36, sm: 40 },
+                    height: { xs: 36, sm: 40 },
+                    '&:hover': { bgcolor: '#991b1b' },
+                    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.4)'
+                  }}
+                  disabled={loading}
+                >
+                  <PhotoCameraIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                  <input
+                    type="file"
+                    hidden
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                  />
+                </IconButton>
+
+                {avatarPreview && (
+                  <IconButton
+                    onClick={() => {
+                      setAvatarPreview(null);
+                      setSelectedFile(null);
+                    }}
+                    sx={{ 
+                      position: 'absolute',
+                      top: -8,
+                      right: -8,
+                      bgcolor: '#ef4444', 
+                      color: 'white',
+                      width: 28,
+                      height: 28,
+                      fontSize: '1rem',
+                      '&:hover': { bgcolor: '#dc2626' }
+                    }}
                   >
-                    {userProfile.name.charAt(0).toUpperCase()}
-                  </Avatar>
-                  {avatarPreview && (
-                    <Box sx={{ position: 'absolute', top: -5, right: -5 }}>
-                      <IconButton
-                        size="small"
-                        onClick={() => {
-                          setAvatarPreview(null);
-                          setSelectedFile(null);
-                        }}
-                        sx={{ 
-                          bgcolor: 'error.main', 
-                          color: 'white',
-                          '&:hover': { bgcolor: 'error.dark' },
-                          width: 20,
-                          height: 20
-                        }}
-                      >
-                        ×
-                      </IconButton>
-                    </Box>
-                  )}
-                </Box>
-                <Box>
-                  <Typography variant="h6" fontWeight={600}>
-                    {userProfile.name || 'User'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {userProfile.email}
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                    <Button 
-                      component="label"
-                      startIcon={<EditIcon />} 
-                      size="small"
-                      disabled={loading}
-                    >
-                      {selectedFile ? 'Change Photo' : 'Upload Photo'}
-                      <input
-                        type="file"
-                        hidden
-                        accept="image/*"
-                        onChange={handleFileSelect}
-                      />
-                    </Button>
-                    {selectedFile && (
-                      <GradientButton 
-                        variant="red"
-                        animated
-                        sx={{ px: 2, py: 0.8, fontSize: 12 }}
-                        onClick={handleAvatarUpload}
-                        disabled={loading}
-                      >
-                        Save Photo
-                      </GradientButton>
-                    )}
-                  </Box>
-                  {selectedFile && (
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                      Selected: {selectedFile.name}
-                    </Typography>
-                  )}
-                </Box>
+                    ×
+                  </IconButton>
+                )}
               </Box>
 
-              <form onSubmit={profileForm.handleSubmit(handleProfileSubmit)}>
-                <Grid container spacing={3}>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      label="Full Name"
-                      fullWidth
-                      {...profileForm.register('name')}
-                      error={!!profileForm.formState.errors.name}
-                      helperText={profileForm.formState.errors.name?.message}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      label="Email Address"
-                      type="email"
-                      fullWidth
-                      {...profileForm.register('email')}
-                      error={!!profileForm.formState.errors.email}
-                      helperText={profileForm.formState.errors.email?.message}
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                      <GradientButton
-                        type="submit"
-                        variant="green"
-                        animated
-                        sx={{ px: 2, py: 0.8, fontSize: 12 }}
-                        disabled={loading}
-                      >
-                        Save Changes
-                      </GradientButton>
-                      <GradientButton
-                        variant="red"
-                        animated
-                        sx={{ px: 2, py: 0.8, fontSize: 12 }}
-                        onClick={() => setPasswordDialogOpen(true)}
-                      >
-                        Change Password
-                      </GradientButton>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </form>
-            </CardContent>
-          </TabPanel>
-
-          {/* Business Tab */}
-          <TabPanel value={activeTab} index={1}>
-            <CardContent>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
-                Business Information
-              </Typography>
-              
-              <form onSubmit={businessForm.handleSubmit(handleBusinessSubmit)}>
-                <Grid container spacing={3}>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      label="Business Name"
-                      fullWidth
-                      {...businessForm.register('businessName')}
-                      error={!!businessForm.formState.errors.businessName}
-                      helperText={businessForm.formState.errors.businessName?.message}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      label="Phone Number"
-                      fullWidth
-                      {...businessForm.register('phone')}
-                      error={!!businessForm.formState.errors.phone}
-                      helperText={businessForm.formState.errors.phone?.message}
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      label="Business Address"
-                      fullWidth
-                      multiline
-                      rows={2}
-                      {...businessForm.register('address')}
-                      error={!!businessForm.formState.errors.address}
-                      helperText={businessForm.formState.errors.address?.message}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      label="Business Email"
-                      type="email"
-                      fullWidth
-                      {...businessForm.register('email')}
-                      error={!!businessForm.formState.errors.email}
-                      helperText={businessForm.formState.errors.email?.message}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      label="Website (Optional)"
-                      fullWidth
-                      {...businessForm.register('website')}
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <GradientButton
-                      type="submit"
-                      variant="green"
+              <Box sx={{ flex: 1, textAlign: { xs: 'center', sm: 'left' } }}>
+                <Typography 
+                  variant="h4" 
+                  fontWeight={700} 
+                  sx={{ 
+                    mb: 1,
+                    fontSize: { xs: '1.5rem', sm: '2rem' },
+                    color: '#1f2937'
+                  }}
+                >
+                  {userProfile.name || 'User'}
+                </Typography>
+                <Typography 
+                  variant="body1" 
+                  sx={{ 
+                    color: '#6b7280',
+                    mb: 2,
+                    fontSize: { xs: '0.9rem', sm: '1rem' }
+                  }}
+                >
+                  {userProfile.email}
+                </Typography>
+                
+                {selectedFile && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      Selected: {selectedFile.name}
+                    </Typography>
+                    <GradientButton 
+                      variant="red"
                       animated
-                      sx={{ px: 2, py: 0.8, fontSize: 12 }}
+                      sx={{ 
+                        px: { xs: 2, sm: 2.5 }, 
+                        py: { xs: 0.8, sm: 1 }, 
+                        fontSize: { xs: 12, sm: 13 }
+                      }}
+                      onClick={handleAvatarUpload}
                       disabled={loading}
                     >
-                      Save Business Info
+                      Save Photo
                     </GradientButton>
-                  </Grid>
-                </Grid>
-              </form>
+                  </Box>
+                )}
+              </Box>
+            </Box>
 
-              <Divider sx={{ my: 4 }} />
-
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
-                Opening Hours
-              </Typography>
-              
-              <Grid container spacing={2}>
-                {Object.entries(businessSettings.openingHours).map(([day, hours]) => (
-                  <Grid item xs={12} key={day}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1 }}>
-                      <Typography variant="body1" sx={{ minWidth: 100, textTransform: 'capitalize' }}>
-                        {day}
-                      </Typography>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={!hours.closed}
-                            onChange={(e) => handleHoursChange(day, 'closed', !e.target.checked)}
-                          />
-                        }
-                        label="Open"
-                      />
-                      {!hours.closed && (
-                        <>
-                          <TextField
-                            type="time"
-                            value={hours.open}
-                            onChange={(e) => handleHoursChange(day, 'open', e.target.value)}
-                            size="small"
-                            sx={{ width: 120 }}
-                          />
-                          <Typography variant="body2">to</Typography>
-                          <TextField
-                            type="time"
-                            value={hours.close}
-                            onChange={(e) => handleHoursChange(day, 'close', e.target.value)}
-                            size="small"
-                            sx={{ width: 120 }}
-                          />
-                        </>
-                      )}
-                      {hours.closed && (
-                        <Chip label="Closed" color="default" size="small" />
-                      )}
-                    </Box>
-                  </Grid>
-                ))}
-                <Grid item xs={12}>
-                  <GradientButton
-                    variant="green"
-                    animated
-                    sx={{ px: 2, py: 0.8, fontSize: 12, mt: 2 }}
-                    onClick={saveOpeningHours}
-                  >
-                    Save Opening Hours
-                  </GradientButton>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </TabPanel>
-
-          {/* Notifications Tab */}
-          <TabPanel value={activeTab} index={2}>
-            <CardContent>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
-                Notification Preferences
-              </Typography>
-              
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-                    General Notifications
-                  </Typography>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={notificationSettings.emailNotifications}
-                        onChange={(e) => handleNotificationChange('emailNotifications', e.target.checked)}
-                      />
-                    }
-                    label="Email Notifications"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={notificationSettings.smsNotifications}
-                        onChange={(e) => handleNotificationChange('smsNotifications', e.target.checked)}
-                      />
-                    }
-                    label="SMS Notifications"
-                    sx={{ ml: 2 }}
-                  />
-                </Grid>
+            {/* Profile Form */}
+            <Card sx={{ 
+              borderRadius: { xs: 2, sm: 3 },
+              border: '1px solid rgba(0, 0, 0, 0.06)',
+              boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)'
+            }}>
+              <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+                <Typography 
+                  variant="h6" 
+                  fontWeight={600} 
+                  sx={{ 
+                    mb: 3,
+                    fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                    color: '#1f2937'
+                  }}
+                >
+                  Personal Information
+                </Typography>
                 
-                <Grid item xs={12}>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-                    Appointment Notifications
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={notificationSettings.newAppointments}
-                          onChange={(e) => handleNotificationChange('newAppointments', e.target.checked)}
-                        />
-                      }
-                      label="New Appointments"
-                    />
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={notificationSettings.appointmentReminders}
-                          onChange={(e) => handleNotificationChange('appointmentReminders', e.target.checked)}
-                        />
-                      }
-                      label="Appointment Reminders"
-                    />
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={notificationSettings.clientRegistrations}
-                          onChange={(e) => handleNotificationChange('clientRegistrations', e.target.checked)}
-                        />
-                      }
-                      label="New Client Registrations"
-                    />
-                  </Box>
-                </Grid>
+                <form onSubmit={profileForm.handleSubmit(handleProfileSubmit)}>
+                  <Grid container spacing={{ xs: 2, sm: 3 }}>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        label="Full Name"
+                        fullWidth
+                        variant="outlined"
+                        {...profileForm.register('name')}
+                        error={!!profileForm.formState.errors.name}
+                        helperText={profileForm.formState.errors.name?.message}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: { xs: 1.5, sm: 2 }
+                          }
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        label="Email Address"
+                        type="email"
+                        fullWidth
+                        variant="outlined"
+                        {...profileForm.register('email')}
+                        error={!!profileForm.formState.errors.email}
+                        helperText={profileForm.formState.errors.email?.message}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: { xs: 1.5, sm: 2 }
+                          }
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Stack 
+                        direction={{ xs: 'column', sm: 'row' }} 
+                        spacing={2}
+                        sx={{ mt: 2 }}
+                      >
+                        <GradientButton
+                          type="submit"
+                          variant="green"
+                          animated
+                          sx={{ 
+                            px: { xs: 2.5, sm: 3 }, 
+                            py: { xs: 1, sm: 1.2 }, 
+                            fontSize: { xs: 13, sm: 14 },
+                            fontWeight: 600,
+                            flex: { xs: 1, sm: 'none' }
+                          }}
+                          disabled={loading}
+                        >
+                          Save Changes
+                        </GradientButton>
+                        <GradientButton
+                          variant="red"
+                          animated
+                          startIcon={<LockIcon />}
+                          sx={{ 
+                            px: { xs: 2.5, sm: 3 }, 
+                            py: { xs: 1, sm: 1.2 }, 
+                            fontSize: { xs: 13, sm: 14 },
+                            fontWeight: 600,
+                            flex: { xs: 1, sm: 'none' }
+                          }}
+                          onClick={() => setPasswordDialogOpen(true)}
+                        >
+                          Change Password
+                        </GradientButton>
+                      </Stack>
+                    </Grid>
+                  </Grid>
+                </form>
+              </CardContent>
+            </Card>
+          </Box>
+        </TabPanel>
 
-                <Grid item xs={12}>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-                    Reports
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={notificationSettings.dailySummary}
-                          onChange={(e) => handleNotificationChange('dailySummary', e.target.checked)}
-                        />
-                      }
-                      label="Daily Summary"
-                    />
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={notificationSettings.weeklyReport}
-                          onChange={(e) => handleNotificationChange('weeklyReport', e.target.checked)}
-                        />
-                      }
-                      label="Weekly Business Report"
-                    />
-                  </Box>
-                </Grid>
+        {/* Security Tab */}
+        <TabPanel value={activeTab} index={1}>
+          <Box sx={{ p: { xs: 3, sm: 4 } }}>
+            <Typography 
+              variant="h6" 
+              fontWeight={600} 
+              sx={{ 
+                mb: 4,
+                fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                color: '#1f2937'
+              }}
+            >
+              Security & Privacy
+            </Typography>
+            
+            <Grid container spacing={{ xs: 2, sm: 3 }}>
+              {/* Password Section */}
+              <Grid item xs={12}>
+                <Card sx={{ 
+                  borderRadius: { xs: 2, sm: 3 },
+                  border: '1px solid rgba(0, 0, 0, 0.06)',
+                  boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+                  }
+                }}>
+                  <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+                    <Stack direction="row" alignItems="flex-start" spacing={3}>
+                      <Box sx={{
+                        width: { xs: 48, sm: 56 },
+                        height: { xs: 48, sm: 56 },
+                        borderRadius: '16px',
+                        background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 8px 24px rgba(220, 38, 38, 0.2)'
+                      }}>
+                        <LockIcon sx={{ 
+                          fontSize: { xs: 24, sm: 28 }, 
+                          color: 'white' 
+                        }} />
+                      </Box>
+                      
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography 
+                          variant="h6" 
+                          fontWeight={600} 
+                          sx={{ 
+                            mb: 1,
+                            fontSize: { xs: '1rem', sm: '1.125rem' }
+                          }}
+                        >
+                          Password Security
+                        </Typography>
+                        <Typography 
+                          variant="body2" 
+                          color="text.secondary" 
+                          sx={{ 
+                            mb: 3,
+                            fontSize: { xs: '0.875rem', sm: '1rem' },
+                            lineHeight: 1.5
+                          }}
+                        >
+                          Keep your account secure with a strong password. We recommend changing it regularly.
+                        </Typography>
+                        <GradientButton
+                          variant="red"
+                          animated
+                          startIcon={<LockIcon />}
+                          sx={{ 
+                            px: { xs: 2.5, sm: 3 }, 
+                            py: { xs: 1, sm: 1.2 }, 
+                            fontSize: { xs: 13, sm: 14 },
+                            fontWeight: 600
+                          }}
+                          onClick={() => setPasswordDialogOpen(true)}
+                        >
+                          Change Password
+                        </GradientButton>
+                      </Box>
+                    </Stack>
+                  </CardContent>
+                </Card>
               </Grid>
-            </CardContent>
-          </TabPanel>
 
-          {/* Security Tab */}
-          <TabPanel value={activeTab} index={3}>
-            <CardContent>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
-                Security Settings
-              </Typography>
-              
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <Box sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
-                      Password
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Last changed 30 days ago
-                    </Typography>
-                    <GradientButton
-                      variant="red"
-                      animated
-                      sx={{ px: 2, py: 0.8, fontSize: 12 }}
-                      onClick={() => setPasswordDialogOpen(true)}
+              {/* Account Security */}
+              <Grid item xs={12}>
+                <Card sx={{ 
+                  borderRadius: { xs: 2, sm: 3 },
+                  border: '1px solid rgba(0, 0, 0, 0.06)',
+                  boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+                  }
+                }}>
+                  <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+                    <Typography 
+                      variant="h6" 
+                      fontWeight={600} 
+                      sx={{ 
+                        mb: 3,
+                        fontSize: { xs: '1rem', sm: '1.125rem' }
+                      }}
                     >
-                      Change Password
-                    </GradientButton>
-                  </Box>
-                </Grid>
-                
-                <Grid item xs={12}>
-                  <Box sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
-                      Session Management
+                      Account Security
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Manage your active sessions across devices
-                    </Typography>
-                    <GradientButton
-                      variant="red"
-                      animated
-                      sx={{ px: 2, py: 0.8, fontSize: 12 }}
-                    >
-                      Sign Out All Devices
-                    </GradientButton>
-                  </Box>
-                </Grid>
+                    
+                    <Stack spacing={3}>
+                      <Box sx={{
+                        p: { xs: 2.5, sm: 3 },
+                        borderRadius: { xs: 1.5, sm: 2 },
+                        border: '1px solid rgba(0, 0, 0, 0.06)',
+                        background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
+                      }}>
+                        <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                          Session Management
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          Sign out from all devices to secure your account
+                        </Typography>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          size="small"
+                          sx={{ 
+                            borderRadius: { xs: 1.5, sm: 2 },
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            px: { xs: 2, sm: 2.5 },
+                            py: { xs: 0.8, sm: 1 },
+                            fontSize: { xs: 12, sm: 13 }
+                          }}
+                        >
+                          Sign Out All Devices
+                        </Button>
+                      </Box>
 
-                <Grid item xs={12}>
-                  <Box sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
-                      Data Export
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Download your business data and reports
-                    </Typography>
-                    <GradientButton
-                      variant="red"
-                      animated
-                      sx={{ px: 2, py: 0.8, fontSize: 12 }}
-                    >
-                      Export Data
-                    </GradientButton>
-                  </Box>
-                </Grid>
+                      <Box sx={{
+                        p: { xs: 2.5, sm: 3 },
+                        borderRadius: { xs: 1.5, sm: 2 },
+                        border: '1px solid rgba(0, 0, 0, 0.06)',
+                        background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
+                      }}>
+                        <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                          Data Export
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          Download your business data and reports
+                        </Typography>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          sx={{ 
+                            borderRadius: { xs: 1.5, sm: 2 },
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            px: { xs: 2, sm: 2.5 },
+                            py: { xs: 0.8, sm: 1 },
+                            fontSize: { xs: 12, sm: 13 }
+                          }}
+                        >
+                          Export Data
+                        </Button>
+                      </Box>
+                    </Stack>
+                  </CardContent>
+                </Card>
               </Grid>
-            </CardContent>
-          </TabPanel>
-        </Card>
+            </Grid>
+          </Box>
+        </TabPanel>
+      </Paper>
 
-        {/* Password Change Dialog */}
-        <Dialog open={passwordDialogOpen} onClose={() => setPasswordDialogOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>Change Password</DialogTitle>
-          <form onSubmit={passwordForm.handleSubmit(handlePasswordSubmit)}>
-            <DialogContent>
+      {/* Password Change Dialog */}
+      <Dialog 
+        open={passwordDialogOpen} 
+        onClose={() => setPasswordDialogOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: { xs: 2, sm: 3 },
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          pb: 2,
+          fontSize: { xs: '1.25rem', sm: '1.5rem' },
+          fontWeight: 700
+        }}>
+          Change Password
+        </DialogTitle>
+        <form onSubmit={passwordForm.handleSubmit(handlePasswordSubmit)}>
+          <DialogContent sx={{ pb: 2 }}>
+            <Stack spacing={3}>
               <TextField
                 label="Current Password"
                 type="password"
                 fullWidth
-                sx={{ mb: 2 }}
+                variant="outlined"
                 {...passwordForm.register('currentPassword')}
                 error={!!passwordForm.formState.errors.currentPassword}
                 helperText={passwordForm.formState.errors.currentPassword?.message}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: { xs: 1.5, sm: 2 }
+                  }
+                }}
               />
               <TextField
                 label="New Password"
                 type="password"
                 fullWidth
-                sx={{ mb: 2 }}
+                variant="outlined"
                 {...passwordForm.register('newPassword')}
                 error={!!passwordForm.formState.errors.newPassword}
                 helperText={passwordForm.formState.errors.newPassword?.message}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: { xs: 1.5, sm: 2 }
+                  }
+                }}
               />
               <TextField
                 label="Confirm New Password"
                 type="password"
                 fullWidth
+                variant="outlined"
                 {...passwordForm.register('confirmPassword')}
                 error={!!passwordForm.formState.errors.confirmPassword}
                 helperText={passwordForm.formState.errors.confirmPassword?.message}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: { xs: 1.5, sm: 2 }
+                  }
+                }}
               />
-            </DialogContent>
-            <DialogActions>
-              <GradientButton 
-                variant="red"
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ p: 3, pt: 2 }}>
+            <Stack 
+              direction="row" 
+              spacing={2}
+              sx={{ width: '100%' }}
+            >
+              <GradientButton
+                variant="blue"
                 animated
-                sx={{ px: 3, py: 1.2, fontSize: 14 }}
                 onClick={() => setPasswordDialogOpen(false)}
+                sx={{ 
+                  flex: 1,
+                  px: { xs: 2.5, sm: 3 }, 
+                  py: { xs: 1, sm: 1.2 }, 
+                  fontSize: { xs: 13, sm: 14 },
+                  fontWeight: 600
+                }}
               >
                 Cancel
               </GradientButton>
@@ -914,16 +902,21 @@ export default function SettingsPage() {
                 type="submit" 
                 variant="red"
                 animated
-                sx={{ px: 3, py: 1.2, fontSize: 14 }}
+                sx={{ 
+                  flex: 1,
+                  px: { xs: 2.5, sm: 3 }, 
+                  py: { xs: 1, sm: 1.2 }, 
+                  fontSize: { xs: 13, sm: 14 },
+                  fontWeight: 600
+                }}
                 disabled={loading}
               >
-                Change Password
+                {loading ? 'Changing...' : 'Change Password'}
               </GradientButton>
-            </DialogActions>
-          </form>
-        </Dialog>
-        </Grid>
-      </Grid>
+            </Stack>
+          </DialogActions>
+        </form>
+      </Dialog>
     </DashboardLayout>
   );
 }

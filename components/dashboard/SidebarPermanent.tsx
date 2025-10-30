@@ -11,6 +11,7 @@ import SettingsIcon from '@mui/icons-material/SettingsOutlined';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ShoppingBagIcon from '@mui/icons-material/ShoppingBagOutlined';
 import GroupIcon from '@mui/icons-material/GroupOutlined';
+import AssessmentIcon from '@mui/icons-material/AssessmentOutlined';
 
 const items = [
   { label: 'Overview', href: '/dashboard', icon: <DashboardIcon /> },
@@ -18,6 +19,7 @@ const items = [
   { label: 'Clients', href: '/dashboard/clients', icon: <PeopleIcon /> },
   { label: 'Staff', href: '/dashboard/staff', icon: <GroupIcon /> },
   { label: 'Products', href: '/dashboard/products', icon: <ShoppingBagIcon /> },
+  { label: 'Financial Reports', href: '/dashboard/financial', icon: <AssessmentIcon /> },
   { label: 'Settings', href: '/dashboard/settings', icon: <SettingsIcon /> },
 ];
 

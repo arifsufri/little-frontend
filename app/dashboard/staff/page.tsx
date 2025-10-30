@@ -33,6 +33,8 @@ import {
   useTheme,
   useMediaQuery,
   Button,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import PhoneIcon from '@mui/icons-material/Phone';
@@ -46,7 +48,13 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import { apiGet, apiPost } from '../../../src/utils/axios';
+import PercentIcon from '@mui/icons-material/Percent';
+import Menu from '@mui/material/Menu';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import PersonOffIcon from '@mui/icons-material/PersonOff';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import { apiGet, apiPost, apiPatch, apiDelete } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
 
 interface Staff {
@@ -57,6 +65,7 @@ interface Staff {
   role: 'Boss' | 'Staff';
   status: 'active' | 'inactive';
   joinDate: string;
+  commissionRate: number;
   totalAppointments: number;
   totalRevenue: number;
 }
@@ -78,12 +87,31 @@ export default function StaffPage() {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('all');
   const [createStaffOpen, setCreateStaffOpen] = React.useState(false);
+  const [commissionDialogOpen, setCommissionDialogOpen] = React.useState(false);
+  const [selectedStaff, setSelectedStaff] = React.useState<Staff | null>(null);
+  const [commissionRate, setCommissionRate] = React.useState('');
+  const [deletingStaff, setDeletingStaff] = React.useState<Staff | null>(null);
+  const [menuAnchorEl, setMenuAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [menuStaff, setMenuStaff] = React.useState<Staff | null>(null);
+  const [snackbar, setSnackbar] = React.useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info'
+  });
   const [newStaff, setNewStaff] = React.useState({
     name: '',
     email: '',
     phone: '',
     role: 'Staff' as 'Boss' | 'Staff'
   });
+
+  const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
 
   React.useEffect(() => {
     const fetchStaff = async () => {
@@ -99,10 +127,10 @@ export default function StaffPage() {
       } catch (error: any) {
         console.error('Error fetching staff:', error);
         setStaff([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
     fetchStaff();
   }, []);
@@ -112,21 +140,126 @@ export default function StaffPage() {
       const response = await apiPost('/staff', newStaff) as any;
       if (response.success) {
         setStaff([...staff, response.data]);
-        setCreateStaffOpen(false);
-        setNewStaff({
-          name: '',
-          email: '',
+      setCreateStaffOpen(false);
+      setNewStaff({
+        name: '',
+        email: '',
           phone: '',
-          role: 'Staff'
-        });
-        alert('Staff member added successfully!');
+        role: 'Staff'
+      });
+        showNotification('Staff member added successfully!', 'success');
       } else {
-        alert(response.message || 'Failed to add staff member. Please try again.');
+        showNotification(response.message || 'Failed to add staff member. Please try again.', 'error');
       }
     } catch (error: any) {
       console.error('Error creating staff:', error);
-      alert('Failed to add staff member. Please try again.');
+      // Extract error message from axios error response
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to add staff member. Please try again.';
+      showNotification(errorMessage, 'error');
     }
+  };
+
+  const handleUpdateCommission = async () => {
+    if (!selectedStaff) return;
+    
+    try {
+      const response = await apiPatch(`/financial/commission/${selectedStaff.id}`, {
+        commissionRate: parseFloat(commissionRate)
+      }) as any;
+
+      if (response.success) {
+        // Update the staff list with new commission rate
+        setStaff(staff.map(member => 
+          member.id === selectedStaff.id 
+            ? { ...member, commissionRate: parseFloat(commissionRate) }
+            : member
+        ));
+        setCommissionDialogOpen(false);
+        setSelectedStaff(null);
+        setCommissionRate('');
+        showNotification('Commission rate updated successfully!', 'success');
+      } else {
+        showNotification(response.message || 'Failed to update commission rate', 'error');
+      }
+    } catch (error: any) {
+      console.error('Error updating commission rate:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to update commission rate';
+      showNotification(errorMessage, 'error');
+    }
+  };
+
+  const openCommissionDialog = (staffMember: Staff) => {
+    setSelectedStaff(staffMember);
+    setCommissionRate(staffMember.commissionRate.toString());
+    setCommissionDialogOpen(true);
+  };
+
+  const handleToggleStatus = async (staffMember: Staff) => {
+    try {
+      const response = await apiPatch(`/staff/${staffMember.id}/toggle-status`) as any;
+      if (response.success) {
+        // Update the staff list with new status
+        setStaff(staff.map(member => 
+          member.id === staffMember.id 
+            ? { ...member, status: member.status === 'active' ? 'inactive' : 'active' }
+            : member
+        ));
+        showNotification(`Staff member ${staffMember.status === 'active' ? 'deactivated' : 'activated'} successfully!`, 'success');
+      } else {
+        showNotification(response.message || 'Failed to update staff status', 'error');
+      }
+    } catch (error: any) {
+      console.error('Error toggling staff status:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to update staff status';
+      showNotification(errorMessage, 'error');
+    }
+  };
+
+  const handleDeleteStaff = async () => {
+    if (!deletingStaff) return;
+    
+    try {
+      const response = await apiDelete(`/staff/${deletingStaff.id}`) as any;
+      if (response.success) {
+        // Remove staff from the list
+        setStaff(staff.filter(member => member.id !== deletingStaff.id));
+        setDeletingStaff(null);
+        showNotification('Staff member deleted successfully!', 'success');
+      } else {
+        showNotification(response.message || 'Failed to delete staff member', 'error');
+      }
+    } catch (error: any) {
+      console.error('Error deleting staff:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to delete staff member';
+      showNotification(errorMessage, 'error');
+    }
+  };
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, staffMember: Staff) => {
+    setMenuAnchorEl(event.currentTarget);
+    setMenuStaff(staffMember);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+    setMenuStaff(null);
+  };
+
+  const handleMenuAction = (action: string) => {
+    if (!menuStaff) return;
+    
+    switch (action) {
+      case 'commission':
+        openCommissionDialog(menuStaff);
+        break;
+      case 'toggle':
+        handleToggleStatus(menuStaff);
+        break;
+      case 'delete':
+        setDeletingStaff(menuStaff);
+        break;
+    }
+    handleMenuClose();
   };
 
   const formatDate = (dateString: string) => {
@@ -180,8 +313,8 @@ export default function StaffPage() {
 
   // Only Boss can access this page
   if (userRole !== 'Boss') {
-    return (
-      <DashboardLayout>
+  return (
+    <DashboardLayout>
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <Typography variant="h5" color="error" gutterBottom>
             Access Denied
@@ -219,7 +352,8 @@ export default function StaffPage() {
             Staff Management
           </Typography>
           <GradientButton
-            variant="blue"
+            variant="red"
+            animated
             onClick={() => setCreateStaffOpen(true)}
             sx={{ 
               px: { xs: 2, sm: 3 }, 
@@ -562,7 +696,7 @@ export default function StaffPage() {
                   </Typography>
                 </Box>
               </Box>
-            
+              
               {loading ? (
                 <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
                   Loading staff members...
@@ -581,7 +715,7 @@ export default function StaffPage() {
                         border: 'none',
                         borderRadius: { xs: 3, sm: 4 },
                         transition: 'all 0.2s ease',
-                        '&:hover': {
+                        '&:hover': { 
                           outline: '2px solid #8B0000',
                           outlineOffset: '-2px'
                         }
@@ -598,32 +732,58 @@ export default function StaffPage() {
                               }}
                             >
                               {member.name.charAt(0)}
-                            </Avatar>
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                          </Avatar>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
                               <Typography variant="h6" fontWeight={600} sx={{ fontSize: '1rem', mb: 0.5 }}>
                                 {member.name}
-                              </Typography>
+                            </Typography>
                               <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                                <Chip 
+                              <Chip 
                                   label={member.role}
                                   color={getRoleColor(member.role) as any}
-                                  size="small"
+                                size="small"
                                   sx={{ fontSize: '0.75rem' }}
-                                />
-                                <Chip 
+                              />
+                              <Chip 
                                   label={member.status}
                                   color={getStatusColor(member.status) as any}
-                                  size="small"
+                                size="small"
                                   sx={{ fontSize: '0.75rem' }}
-                                />
+                              />
                               </Stack>
                               <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
                                 {member.email} • {member.phone}
                               </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                                <Chip 
+                                  label={`${member.commissionRate}% Commission`}
+                                  color="primary"
+                                  size="small"
+                                  variant="outlined"
+                                  icon={<PercentIcon />}
+                                  sx={{ fontSize: '0.7rem' }}
+                                />
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => openCommissionDialog(member)}
+                                >
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
                             </Box>
+                          </Box>
+                            {userRole === 'Boss' && (
+                              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                        <IconButton
+                          size="small"
+                                  onClick={(e) => handleMenuOpen(e, member)}
+                        >
+                          <MoreVertIcon />
+                        </IconButton>
+                      </Box>
+                            )}
                           </Stack>
                         </CardContent>
-                      </Card>
+                    </Card>
                     </Grid>
                   ))}
                 </Grid>
@@ -637,6 +797,7 @@ export default function StaffPage() {
                         <TableCell><strong>Role</strong></TableCell>
                         <TableCell><strong>Status</strong></TableCell>
                         <TableCell><strong>Contact</strong></TableCell>
+                        <TableCell><strong>Commission</strong></TableCell>
                         <TableCell><strong>Join Date</strong></TableCell>
                         <TableCell><strong>Performance</strong></TableCell>
                         <TableCell><strong>Actions</strong></TableCell>
@@ -651,12 +812,12 @@ export default function StaffPage() {
                                 {member.name.charAt(0)}
                               </Avatar>
                               <Box>
-                                <Typography variant="body2" fontWeight={500}>
+                              <Typography variant="body2" fontWeight={500}>
                                   {member.name}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
                                   ID: {member.id}
-                                </Typography>
+                              </Typography>
                               </Box>
                             </Box>
                           </TableCell>
@@ -683,6 +844,24 @@ export default function StaffPage() {
                             </Typography>
                           </TableCell>
                           <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Chip 
+                                label={`${member.commissionRate}%`}
+                                color="primary"
+                              size="small"
+                                variant="outlined"
+                                icon={<PercentIcon />}
+                              />
+                              <IconButton 
+                                size="small" 
+                                onClick={() => openCommissionDialog(member)}
+                                sx={{ ml: 1 }}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
                             <Typography variant="body2">
                               {formatDate(member.joinDate)}
                             </Typography>
@@ -696,9 +875,14 @@ export default function StaffPage() {
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <IconButton size="small">
+                            {userRole === 'Boss' && (
+                            <IconButton
+                              size="small"
+                                onClick={(e) => handleMenuOpen(e, member)}
+                            >
                               <MoreVertIcon />
                             </IconButton>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -743,7 +927,7 @@ export default function StaffPage() {
               fullWidth
               required
             />
-            
+
             <TextField
               label="Email Address"
               type="email"
@@ -752,7 +936,7 @@ export default function StaffPage() {
               fullWidth
               required
             />
-            
+
             <TextField
               label="Phone Number"
               value={newStaff.phone}
@@ -761,7 +945,7 @@ export default function StaffPage() {
               required
               placeholder="012-3456789"
             />
-            
+
             <FormControl fullWidth>
               <InputLabel>Role</InputLabel>
               <Select
@@ -779,33 +963,244 @@ export default function StaffPage() {
           px: { xs: 2, sm: 3 }, 
           pb: { xs: 2, sm: 3 },
           gap: { xs: 1.5, sm: 2 },
-          flexDirection: { xs: 'column', sm: 'row' }
+          flexDirection: 'row'
         }}>
-          <Button
+          <GradientButton
+            variant="blue"
+            animated
             onClick={() => setCreateStaffOpen(false)}
             sx={{ 
-              width: { xs: '100%', sm: 'auto' },
-              order: { xs: 2, sm: 1 }
+              flex: 1,
+              px: { xs: 2, sm: 3 }, 
+              py: { xs: 1, sm: 1.2 }, 
+              fontSize: { xs: 13, sm: 14 }
             }}
           >
             Cancel
-          </Button>
+          </GradientButton>
           <GradientButton
-            variant="blue"
+            variant="red"
+            animated
             onClick={handleCreateStaff}
             disabled={!newStaff.name || !newStaff.email || !newStaff.phone}
             sx={{ 
+              flex: 1,
               px: { xs: 2, sm: 3 }, 
               py: { xs: 1, sm: 1.2 }, 
-              fontSize: { xs: 13, sm: 14 },
-              width: { xs: '100%', sm: 'auto' },
-              order: { xs: 1, sm: 2 }
+              fontSize: { xs: 13, sm: 14 }
             }}
           >
-            Add Staff Member
+            Add
           </GradientButton>
         </DialogActions>
       </Dialog>
+
+      {/* Commission Rate Dialog */}
+      <Dialog 
+        open={commissionDialogOpen} 
+        onClose={() => setCommissionDialogOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            margin: { xs: 1, sm: 2 },
+            borderRadius: { xs: 2, sm: 2 },
+            maxHeight: { xs: '90vh', sm: 'none' }
+          }
+        }}
+      >
+        <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
+          <Typography 
+            variant="h6" 
+            fontWeight={600}
+            sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+          >
+            Update Commission Rate
+          </Typography>
+          {selectedStaff && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {selectedStaff.name} ({selectedStaff.role})
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
+          <Stack spacing={3} sx={{ mt: 1 }}>
+            <TextField
+              label="Commission Rate (%)"
+              type="number"
+              value={commissionRate}
+              onChange={(e) => setCommissionRate(e.target.value)}
+              fullWidth
+              required
+              inputProps={{ min: 0, max: 100, step: 0.1 }}
+              InputProps={{
+                endAdornment: <InputAdornment position="end">%</InputAdornment>,
+              }}
+              helperText="Enter commission percentage (0-100%)"
+            />
+            
+            <Box sx={{ 
+              p: 2, 
+              bgcolor: 'grey.50', 
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'grey.200'
+            }}>
+              <Typography variant="body2" fontWeight={500} gutterBottom>
+                Commission Calculation Example:
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                If a service costs RM30 and commission rate is {commissionRate || 40}%:
+              </Typography>
+              <Typography variant="body2" color="success.main" fontWeight={500}>
+                Staff earnings = RM30 × {commissionRate || 40}% = RM{((30 * (parseFloat(commissionRate) || 40)) / 100).toFixed(2)}
+              </Typography>
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ 
+          px: { xs: 2, sm: 3 }, 
+          pb: { xs: 2, sm: 3 },
+          gap: { xs: 1.5, sm: 2 },
+          flexDirection: 'row'
+        }}>
+          <GradientButton
+            variant="blue"
+            animated
+            onClick={() => setCommissionDialogOpen(false)}
+            sx={{ 
+              flex: 1,
+              px: { xs: 2, sm: 3 }, 
+              py: { xs: 1, sm: 1.2 }, 
+              fontSize: { xs: 13, sm: 14 }
+            }}
+          >
+            Cancel
+          </GradientButton>
+          <GradientButton
+            variant="red"
+            animated
+            onClick={handleUpdateCommission}
+            disabled={!commissionRate || parseFloat(commissionRate) < 0 || parseFloat(commissionRate) > 100}
+            sx={{ 
+              flex: 1,
+              px: { xs: 2, sm: 3 }, 
+              py: { xs: 1, sm: 1.2 }, 
+              fontSize: { xs: 13, sm: 14 }
+            }}
+          >
+            Update Commission
+          </GradientButton>
+        </DialogActions>
+      </Dialog>
+
+      {/* Actions Menu - Boss Only */}
+      {userRole === 'Boss' && (
+        <Menu
+          anchorEl={menuAnchorEl}
+          open={Boolean(menuAnchorEl)}
+          onClose={handleMenuClose}
+          PaperProps={{
+            sx: { minWidth: 180 }
+          }}
+        >
+          <MenuItem onClick={() => handleMenuAction('commission')}>
+            <ListItemIcon>
+              <PercentIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Edit Commission</ListItemText>
+          </MenuItem>
+          
+          {menuStaff && (
+            <MenuItem onClick={() => handleMenuAction('toggle')}>
+              <ListItemIcon>
+                {menuStaff.status === 'active' ? (
+                  <PersonOffIcon fontSize="small" />
+                ) : (
+                  <PersonAddIcon fontSize="small" />
+                )}
+              </ListItemIcon>
+              <ListItemText>
+                {menuStaff.status === 'active' ? 'Deactivate' : 'Activate'}
+              </ListItemText>
+            </MenuItem>
+          )}
+          
+          <MenuItem onClick={() => handleMenuAction('delete')} sx={{ color: 'error.main' }}>
+            <ListItemIcon>
+              <DeleteIcon fontSize="small" color="error" />
+            </ListItemIcon>
+            <ListItemText>Delete Staff</ListItemText>
+          </MenuItem>
+        </Menu>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={Boolean(deletingStaff)}
+        onClose={() => setDeletingStaff(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={600}>
+            Delete Staff Member
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1">
+            Are you sure you want to delete &quot;{deletingStaff?.name}&quot;? This action cannot be undone.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            All appointments and financial data associated with this staff member will be preserved, but they will no longer be able to access the system.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ gap: 2, p: 3, flexDirection: 'row' }}>
+          <GradientButton
+            variant="blue"
+            animated
+            onClick={() => setDeletingStaff(null)}
+            sx={{ 
+              flex: 1,
+              px: { xs: 2, sm: 3 }, 
+              py: { xs: 1, sm: 1.2 }, 
+              fontSize: { xs: 13, sm: 14 }
+            }}
+          >
+            Cancel
+          </GradientButton>
+          <GradientButton
+            variant="red"
+            animated
+            onClick={handleDeleteStaff}
+            sx={{ 
+              flex: 1,
+              px: { xs: 2, sm: 3 }, 
+              py: { xs: 1, sm: 1.2 }, 
+              fontSize: { xs: 13, sm: 14 }
+            }}
+          >
+            Delete Staff
+          </GradientButton>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success/Error Notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </DashboardLayout>
   );
 }
