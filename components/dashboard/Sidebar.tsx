@@ -12,7 +12,6 @@ import {
   ListItemText,
   Box,
   Divider,
-  ListSubheader,
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/SpaceDashboardOutlined';
 import PeopleIcon from '@mui/icons-material/PeopleOutline';
@@ -85,9 +84,7 @@ export default function Sidebar({
         <Box component="img" src="/images/banner.jpg" alt="Sidebar banner" sx={{ width: '100%', display: 'block', borderRadius: 2, boxShadow: '0 6px 16px rgba(0,0,0,0.08)' }} />
       </Box>
       <Divider />
-      <List
-        subheader={<ListSubheader component="div" sx={{ bgcolor: 'transparent', color: 'text.secondary', fontWeight: 700, fontFamily: 'Manrope, Inter, system-ui, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>Navigation</ListSubheader>}
-      >
+      <List>
         {visibleItems.map((item) => {
           const active = isActive(item.href);
           return (

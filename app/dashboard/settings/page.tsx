@@ -29,11 +29,16 @@ import PersonIcon from '@mui/icons-material/Person';
 import SecurityIcon from '@mui/icons-material/Security';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import LockIcon from '@mui/icons-material/Lock';
+import SettingsIcon from '@mui/icons-material/Settings';
+import WifiIcon from '@mui/icons-material/Wifi';
+import WifiOffIcon from '@mui/icons-material/WifiOff';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { apiGet, apiPut, apiPost } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
+import keepAliveService, { KeepAliveStatus } from '../../../src/utils/keepAlive';
 
 // Validation schemas
 const ProfileSchema = z.object({
@@ -92,6 +97,9 @@ export default function SettingsPage() {
     avatar: ''
   });
 
+  // Keep-alive service state
+  const [keepAliveStatus, setKeepAliveStatus] = React.useState<KeepAliveStatus | null>(null);
+
   // Form handlers
   const profileForm = useForm<ProfileForm>({
     resolver: zodResolver(ProfileSchema),
@@ -122,6 +130,34 @@ export default function SettingsPage() {
     } catch (error) {
       console.error('Error loading user profile:', error);
     }
+  };
+
+  const updateKeepAliveStatus = () => {
+    setKeepAliveStatus(keepAliveService.getStatus());
+  };
+
+  const handleKeepAliveToggle = () => {
+    if (keepAliveService.isRunning()) {
+      keepAliveService.stop();
+      setSuccessMsg('Keep-alive service stopped');
+    } else {
+      keepAliveService.start();
+      setSuccessMsg('Keep-alive service started');
+    }
+    updateKeepAliveStatus();
+  };
+
+  const handleKeepAlivePing = async () => {
+    setLoading(true);
+    const success = await keepAliveService.ping();
+    setLoading(false);
+    
+    if (success) {
+      setSuccessMsg('Backend ping successful!');
+    } else {
+      setErrorMsg('Backend ping failed. Check your connection.');
+    }
+    updateKeepAliveStatus();
   };
 
 
@@ -299,12 +335,19 @@ export default function SettingsPage() {
   // Load user profile on mount
   React.useEffect(() => {
     loadUserProfile();
+    updateKeepAliveStatus();
   }, []);
 
   // Update form when userProfile changes
   React.useEffect(() => {
     profileForm.reset({ name: userProfile.name, email: userProfile.email });
   }, [userProfile, profileForm]);
+
+  // Update keep-alive status periodically
+  React.useEffect(() => {
+    const interval = setInterval(updateKeepAliveStatus, 5000); // Update every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <DashboardLayout>
@@ -410,6 +453,11 @@ export default function SettingsPage() {
           <Tab 
             icon={<SecurityIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />} 
             label="Security" 
+            iconPosition="start"
+          />
+          <Tab 
+            icon={<SettingsIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />} 
+            label="System" 
             iconPosition="start"
           />
         </Tabs>
@@ -801,6 +849,192 @@ export default function SettingsPage() {
                         >
                           Export Data
                         </Button>
+                      </Box>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          </Box>
+        </TabPanel>
+
+        {/* System Tab */}
+        <TabPanel value={activeTab} index={2}>
+          <Box sx={{ p: { xs: 3, sm: 4 } }}>
+            <Typography 
+              variant="h6" 
+              fontWeight={600} 
+              sx={{ 
+                mb: 4,
+                fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                color: '#1f2937'
+              }}
+            >
+              System Configuration
+            </Typography>
+            
+            <Grid container spacing={{ xs: 2, sm: 3 }}>
+              {/* Keep-Alive Service */}
+              <Grid item xs={12}>
+                <Card sx={{ 
+                  borderRadius: { xs: 2, sm: 3 },
+                  border: '1px solid rgba(0, 0, 0, 0.06)',
+                  boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+                  }
+                }}>
+                  <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+                    <Stack direction="row" alignItems="flex-start" spacing={3}>
+                      <Box sx={{
+                        width: { xs: 48, sm: 56 },
+                        height: { xs: 48, sm: 56 },
+                        borderRadius: '16px',
+                        background: keepAliveStatus?.isActive 
+                          ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                          : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: keepAliveStatus?.isActive 
+                          ? '0 8px 24px rgba(16, 185, 129, 0.2)'
+                          : '0 8px 24px rgba(239, 68, 68, 0.2)'
+                      }}>
+                        {keepAliveStatus?.isActive ? (
+                          <WifiIcon sx={{ 
+                            fontSize: { xs: 24, sm: 28 }, 
+                            color: 'white' 
+                          }} />
+                        ) : (
+                          <WifiOffIcon sx={{ 
+                            fontSize: { xs: 24, sm: 28 }, 
+                            color: 'white' 
+                          }} />
+                        )}
+                      </Box>
+                      
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography 
+                          variant="h6" 
+                          fontWeight={600} 
+                          sx={{ 
+                            mb: 1,
+                            fontSize: { xs: '1rem', sm: '1.125rem' }
+                          }}
+                        >
+                          Keep-Alive Service
+                        </Typography>
+                        <Typography 
+                          variant="body2" 
+                          color="text.secondary" 
+                          sx={{ 
+                            mb: 3,
+                            fontSize: { xs: '0.875rem', sm: '1rem' },
+                            lineHeight: 1.5
+                          }}
+                        >
+                          Prevents your Render backend from spinning down due to inactivity. 
+                          Pings the server every {keepAliveStatus ? Math.floor(keepAliveStatus.interval / 60000) : 10} minutes.
+                        </Typography>
+
+                        {keepAliveStatus && (
+                          <Box sx={{ mb: 3 }}>
+                            <Stack spacing={1}>
+                              <Typography variant="caption" color="text.secondary">
+                                <strong>Status:</strong> {keepAliveStatus.isActive ? 'Active' : 'Inactive'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                <strong>Backend URL:</strong> {keepAliveStatus.baseUrl}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                <strong>Ping Interval:</strong> {Math.floor(keepAliveStatus.interval / 60000)} minutes
+                              </Typography>
+                              {keepAliveStatus.retryCount > 0 && (
+                                <Typography variant="caption" color="error.main">
+                                  <strong>Failed Attempts:</strong> {keepAliveStatus.retryCount}
+                                </Typography>
+                              )}
+                            </Stack>
+                          </Box>
+                        )}
+
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                          <GradientButton
+                            variant={keepAliveStatus?.isActive ? "red" : "green"}
+                            animated
+                            startIcon={keepAliveStatus?.isActive ? <WifiOffIcon /> : <WifiIcon />}
+                            sx={{ 
+                              px: { xs: 2.5, sm: 3 }, 
+                              py: { xs: 1, sm: 1.2 }, 
+                              fontSize: { xs: 13, sm: 14 },
+                              fontWeight: 600
+                            }}
+                            onClick={handleKeepAliveToggle}
+                          >
+                            {keepAliveStatus?.isActive ? 'Stop Service' : 'Start Service'}
+                          </GradientButton>
+                          
+                          <GradientButton
+                            variant="blue"
+                            animated
+                            startIcon={<RefreshIcon />}
+                            sx={{ 
+                              px: { xs: 2.5, sm: 3 }, 
+                              py: { xs: 1, sm: 1.2 }, 
+                              fontSize: { xs: 13, sm: 14 },
+                              fontWeight: 600
+                            }}
+                            onClick={handleKeepAlivePing}
+                            disabled={loading}
+                          >
+                            Test Connection
+                          </GradientButton>
+                        </Stack>
+                      </Box>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Environment Info */}
+              <Grid item xs={12}>
+                <Card sx={{ 
+                  borderRadius: { xs: 2, sm: 3 },
+                  border: '1px solid rgba(0, 0, 0, 0.06)',
+                  boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)'
+                }}>
+                  <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+                    <Typography 
+                      variant="h6" 
+                      fontWeight={600} 
+                      sx={{ 
+                        mb: 3,
+                        fontSize: { xs: '1rem', sm: '1.125rem' }
+                      }}
+                    >
+                      Environment Information
+                    </Typography>
+                    
+                    <Stack spacing={2}>
+                      <Box sx={{
+                        p: { xs: 2.5, sm: 3 },
+                        borderRadius: { xs: 1.5, sm: 2 },
+                        border: '1px solid rgba(0, 0, 0, 0.06)',
+                        background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
+                      }}>
+                        <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                          Application Environment
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Mode:</strong> {process.env.NODE_ENV || 'development'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>API URL:</strong> {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Keep-Alive Enabled:</strong> {process.env.NEXT_PUBLIC_ENABLE_KEEP_ALIVE === 'true' ? 'Yes' : 'Auto (Production only)'}
+                        </Typography>
                       </Box>
                     </Stack>
                   </CardContent>

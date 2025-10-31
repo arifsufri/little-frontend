@@ -55,6 +55,7 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import PaymentsIcon from '@mui/icons-material/Payments';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import PeopleIcon from '@mui/icons-material/People';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { apiGet, apiPost, apiDelete } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
 import { useFinancialData } from '../../../hooks/useFinancialData';
@@ -300,6 +301,8 @@ export default function FinancialPage() {
   // Boss-specific state
   const [bossCloseDailyOpen, setBossCloseDailyOpen] = React.useState(false);
   const [isBossClosingDaily, setIsBossClosingDaily] = React.useState(false);
+  const [resetMonthlyOpen, setResetMonthlyOpen] = React.useState(false);
+  const [isResettingMonthly, setIsResettingMonthly] = React.useState(false);
 
   const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
     setSnackbar({ open: true, message, severity });
@@ -480,6 +483,36 @@ export default function FinancialPage() {
     }
   };
 
+  // Reset monthly summary handler
+  const handleResetMonthlySummary = async () => {
+    setIsResettingMonthly(true);
+    try {
+      const response = await apiPost('/financial/reset-monthly', {
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate
+      }) as any;
+      
+      if (response.success) {
+        // Show success notification
+        showNotification('Monthly summary has been reset successfully!', 'success');
+        
+        // Close the modal
+        setResetMonthlyOpen(false);
+        
+        // Refresh financial data to reflect changes
+        fetchFinancialData();
+      } else {
+        showNotification(response.message || 'Failed to reset monthly summary', 'error');
+      }
+    } catch (error: any) {
+      console.error('Error resetting monthly summary:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to reset monthly summary. Please try again.';
+      showNotification(errorMessage, 'error');
+    } finally {
+      setIsResettingMonthly(false);
+    }
+  };
+
   React.useEffect(() => {
     fetchFinancialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -597,15 +630,30 @@ export default function FinancialPage() {
 
   return (
     <DashboardLayout>
+      <Box sx={{ 
+        width: '100%',
+        maxWidth: '100vw',
+        minWidth: 0,
+        overflow: 'hidden',
+        overflowX: 'hidden',
+        px: { xs: 0, sm: 0 },
+        boxSizing: 'border-box'
+      }}>
       {/* Header */}
-      <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+      <Box sx={{ 
+        mb: { xs: 2, sm: 4 }
+      }}>
         <Box sx={{ 
           display: 'flex', 
           alignItems: { xs: 'flex-start', sm: 'center' }, 
           justifyContent: 'space-between', 
           flexDirection: { xs: 'column', sm: 'row' },
           gap: { xs: 2, sm: 2 }, 
-          pb: 2
+          pb: 2,
+          width: '100%',
+          maxWidth: '100%',
+          minWidth: 0,
+          overflow: 'hidden'
         }}>
           <Typography 
             variant="h4" 
@@ -640,16 +688,16 @@ export default function FinancialPage() {
         </Box>
 
         {/* Date Range Filter */}
-        <Box sx={{ mb: 3, mt: { xs: 3, sm: 0 } }}>
+        <Box sx={{ mb: 3, mt: { xs: 2, sm: 0 } }}>
           {/* Date Fields Container */}
         <Box sx={{ 
           display: 'flex', 
-            flexDirection: 'row',
-            gap: { xs: 1, sm: 2 }, 
-            alignItems: 'center',
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: { xs: 1.5, sm: 2 }, 
+            alignItems: { xs: 'stretch', sm: 'center' },
             justifyContent: { xs: 'center', sm: 'flex-start' },
-            mb: { xs: 4, sm: 0 },
-            px: { xs: 1, sm: 0 }
+            mb: { xs: 3, sm: 0 },
+            px: { xs: 0, sm: 0 }
         }}>
           <TextField
             label="Start Date"
@@ -659,8 +707,8 @@ export default function FinancialPage() {
             InputLabelProps={{ shrink: true }}
             size="small"
               sx={{ 
-                width: { xs: '48%', sm: '200px' },
-                maxWidth: '200px'
+                width: { xs: '100%', sm: '200px' },
+                maxWidth: { xs: 'none', sm: '200px' }
               }}
           />
           <TextField
@@ -671,8 +719,8 @@ export default function FinancialPage() {
             InputLabelProps={{ shrink: true }}
             size="small"
               sx={{ 
-                width: { xs: '48%', sm: '200px' },
-                maxWidth: '200px'
+                width: { xs: '100%', sm: '200px' },
+                maxWidth: { xs: 'none', sm: '200px' }
               }}
           />
             {/* Apply Filter Button - Desktop Only */}
@@ -692,15 +740,14 @@ export default function FinancialPage() {
           {/* Apply Filter Button - Mobile Only */}
           <Box sx={{ 
             display: { xs: 'block', sm: 'none' },
-            px: 1,
-            mt: 2
+            mt: 1
           }}>
             <Button
               variant="outlined"
               onClick={fetchFinancialData}
               sx={{ 
                 width: '100%',
-                borderRadius: 1.5
+                borderRadius: 2
               }}
             >
               Apply Filter
@@ -715,12 +762,25 @@ export default function FinancialPage() {
           <Tabs 
             value={tabValue} 
             onChange={(e, newValue) => setTabValue(newValue)}
-            sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            sx={{ 
+              mb: 3, 
+              borderBottom: 1, 
+              borderColor: 'divider',
+              '& .MuiTabs-scrollButtons': {
+                '&.Mui-disabled': {
+                  opacity: 0.3
+                }
+              }
+            }}
           >
             <Tab label="Overview" />
             <Tab label="Barber Performance" />
             <Tab label="Service Analysis" />
             <Tab label="Expenses" />
+            <Tab label="Monthly Summary" />
           </Tabs>
 
           {tabValue === 0 && financialData && (
@@ -924,52 +984,126 @@ export default function FinancialPage() {
                   Barber Performance
                 </Typography>
                 
-                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell><strong>Barber</strong></TableCell>
-                        <TableCell><strong>Customers</strong></TableCell>
-                        <TableCell><strong>Appointments</strong></TableCell>
-                        <TableCell><strong>Total Sales</strong></TableCell>
-                        <TableCell><strong>Commission Rate</strong></TableCell>
-                        <TableCell><strong>Commission Paid</strong></TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {financialData.barberPerformance.map((barber) => (
-                        <TableRow key={barber.id} hover>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+                {isMobile ? (
+                  // Mobile Card Layout
+                  <Grid container spacing={2}>
+                    {financialData.barberPerformance.map((barber) => (
+                      <Grid item xs={12} key={barber.id}>
+                        <Card sx={{ 
+                          border: '1px solid #e0e0e0',
+                          borderRadius: 3,
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            outline: '2px solid #8B0000',
+                            outlineOffset: '-2px'
+                          }
+                        }}>
+                          <CardContent sx={{ p: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                              <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main' }}>
                                 {barber.name.charAt(0)}
                               </Avatar>
-                              <Typography variant="body2" fontWeight={500}>
-                                {barber.name}
-                              </Typography>
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="h6" fontWeight={600}>
+                                  {barber.name}
+                                </Typography>
+                                <Chip 
+                                  label={`${barber.commissionRate}% Commission`}
+                                  color="primary"
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              </Box>
                             </Box>
-                          </TableCell>
-                          <TableCell>{barber.customerCount}</TableCell>
-                          <TableCell>{barber.appointmentCount}</TableCell>
-                          <TableCell>{formatCurrency(barber.totalSales)}</TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={`${barber.commissionRate}%`}
-                              color="primary"
-                              size="small"
-                              variant="outlined"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={500} color="success.main">
-                              {formatCurrency(barber.commissionPaid)}
-                            </Typography>
-                          </TableCell>
+                            
+                            <Grid container spacing={2}>
+                              <Grid item xs={6}>
+                                <Typography variant="caption" color="text.secondary">
+                                  Customers
+                                </Typography>
+                                <Typography variant="h6" fontWeight={600}>
+                                  {barber.customerCount}
+                                </Typography>
+                              </Grid>
+                              <Grid item xs={6}>
+                                <Typography variant="caption" color="text.secondary">
+                                  Appointments
+                                </Typography>
+                                <Typography variant="h6" fontWeight={600}>
+                                  {barber.appointmentCount}
+                                </Typography>
+                              </Grid>
+                              <Grid item xs={6}>
+                                <Typography variant="caption" color="text.secondary">
+                                  Total Sales
+                                </Typography>
+                                <Typography variant="h6" fontWeight={600} color="primary.main">
+                                  {formatCurrency(barber.totalSales)}
+                                </Typography>
+                              </Grid>
+                              <Grid item xs={6}>
+                                <Typography variant="caption" color="text.secondary">
+                                  Commission Earned
+                                </Typography>
+                                <Typography variant="h6" fontWeight={600} color="success.main">
+                                  {formatCurrency(barber.commissionPaid)}
+                                </Typography>
+                              </Grid>
+                            </Grid>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  // Desktop Table Layout
+                  <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell><strong>Barber</strong></TableCell>
+                          <TableCell><strong>Customers</strong></TableCell>
+                          <TableCell><strong>Appointments</strong></TableCell>
+                          <TableCell><strong>Total Sales</strong></TableCell>
+                          <TableCell><strong>Commission Rate</strong></TableCell>
+                          <TableCell><strong>Commission Paid</strong></TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                      </TableHead>
+                      <TableBody>
+                        {financialData.barberPerformance.map((barber) => (
+                          <TableRow key={barber.id} hover>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+                                  {barber.name.charAt(0)}
+                                </Avatar>
+                                <Typography variant="body2" fontWeight={500}>
+                                  {barber.name}
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                            <TableCell>{barber.customerCount}</TableCell>
+                            <TableCell>{barber.appointmentCount}</TableCell>
+                            <TableCell>{formatCurrency(barber.totalSales)}</TableCell>
+                            <TableCell>
+                              <Chip 
+                                label={`${barber.commissionRate}%`}
+                                color="primary"
+                                size="small"
+                                variant="outlined"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={500} color="success.main">
+                                {formatCurrency(barber.commissionPaid)}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
               </CardContent>
             </Card>
           )}
@@ -1006,14 +1140,14 @@ export default function FinancialPage() {
                           outlineOffset: '-2px'
                         }
                       }}>
-                        <CardContent sx={{ p: 3 }}>
-                          <Typography variant="h6" fontWeight={600} gutterBottom>
+                        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                          <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
                             {service.name}
                           </Typography>
                           <Typography variant="body2" color="text.secondary" gutterBottom>
                             {service.count} services
                           </Typography>
-                          <Typography variant="h5" fontWeight={700} color="success.main">
+                          <Typography variant="h5" fontWeight={700} color="success.main" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
                             {formatCurrency(service.totalRevenue)}
                           </Typography>
                         </CardContent>
@@ -1045,51 +1179,442 @@ export default function FinancialPage() {
                   Expenses
                 </Typography>
                 
-                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell><strong>Date</strong></TableCell>
-                        <TableCell><strong>Category</strong></TableCell>
-                        <TableCell><strong>Description</strong></TableCell>
-                        <TableCell><strong>Amount</strong></TableCell>
-                        <TableCell><strong>Actions</strong></TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {financialData.expenses.map((expense) => (
-                        <TableRow key={expense.id} hover>
-                          <TableCell>{formatDate(expense.date)}</TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={expense.category}
-                              color="secondary"
-                              size="small"
-                              variant="outlined"
-                            />
+                {isMobile ? (
+                  // Mobile Card Layout
+                  <Grid container spacing={2}>
+                    {financialData.expenses.map((expense) => (
+                      <Grid item xs={12} key={expense.id}>
+                        <Card sx={{ 
+                          border: '1px solid #e0e0e0',
+                          borderRadius: 3,
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            outline: '2px solid #8B0000',
+                            outlineOffset: '-2px'
+                          }
+                        }}>
+                          <CardContent sx={{ p: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="h6" fontWeight={600} color="error.main">
+                                  {formatCurrency(expense.amount)}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {formatDate(expense.date)}
+                                </Typography>
+                              </Box>
+                              <IconButton 
+                                size="small" 
+                                color="error"
+                                onClick={() => handleDeleteExpense(expense.id)}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Box>
+                            
+                            <Box sx={{ mb: 1 }}>
+                              <Chip 
+                                label={expense.category}
+                                color="secondary"
+                                size="small"
+                                variant="outlined"
+                                sx={{ mb: 1 }}
+                              />
+                            </Box>
+                            
+                            <Typography variant="body2" color="text.primary">
+                              {expense.description}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  // Desktop Table Layout
+                  <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell><strong>Date</strong></TableCell>
+                          <TableCell><strong>Category</strong></TableCell>
+                          <TableCell><strong>Description</strong></TableCell>
+                          <TableCell><strong>Amount</strong></TableCell>
+                          <TableCell><strong>Actions</strong></TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {financialData.expenses.map((expense) => (
+                          <TableRow key={expense.id} hover>
+                            <TableCell>{formatDate(expense.date)}</TableCell>
+                            <TableCell>
+                              <Chip 
+                                label={expense.category}
+                                color="secondary"
+                                size="small"
+                                variant="outlined"
+                              />
+                            </TableCell>
+                            <TableCell>{expense.description}</TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={500} color="error.main">
+                                {formatCurrency(expense.amount)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <IconButton 
+                                size="small" 
+                                color="error"
+                                onClick={() => handleDeleteExpense(expense.id)}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {tabValue === 4 && financialData && (
+            // Monthly Summary Tab
+            <Box>
+              {/* Monthly Payroll Summary */}
+              <Card sx={{ 
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+                border: 'none', 
+                borderRadius: { xs: 4, sm: 5 }, 
+                backgroundColor: '#fff',
+                mb: 3
+              }}>
+                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    mb: { xs: 2, sm: 3 }
+                  }}>
+                    <Typography 
+                      variant="h6" 
+                      fontWeight={600} 
+                      sx={{ 
+                        fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                      }}
+                    >
+                      Monthly Payroll Summary
+                    </Typography>
+                    <GradientButton
+                      variant="red"
+                      animated
+                      startIcon={<RestartAltIcon />}
+                      onClick={() => setResetMonthlyOpen(true)}
+                      sx={{ 
+                        px: { xs: 2, sm: 3 }, 
+                        py: { xs: 0.8, sm: 1 }, 
+                        fontSize: { xs: 12, sm: 13 }
+                      }}
+                    >
+                      Reset Monthly
+                    </GradientButton>
+                  </Box>
+
+                  {/* Summary Cards */}
+                  <Grid container spacing={3} sx={{ mb: 4 }}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card sx={{ 
+                        p: 2, 
+                        textAlign: 'center',
+                        border: '2px solid #10b981',
+                        borderRadius: 3
+                      }}>
+                        <Typography variant="h4" fontWeight={700} color="#10b981">
+                          {formatCurrency(financialData.overview.totalCommissionPaid)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Total Staff Earnings
+                        </Typography>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card sx={{ 
+                        p: 2, 
+                        textAlign: 'center',
+                        border: '2px solid #3b82f6',
+                        borderRadius: 3
+                      }}>
+                        <Typography variant="h4" fontWeight={700} color="#3b82f6">
+                          {financialData.barberPerformance.length}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Active Staff
+                        </Typography>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card sx={{ 
+                        p: 2, 
+                        textAlign: 'center',
+                        border: '2px solid #f59e0b',
+                        borderRadius: 3
+                      }}>
+                        <Typography variant="h4" fontWeight={700} color="#f59e0b">
+                          {formatCurrency(financialData.overview.totalRevenue)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Total Revenue
+                        </Typography>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card sx={{ 
+                        p: 2, 
+                        textAlign: 'center',
+                        border: '2px solid #8b5cf6',
+                        borderRadius: 3
+                      }}>
+                        <Typography variant="h4" fontWeight={700} color="#8b5cf6">
+                          {((financialData.overview.totalCommissionPaid / financialData.overview.totalRevenue) * 100).toFixed(1)}%
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Payroll Percentage
+                        </Typography>
+                      </Card>
+                    </Grid>
+                  </Grid>
+
+                  {/* Staff Payroll Table */}
+                  <Typography 
+                    variant="h6" 
+                    fontWeight={600} 
+                    sx={{ mb: 2, fontSize: { xs: '1rem', sm: '1.1rem' } }}
+                  >
+                    Staff Payroll Breakdown
+                  </Typography>
+                  
+                  <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                    <Table>
+                      <TableHead>
+                        <TableRow sx={{ bgcolor: '#f8f9fa' }}>
+                          <TableCell><strong>Staff Member</strong></TableCell>
+                          <TableCell><strong>Commission Rate</strong></TableCell>
+                          <TableCell><strong>Total Sales</strong></TableCell>
+                          <TableCell><strong>Earnings</strong></TableCell>
+                          <TableCell><strong>Customers</strong></TableCell>
+                          <TableCell><strong>Services</strong></TableCell>
+                          <TableCell><strong>Avg per Service</strong></TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {financialData.barberPerformance.map((barber) => (
+                          <TableRow key={barber.id} hover>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+                                  {barber.name.charAt(0)}
+                                </Avatar>
+                                <Typography variant="body2" fontWeight={500}>
+                                  {barber.name}
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Chip 
+                                label={`${barber.commissionRate || 0}%`}
+                                color="primary"
+                                size="small"
+                                variant="outlined"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={500}>
+                                {formatCurrency(barber.totalSales)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={600} color="success.main">
+                                {formatCurrency(barber.commissionPaid)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>{barber.customerCount}</TableCell>
+                            <TableCell>{barber.appointmentCount}</TableCell>
+                            <TableCell>
+                              <Typography variant="body2" color="text.secondary">
+                                {barber.appointmentCount > 0 
+                                  ? formatCurrency(barber.commissionPaid / barber.appointmentCount)
+                                  : formatCurrency(0)
+                                }
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {/* Total Row */}
+                        <TableRow sx={{ bgcolor: '#f8f9fa', fontWeight: 600 }}>
+                          <TableCell sx={{ fontWeight: 600 }}>
+                            <Typography variant="body2" fontWeight={600}>
+                              TOTAL
+                            </Typography>
                           </TableCell>
-                          <TableCell>{expense.description}</TableCell>
+                          <TableCell>-</TableCell>
                           <TableCell>
-                            <Typography variant="body2" fontWeight={500} color="error.main">
-                              {formatCurrency(expense.amount)}
+                            <Typography variant="body2" fontWeight={600}>
+                              {formatCurrency(financialData.barberPerformance.reduce((sum, b) => sum + b.totalSales, 0))}
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <IconButton 
-                              size="small" 
-                              color="error"
-                              onClick={() => handleDeleteExpense(expense.id)}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
+                            <Typography variant="body2" fontWeight={600} color="success.main">
+                              {formatCurrency(financialData.overview.totalCommissionPaid)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>
+                              {financialData.barberPerformance.reduce((sum, b) => sum + b.customerCount, 0)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>
+                              {financialData.barberPerformance.reduce((sum, b) => sum + b.appointmentCount, 0)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600} color="text.secondary">
+                              {(() => {
+                                const totalServices = financialData.barberPerformance.reduce((sum, b) => sum + b.appointmentCount, 0);
+                                return totalServices > 0 
+                                  ? formatCurrency(financialData.overview.totalCommissionPaid / totalServices)
+                                  : formatCurrency(0);
+                              })()}
+                            </Typography>
                           </TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </CardContent>
-            </Card>
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </CardContent>
+              </Card>
+
+              {/* Business Profitability Analysis */}
+              <Card sx={{ 
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+                border: 'none', 
+                borderRadius: { xs: 4, sm: 5 }, 
+                backgroundColor: '#fff'
+              }}>
+                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                  <Typography 
+                    variant="h6" 
+                    fontWeight={600} 
+                    sx={{ 
+                      mb: { xs: 2, sm: 3 },
+                      fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                    }}
+                  >
+                    Business Profitability Analysis
+                  </Typography>
+
+                  <Grid container spacing={3}>
+                    {/* Revenue Breakdown */}
+                    <Grid item xs={12} md={6}>
+                      <Box sx={{ 
+                        p: 3, 
+                        border: '1px solid #e0e0e0', 
+                        borderRadius: 3,
+                        height: '100%'
+                      }}>
+                        <Typography variant="h6" fontWeight={600} gutterBottom color="success.main">
+                          Revenue Breakdown
+                        </Typography>
+                        <Stack spacing={2}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Total Revenue:</Typography>
+                            <Typography variant="body1" fontWeight={600} color="success.main">
+                              {formatCurrency(financialData.overview.totalRevenue)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Staff Commissions:</Typography>
+                            <Typography variant="body1" fontWeight={600} color="warning.main">
+                              -{formatCurrency(financialData.overview.totalCommissionPaid)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Business Expenses:</Typography>
+                            <Typography variant="body1" fontWeight={600} color="error.main">
+                              -{formatCurrency(financialData.overview.totalExpenses)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            pt: 1,
+                            borderTop: '2px solid #e0e0e0'
+                          }}>
+                            <Typography variant="h6" fontWeight={600}>Net Profit:</Typography>
+                            <Typography 
+                              variant="h6" 
+                              fontWeight={700} 
+                              color={financialData.overview.netProfit >= 0 ? 'success.main' : 'error.main'}
+                            >
+                              {formatCurrency(financialData.overview.netProfit)}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </Box>
+                    </Grid>
+
+                    {/* Key Metrics */}
+                    <Grid item xs={12} md={6}>
+                      <Box sx={{ 
+                        p: 3, 
+                        border: '1px solid #e0e0e0', 
+                        borderRadius: 3,
+                        height: '100%'
+                      }}>
+                        <Typography variant="h6" fontWeight={600} gutterBottom color="primary.main">
+                          Key Business Metrics
+                        </Typography>
+                        <Stack spacing={2}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Profit Margin:</Typography>
+                            <Typography variant="body1" fontWeight={600}>
+                              {((financialData.overview.netProfit / financialData.overview.totalRevenue) * 100).toFixed(1)}%
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Staff Cost Ratio:</Typography>
+                            <Typography variant="body1" fontWeight={600}>
+                              {((financialData.overview.totalCommissionPaid / financialData.overview.totalRevenue) * 100).toFixed(1)}%
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Expense Ratio:</Typography>
+                            <Typography variant="body1" fontWeight={600}>
+                              {((financialData.overview.totalExpenses / financialData.overview.totalRevenue) * 100).toFixed(1)}%
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Revenue per Customer:</Typography>
+                            <Typography variant="body1" fontWeight={600}>
+                              {formatCurrency(financialData.overview.totalRevenue / financialData.overview.totalCustomers)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Avg Staff Earnings:</Typography>
+                            <Typography variant="body1" fontWeight={600}>
+                              {formatCurrency(financialData.overview.totalCommissionPaid / financialData.barberPerformance.length)}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Box>
           )}
         </Box>
       ) : (
@@ -1914,6 +2439,110 @@ export default function FinancialPage() {
         </DialogActions>
       </Dialog>
 
+      {/* Reset Monthly Summary Dialog */}
+      <Dialog 
+        open={resetMonthlyOpen} 
+        onClose={() => setResetMonthlyOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            borderRadius: { xs: 2, sm: 3 },
+            margin: { xs: 1, sm: 2 }
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          pb: 1, 
+          fontSize: { xs: '1.1rem', sm: '1.25rem' },
+          fontWeight: 600
+        }}>
+          Reset Monthly Summary
+        </DialogTitle>
+        <DialogContent sx={{ pb: 2 }}>
+          <Box sx={{ textAlign: 'center', py: 2 }}>
+            <RestartAltIcon sx={{ fontSize: 64, color: 'warning.main', mb: 2 }} />
+            
+            <Typography variant="h6" fontWeight={600} gutterBottom>
+              Are you sure you want to reset the monthly summary?
+            </Typography>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              This action will clear all financial data for the selected date range:
+            </Typography>
+            
+            <Box sx={{ 
+              p: 2, 
+              borderRadius: 2, 
+              bgcolor: '#fff3cd',
+              border: '1px solid #ffeaa7',
+              mb: 3
+            }}>
+              <Typography variant="body2" fontWeight={500} color="#856404">
+                Date Range: {new Date(dateRange.startDate).toLocaleDateString()} - {new Date(dateRange.endDate).toLocaleDateString()}
+              </Typography>
+            </Box>
+
+            <Box sx={{ 
+              p: 2, 
+              borderRadius: 2, 
+              bgcolor: '#f8d7da',
+              border: '1px solid #f5c6cb',
+              mb: 2
+            }}>
+              <Typography variant="body2" fontWeight={500} color="#721c24" gutterBottom>
+                ⚠️ This will reset:
+              </Typography>
+              <Typography variant="body2" color="#721c24" sx={{ textAlign: 'left' }}>
+                • All appointment statuses to "pending"<br/>
+                • All staff earnings and commission data<br/>
+                • All expense records for this period<br/>
+                • All financial calculations and reports
+              </Typography>
+            </Box>
+            
+            <Typography variant="body2" color="error.main" sx={{ fontStyle: 'italic', fontWeight: 500 }}>
+              This action cannot be undone!
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ 
+          px: { xs: 2, sm: 3 }, 
+          pb: { xs: 2, sm: 3 },
+          gap: { xs: 1.5, sm: 2 },
+          flexDirection: 'row'
+        }}>
+          <GradientButton
+            variant="blue"
+            animated
+            onClick={() => setResetMonthlyOpen(false)}
+            disabled={isResettingMonthly}
+            sx={{ 
+              flex: 1,
+              px: { xs: 2, sm: 3 }, 
+              py: { xs: 1, sm: 1.2 }, 
+              fontSize: { xs: 13, sm: 14 }
+            }}
+          >
+            Cancel
+          </GradientButton>
+          <GradientButton
+            variant="red"
+            animated
+            onClick={handleResetMonthlySummary}
+            disabled={isResettingMonthly}
+            sx={{ 
+              flex: 1,
+              px: { xs: 2, sm: 3 }, 
+              py: { xs: 1, sm: 1.2 }, 
+              fontSize: { xs: 13, sm: 14 }
+            }}
+          >
+            {isResettingMonthly ? 'Resetting...' : 'Reset Monthly Summary'}
+          </GradientButton>
+        </DialogActions>
+      </Dialog>
+
       {/* Success/Error Notifications */}
       <Snackbar
         open={snackbar.open}
@@ -1930,6 +2559,7 @@ export default function FinancialPage() {
           {snackbar.message}
         </Alert>
       </Snackbar>
+      </Box>
     </DashboardLayout>
   );
 }

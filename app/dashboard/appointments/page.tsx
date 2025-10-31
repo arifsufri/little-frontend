@@ -50,7 +50,8 @@ import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import PersonIcon from '@mui/icons-material/Person';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import { apiGet, apiPost, apiPut } from '../../../src/utils/axios';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { apiGet, apiPost, apiPut, apiDelete } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
 
 interface Package {
@@ -124,6 +125,7 @@ export default function AppointmentsPage() {
   });
   const [createAppointmentOpen, setCreateAppointmentOpen] = React.useState(false);
   const [changeBarberOpen, setChangeBarberOpen] = React.useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [clients, setClients] = React.useState<any[]>([]);
   const [staff, setStaff] = React.useState<any[]>([]);
   const [selectedBarberId, setSelectedBarberId] = React.useState<string>('');
@@ -149,7 +151,6 @@ export default function AppointmentsPage() {
     if (userRole === 'Boss' || userRole === 'Staff') {
       fetchStaff();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userRole]);
 
   const fetchAppointments = async () => {
@@ -242,6 +243,27 @@ export default function AppointmentsPage() {
     } catch (error: any) {
       console.error('Error changing barber:', error);
       const errorMessage = error?.message || error?.error || 'Failed to change barber. Please try again.';
+      showNotification(errorMessage, 'error');
+    }
+  };
+
+  const handleDeleteAppointment = async () => {
+    if (!selectedAppointment) return;
+
+    try {
+      await apiDelete(`/appointments/${selectedAppointment.id}`);
+      
+      // Refresh appointments
+      fetchAppointments();
+      
+      // Close dialogs and reset state
+      setDeleteConfirmOpen(false);
+      handleMenuClose();
+      
+      showNotification(`Appointment for ${selectedAppointment.client.fullName} has been deleted`, 'success');
+    } catch (error: any) {
+      console.error('Error deleting appointment:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to delete appointment. Please try again.';
       showNotification(errorMessage, 'error');
     }
   };
@@ -1026,7 +1048,13 @@ export default function AppointmentsPage() {
           <MenuItem onClick={() => handleViewDetails(selectedAppointment!)}>
             View Details
           </MenuItem>
-          {(userRole === 'Boss' || userRole === 'Staff') && selectedAppointment?.status !== 'cancelled' && selectedAppointment?.status !== 'completed' && (
+          {/* Boss can change barber for any appointment, Staff only for non-completed/non-cancelled */}
+          {userRole === 'Boss' && (
+            <MenuItem onClick={() => setChangeBarberOpen(true)}>
+              Change Barber
+            </MenuItem>
+          )}
+          {userRole === 'Staff' && selectedAppointment?.status !== 'cancelled' && selectedAppointment?.status !== 'completed' && (
             <MenuItem onClick={() => setChangeBarberOpen(true)}>
               Change Barber
             </MenuItem>
@@ -1044,6 +1072,13 @@ export default function AppointmentsPage() {
           {selectedAppointment?.status !== 'cancelled' && selectedAppointment?.status !== 'completed' && (
             <MenuItem onClick={() => handleStatusUpdate('cancelled')} sx={{ color: 'error.main' }}>
               Cancel Appointment
+            </MenuItem>
+          )}
+          {/* Boss can delete any appointment */}
+          {userRole === 'Boss' && (
+            <MenuItem onClick={() => setDeleteConfirmOpen(true)} sx={{ color: 'error.main' }}>
+              <DeleteIcon sx={{ mr: 1, fontSize: '1rem' }} />
+              Delete Appointment
             </MenuItem>
           )}
         </Menu>
@@ -1724,6 +1759,99 @@ export default function AppointmentsPage() {
               }}
             >
               Change Barber
+            </GradientButton>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog 
+          open={deleteConfirmOpen} 
+          onClose={() => setDeleteConfirmOpen(false)} 
+          maxWidth="sm" 
+          fullWidth
+          sx={{
+            '& .MuiDialog-paper': {
+              margin: { xs: 1, sm: 2 },
+              borderRadius: { xs: 2, sm: 2 },
+              maxHeight: { xs: '90vh', sm: 'none' }
+            }
+          }}
+        >
+          <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
+            <Typography 
+              variant="h6" 
+              fontWeight={600}
+              sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+            >
+              Delete Appointment
+            </Typography>
+            {selectedAppointment && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Are you sure you want to delete this appointment?
+              </Typography>
+            )}
+          </DialogTitle>
+          <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
+            {selectedAppointment && (
+              <Box sx={{ 
+                p: 2, 
+                bgcolor: 'grey.50', 
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'grey.200'
+              }}>
+                <Typography variant="body2" fontWeight={500} gutterBottom>
+                  Appointment Details:
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Client:</strong> {selectedAppointment.client.fullName}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Service:</strong> {selectedAppointment.package.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Status:</strong> {selectedAppointment.status}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Price:</strong> RM{selectedAppointment.finalPrice || selectedAppointment.package.price}
+                </Typography>
+              </Box>
+            )}
+            <Typography variant="body2" color="error.main" sx={{ mt: 2, fontWeight: 500 }}>
+              ⚠️ This action cannot be undone. The appointment will be permanently deleted.
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ 
+            px: { xs: 2, sm: 3 }, 
+            pb: { xs: 2, sm: 3 },
+            gap: { xs: 1.5, sm: 2 },
+            flexDirection: 'row'
+          }}>
+            <GradientButton
+              variant="blue"
+              animated
+              onClick={() => setDeleteConfirmOpen(false)}
+              sx={{ 
+                flex: 1,
+                px: { xs: 2, sm: 3 }, 
+                py: { xs: 1, sm: 1.2 }, 
+                fontSize: { xs: 13, sm: 14 }
+              }}
+            >
+              Cancel
+            </GradientButton>
+            <GradientButton
+              variant="red"
+              animated
+              onClick={handleDeleteAppointment}
+              sx={{ 
+                flex: 1,
+                px: { xs: 2, sm: 3 }, 
+                py: { xs: 1, sm: 1.2 }, 
+                fontSize: { xs: 13, sm: 14 }
+              }}
+            >
+              Delete Appointment
             </GradientButton>
           </DialogActions>
         </Dialog>

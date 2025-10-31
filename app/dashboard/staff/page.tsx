@@ -190,7 +190,7 @@ export default function StaffPage() {
 
   const openCommissionDialog = (staffMember: Staff) => {
     setSelectedStaff(staffMember);
-    setCommissionRate(staffMember.commissionRate.toString());
+    setCommissionRate((staffMember.commissionRate || 0).toString());
     setCommissionDialogOpen(true);
   };
 
@@ -756,7 +756,7 @@ export default function StaffPage() {
                               </Typography>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
                                 <Chip 
-                                  label={`${member.commissionRate}% Commission`}
+                                  label={`${member.commissionRate || 0}% Commission`}
                                   color="primary"
                                   size="small"
                                   variant="outlined"
@@ -846,7 +846,7 @@ export default function StaffPage() {
                           <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Chip 
-                                label={`${member.commissionRate}%`}
+                                label={`${member.commissionRate || 0}%`}
                                 color="primary"
                               size="small"
                                 variant="outlined"
@@ -1050,10 +1050,10 @@ export default function StaffPage() {
                 Commission Calculation Example:
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                If a service costs RM30 and commission rate is {commissionRate || 40}%:
+                If a service costs RM30 and commission rate is {commissionRate || 0}%:
               </Typography>
               <Typography variant="body2" color="success.main" fontWeight={500}>
-                Staff earnings = RM30 × {commissionRate || 40}% = RM{((30 * (parseFloat(commissionRate) || 40)) / 100).toFixed(2)}
+                Staff earnings = RM30 × {commissionRate || 0}% = RM{((30 * (parseFloat(commissionRate) || 0)) / 100).toFixed(2)}
               </Typography>
             </Box>
           </Stack>
