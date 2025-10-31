@@ -71,6 +71,7 @@ interface CustomPackage {
 
 interface Appointment {
   id: number;
+  clientId: number;
   status: string;
   appointmentDate: string | null;
   notes: string | null;
@@ -117,6 +118,17 @@ export default function AppointmentsPage() {
   const [finalPrice, setFinalPrice] = React.useState<number>(0);
   const [customPackageName, setCustomPackageName] = React.useState('');
   const [customPackagePrice, setCustomPackagePrice] = React.useState<number>(0);
+  
+  // Discount code state
+  const [discountCode, setDiscountCode] = React.useState('');
+  const [validatingDiscount, setValidatingDiscount] = React.useState(false);
+  const [discountInfo, setDiscountInfo] = React.useState<{
+    id: number;
+    code: string;
+    description?: string;
+    discountPercent: number;
+  } | null>(null);
+  const [discountError, setDiscountError] = React.useState<string | null>(null);
   const [isCompleting, setIsCompleting] = React.useState(false);
   const [snackbar, setSnackbar] = React.useState({
     open: false,
@@ -365,7 +377,9 @@ export default function AppointmentsPage() {
         status: 'completed',
         additionalPackages: selectedAdditionalPackages,
         customPackages: customPackages,
-        finalPrice: finalPrice
+        finalPrice: finalPrice,
+        discountCodeId: discountInfo?.id || null,
+        discountAmount: discountInfo ? (calculateTotalPrice() - finalPrice) : null
       };
 
       console.log('Sending update data:', updateData);
@@ -467,6 +481,51 @@ export default function AppointmentsPage() {
     return total;
   }, [selectedAppointment, selectedAdditionalPackages, packages, customPackages]);
 
+  const calculateDiscountedPrice = React.useCallback(() => {
+    const totalPrice = calculateTotalPrice();
+    if (!discountInfo) return totalPrice;
+    
+    const discountAmount = (totalPrice * discountInfo.discountPercent) / 100;
+    return totalPrice - discountAmount;
+  }, [calculateTotalPrice, discountInfo]);
+
+  const validateDiscountCode = async (code: string) => {
+    if (!code.trim() || !selectedAppointment) return;
+    
+    setValidatingDiscount(true);
+    setDiscountError(null);
+    
+    try {
+      const response = await apiPost<{
+        success: boolean;
+        data: {
+          id: number;
+          code: string;
+          description?: string;
+          discountPercent: number;
+        };
+        message: string;
+      }>('/discount-codes/validate', {
+        code: code.toUpperCase(),
+        clientId: selectedAppointment.clientId
+      });
+      
+      if (response.success) {
+        setDiscountInfo(response.data);
+        setDiscountError(null);
+        // Update final price with discount
+        setFinalPrice(calculateDiscountedPrice());
+      }
+    } catch (error: any) {
+      setDiscountInfo(null);
+      setDiscountError(error.message || 'Invalid discount code');
+      // Reset final price to original
+      setFinalPrice(calculateTotalPrice());
+    } finally {
+      setValidatingDiscount(false);
+    }
+  };
+
   const resetConfirmationModal = () => {
     setConfirmationOpen(false);
     setSelectedAppointment(null);
@@ -475,13 +534,22 @@ export default function AppointmentsPage() {
     setFinalPrice(0);
     setCustomPackageName('');
     setCustomPackagePrice(0);
+    // Reset discount code state
+    setDiscountCode('');
+    setDiscountInfo(null);
+    setDiscountError(null);
+    setValidatingDiscount(false);
   };
 
   React.useEffect(() => {
     if (confirmationOpen) {
+      if (discountInfo) {
+        setFinalPrice(calculateDiscountedPrice());
+      } else {
       setFinalPrice(calculateTotalPrice());
     }
-  }, [selectedAdditionalPackages, customPackages, confirmationOpen, selectedAppointment, calculateTotalPrice]);
+    }
+  }, [selectedAdditionalPackages, customPackages, confirmationOpen, selectedAppointment, calculateTotalPrice, calculateDiscountedPrice, discountInfo]);
 
   const handleViewDetails = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
@@ -1272,13 +1340,14 @@ export default function AppointmentsPage() {
         <Dialog 
           open={confirmationOpen} 
           onClose={resetConfirmationModal} 
-          maxWidth="md" 
+          maxWidth="lg" 
           fullWidth
           sx={{
             '& .MuiDialog-paper': {
               margin: { xs: 1, sm: 2 },
-              borderRadius: { xs: 2, sm: 2 },
-              maxHeight: { xs: '90vh', sm: 'none' }
+              borderRadius: { xs: 2, sm: 3 },
+              maxHeight: { xs: '95vh', sm: '90vh' },
+              height: { xs: 'auto', sm: 'fit-content' }
             }
           }}
         >
@@ -1304,14 +1373,22 @@ export default function AppointmentsPage() {
               {selectedAppointment && `${selectedAppointment.client.fullName} - ${selectedAppointment.package.name}`}
             </Typography>
           </DialogTitle>
-          <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
-            <Stack spacing={3} sx={{ mt: 1 }}>
-              {/* Additional Packages */}
-              <Box>
+          <DialogContent sx={{ 
+            px: { xs: 2, sm: 3 }, 
+            py: { xs: 1, sm: 2 },
+            overflow: 'auto',
+            maxHeight: { xs: '70vh', sm: '65vh' }
+          }}>
+            <Stack spacing={3.5} sx={{ mt: 0.5 }}>
+              {/* Services Section - Side by Side Layout */}
+              <Grid container spacing={0}>
+                {/* Additional Packages */}
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ pr: 1 }}>
                 <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
                   Additional Packages
                 </Typography>
-                <FormControl fullWidth>
+                    <FormControl fullWidth size="small">
                   <InputLabel>Select Additional Packages</InputLabel>
                   <Select
                     multiple
@@ -1346,14 +1423,79 @@ export default function AppointmentsPage() {
                   </Select>
                 </FormControl>
               </Box>
+                </Grid>
 
-              {/* Custom Packages */}
+                {/* Discount Code */}
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ pl: { xs: 0, md: 1 } }}>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+                      Discount Code (Optional)
+                    </Typography>
+                    <TextField
+                      label="Enter Discount Code"
+                      value={discountCode}
+                      onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                      placeholder="e.g., SUMMER20"
+                      fullWidth
+                      size="small"
+                      error={!!discountError}
+                      helperText={discountError || 'Enter code and click Apply'}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <GradientButton
+                              variant="blue"
+                              onClick={() => validateDiscountCode(discountCode)}
+                              disabled={!discountCode.trim() || validatingDiscount}
+                              sx={{ px: 2, py: 0.5, fontSize: 12, minWidth: 'auto' }}
+                            >
+                              {validatingDiscount ? 'Checking...' : 'Apply'}
+                            </GradientButton>
+                          </InputAdornment>
+                        )
+                      }}
+                    />
+                    
+                    {discountInfo && (
+                      <Box sx={{ 
+                        p: 1.5, 
+                        mt: 1,
+                        bgcolor: 'success.light', 
+                        borderRadius: 2,
+                        border: '1px solid',
+                        borderColor: 'success.main'
+                      }}>
+                        <Typography variant="body2" fontWeight={600} color="success.dark" sx={{ mb: 0.5 }}>
+                          ✓ {discountInfo.code} ({discountInfo.discountPercent}% off)
+                        </Typography>
+                        <Typography variant="caption" color="success.dark">
+                          Saves RM{((calculateTotalPrice() * discountInfo.discountPercent) / 100).toFixed(2)}
+                        </Typography>
+                        <Button
+                          size="small"
+                          color="error"
+                          onClick={() => {
+                            setDiscountCode('');
+                            setDiscountInfo(null);
+                            setDiscountError(null);
+                            setFinalPrice(calculateTotalPrice());
+                          }}
+                          sx={{ ml: 1, fontSize: 10, minWidth: 'auto', px: 1 }}
+                        >
+                          Remove
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
+                </Grid>
+              </Grid>
+
+              {/* Custom Packages - Compact Layout */}
               <Box>
                 <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
                   Custom Packages
                 </Typography>
-                <Stack spacing={2}>
-                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end', mb: 2 }}>
                     <TextField
                       label="Package Name"
                       value={customPackageName}
@@ -1384,9 +1526,6 @@ export default function AppointmentsPage() {
                   
                   {customPackages.length > 0 && (
                     <Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        Added Custom Packages:
-                      </Typography>
                       {customPackages.map((pkg, index) => (
                         <Chip
                           key={index}
@@ -1395,22 +1534,22 @@ export default function AppointmentsPage() {
                           sx={{ mr: 1, mb: 1 }}
                           color="primary"
                           variant="outlined"
+                        size="small"
                         />
                       ))}
                     </Box>
                   )}
-                </Stack>
               </Box>
 
               {/* Price Summary */}
               <Box sx={{ 
-                p: 2, 
+                p: 2.5, 
                 bgcolor: 'grey.50', 
-                borderRadius: 2,
+                borderRadius: 3,
                 border: '1px solid',
                 borderColor: 'grey.200'
               }}>
-                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
                   Price Summary
                 </Typography>
                 <Stack spacing={1}>
@@ -1456,10 +1595,36 @@ export default function AppointmentsPage() {
                     borderColor: 'grey.300'
                   }}>
                     <Typography variant="body1" fontWeight={600}>
-                      Calculated Total:
+                      Subtotal:
                     </Typography>
-                    <Typography variant="body1" fontWeight={600} color="success.main">
+                    <Typography variant="body1" fontWeight={600}>
                       RM{calculateTotalPrice()}
+                    </Typography>
+                  </Box>
+                  
+                  {discountInfo && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2" color="success.main" fontWeight={600}>
+                        Discount ({discountInfo.discountPercent}%):
+                      </Typography>
+                      <Typography variant="body2" color="success.main" fontWeight={600}>
+                        -RM{((calculateTotalPrice() * discountInfo.discountPercent) / 100).toFixed(2)}
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    pt: 1, 
+                    borderTop: '2px solid',
+                    borderColor: 'grey.400'
+                  }}>
+                    <Typography variant="h6" fontWeight={700}>
+                      Total Amount:
+                    </Typography>
+                    <Typography variant="h6" fontWeight={700} color="success.main">
+                      RM{discountInfo ? calculateDiscountedPrice().toFixed(2) : calculateTotalPrice()}
                     </Typography>
                   </Box>
                 </Stack>
@@ -1467,7 +1632,7 @@ export default function AppointmentsPage() {
 
               {/* Final Price Adjustment */}
               <Box>
-                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
                   Final Price Adjustment
                 </Typography>
                 <TextField
@@ -1479,7 +1644,8 @@ export default function AppointmentsPage() {
                     startAdornment: <InputAdornment position="start">RM</InputAdornment>,
                   }}
                   fullWidth
-                  helperText="You can adjust the final price if needed (e.g., discounts, promotions)"
+                  size="small"
+                  helperText="Manually adjust if needed (e.g., rounding, extra discounts)"
                 />
               </Box>
             </Stack>
@@ -1517,7 +1683,7 @@ export default function AppointmentsPage() {
                 fontSize: { xs: 13, sm: 14 }
               }}
             >
-              {isCompleting ? 'Completing...' : 'Confirm & Complete'}
+              {isCompleting ? 'Completing...' : 'Confirm'}
             </GradientButton>
           </DialogActions>
         </Dialog>

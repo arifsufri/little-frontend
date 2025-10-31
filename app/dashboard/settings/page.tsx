@@ -33,12 +33,18 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import WifiIcon from '@mui/icons-material/Wifi';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import ToggleOnIcon from '@mui/icons-material/ToggleOn';
+import ToggleOffIcon from '@mui/icons-material/ToggleOff';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { apiGet, apiPut, apiPost } from '../../../src/utils/axios';
+import { apiGet, apiPut, apiPost, apiDelete } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
 import keepAliveService, { KeepAliveStatus } from '../../../src/utils/keepAlive';
+import { useUserRole } from '../../../hooks/useUserRole';
 
 // Validation schemas
 const ProfileSchema = z.object({
@@ -55,8 +61,32 @@ const PasswordSchema = z.object({
   path: ["confirmPassword"],
 });
 
+const DiscountCodeSchema = z.object({
+  code: z.string().min(1, 'Discount code is required').max(20, 'Code must be 20 characters or less'),
+  description: z.string().optional(),
+  discountPercent: z.number().min(0.1, 'Discount must be at least 0.1%').max(100, 'Discount cannot exceed 100%')
+});
+
 type ProfileForm = z.infer<typeof ProfileSchema>;
 type PasswordForm = z.infer<typeof PasswordSchema>;
+type DiscountCodeForm = z.infer<typeof DiscountCodeSchema>;
+
+interface DiscountCode {
+  id: number;
+  code: string;
+  description?: string;
+  discountPercent: number;
+  isActive: boolean;
+  createdAt: string;
+  creator: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  _count: {
+    usages: number;
+  };
+}
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -81,6 +111,7 @@ function TabPanel({ children, value, index, ...other }: TabPanelProps) {
 export default function SettingsPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { userRole } = useUserRole();
   
   const [activeTab, setActiveTab] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
@@ -100,6 +131,13 @@ export default function SettingsPage() {
   // Keep-alive service state
   const [keepAliveStatus, setKeepAliveStatus] = React.useState<KeepAliveStatus | null>(null);
 
+  // Discount codes state
+  const [discountCodes, setDiscountCodes] = React.useState<DiscountCode[]>([]);
+  const [discountDialogOpen, setDiscountDialogOpen] = React.useState(false);
+  const [editingDiscount, setEditingDiscount] = React.useState<DiscountCode | null>(null);
+  const [deleteDiscountOpen, setDeleteDiscountOpen] = React.useState(false);
+  const [deletingDiscount, setDeletingDiscount] = React.useState<DiscountCode | null>(null);
+
   // Form handlers
   const profileForm = useForm<ProfileForm>({
     resolver: zodResolver(ProfileSchema),
@@ -108,6 +146,15 @@ export default function SettingsPage() {
 
   const passwordForm = useForm<PasswordForm>({
     resolver: zodResolver(PasswordSchema)
+  });
+
+  const discountForm = useForm<DiscountCodeForm>({
+    resolver: zodResolver(DiscountCodeSchema),
+    defaultValues: {
+      code: '',
+      description: '',
+      discountPercent: 10
+    }
   });
 
   const loadUserProfile = async () => {
@@ -134,6 +181,127 @@ export default function SettingsPage() {
 
   const updateKeepAliveStatus = () => {
     setKeepAliveStatus(keepAliveService.getStatus());
+  };
+
+  // Discount code functions
+  const loadDiscountCodes = async () => {
+    if (userRole !== 'Boss') return;
+    
+    try {
+      const response = await apiGet<{ success: boolean; data: DiscountCode[] }>('/discount-codes');
+      if (response.success) {
+        setDiscountCodes(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading discount codes:', error);
+      setErrorMsg('Failed to load discount codes');
+    }
+  };
+
+  const handleCreateDiscount = async (data: DiscountCodeForm) => {
+    setLoading(true);
+    setErrorMsg(null);
+    
+    try {
+      const response = await apiPost<{ success: boolean; data: DiscountCode }>('/discount-codes', {
+        code: data.code.toUpperCase(),
+        description: data.description || null,
+        discountPercent: data.discountPercent
+      });
+      
+      if (response.success) {
+        setSuccessMsg(`Discount code "${data.code.toUpperCase()}" created successfully!`);
+        setDiscountDialogOpen(false);
+        discountForm.reset();
+        loadDiscountCodes();
+      }
+    } catch (error: any) {
+      setErrorMsg(error.message || 'Failed to create discount code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditDiscount = async (data: DiscountCodeForm) => {
+    if (!editingDiscount) return;
+    
+    setLoading(true);
+    setErrorMsg(null);
+    
+    try {
+      const response = await apiPut<{ success: boolean; data: DiscountCode }>(`/discount-codes/${editingDiscount.id}`, {
+        code: data.code.toUpperCase(),
+        description: data.description || null,
+        discountPercent: data.discountPercent
+      });
+      
+      if (response.success) {
+        setSuccessMsg(`Discount code "${data.code.toUpperCase()}" updated successfully!`);
+        setDiscountDialogOpen(false);
+        setEditingDiscount(null);
+        discountForm.reset();
+        loadDiscountCodes();
+      }
+    } catch (error: any) {
+      setErrorMsg(error.message || 'Failed to update discount code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleDiscountStatus = async (discount: DiscountCode) => {
+    try {
+      const response = await apiPut<{ success: boolean; data: DiscountCode }>(`/discount-codes/${discount.id}/toggle-status`, {});
+      
+      if (response.success) {
+        setSuccessMsg(`Discount code ${response.data.isActive ? 'activated' : 'deactivated'} successfully!`);
+        loadDiscountCodes();
+      }
+    } catch (error: any) {
+      setErrorMsg(error.message || 'Failed to toggle discount code status');
+    }
+  };
+
+  const handleDeleteDiscount = async () => {
+    if (!deletingDiscount) return;
+    
+    setLoading(true);
+    try {
+      await apiDelete(`/discount-codes/${deletingDiscount.id}`);
+      setSuccessMsg(`Discount code "${deletingDiscount.code}" deleted successfully!`);
+      setDeleteDiscountOpen(false);
+      setDeletingDiscount(null);
+      loadDiscountCodes();
+    } catch (error: any) {
+      setErrorMsg(error.message || 'Failed to delete discount code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openCreateDiscountDialog = () => {
+    setEditingDiscount(null);
+    discountForm.reset({
+      code: '',
+      description: '',
+      discountPercent: 10
+    });
+    setDiscountDialogOpen(true);
+  };
+
+  const openEditDiscountDialog = (discount: DiscountCode) => {
+    setEditingDiscount(discount);
+    discountForm.reset({
+      code: discount.code,
+      description: discount.description || '',
+      discountPercent: discount.discountPercent
+    });
+    setDiscountDialogOpen(true);
+  };
+
+  const openDeleteDiscountDialog = (discount: DiscountCode) => {
+    setDeletingDiscount(discount);
+    setDeleteDiscountOpen(true);
   };
 
   const handleKeepAliveToggle = () => {
@@ -338,6 +506,13 @@ export default function SettingsPage() {
     updateKeepAliveStatus();
   }, []);
 
+  // Load discount codes when user role is available
+  React.useEffect(() => {
+    if (userRole === 'Boss') {
+      loadDiscountCodes();
+    }
+  }, [userRole]);
+
   // Update form when userProfile changes
   React.useEffect(() => {
     profileForm.reset({ name: userProfile.name, email: userProfile.email });
@@ -455,6 +630,13 @@ export default function SettingsPage() {
             label="Security" 
             iconPosition="start"
           />
+          {userRole === 'Boss' && (
+            <Tab 
+              icon={<LocalOfferIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />} 
+              label="Discount Codes" 
+              iconPosition="start"
+            />
+          )}
           <Tab 
             icon={<SettingsIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />} 
             label="System" 
@@ -858,8 +1040,197 @@ export default function SettingsPage() {
           </Box>
         </TabPanel>
 
+        {/* Discount Codes Tab - Only for Boss */}
+        {userRole === 'Boss' && (
+          <TabPanel value={activeTab} index={2}>
+            <Box sx={{ p: { xs: 3, sm: 4 } }}>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                mb: 4 
+              }}>
+                <Typography 
+                  variant="h6" 
+                  fontWeight={600} 
+                  sx={{ 
+                    fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                    color: '#1f2937'
+                  }}
+                >
+                  Discount Code Management
+                </Typography>
+                <GradientButton
+                  variant="red"
+                  animated
+                  startIcon={<AddIcon />}
+                  sx={{ 
+                    px: { xs: 2.5, sm: 3 }, 
+                    py: { xs: 1, sm: 1.2 }, 
+                    fontSize: { xs: 13, sm: 14 },
+                    fontWeight: 600
+                  }}
+                  onClick={openCreateDiscountDialog}
+                >
+                  Create Code
+                </GradientButton>
+              </Box>
+
+              {/* Discount Codes List */}
+              <Grid container spacing={{ xs: 2, sm: 3 }}>
+                {discountCodes.length === 0 ? (
+                  <Grid item xs={12}>
+                    <Card sx={{ 
+                      borderRadius: { xs: 2, sm: 3 },
+                      border: '1px solid rgba(0, 0, 0, 0.06)',
+                      boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+                      textAlign: 'center',
+                      py: 6
+                    }}>
+                      <CardContent>
+                        <LocalOfferIcon sx={{ fontSize: 64, color: '#d1d5db', mb: 2 }} />
+                        <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                          No Discount Codes Yet
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Create your first discount code to start offering promotions to your clients.
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ) : (
+                  discountCodes.map((discount) => (
+                    <Grid item xs={12} sm={6} lg={4} key={discount.id}>
+                      <Card sx={{ 
+                        borderRadius: { xs: 2, sm: 3 },
+                        border: '1px solid rgba(0, 0, 0, 0.06)',
+                        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                          transform: 'translateY(-2px)'
+                        }
+                      }}>
+                        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'flex-start',
+                            mb: 2 
+                          }}>
+                            <Box>
+                              <Typography 
+                                variant="h6" 
+                                fontWeight={700} 
+                                sx={{ 
+                                  fontSize: { xs: '1rem', sm: '1.125rem' },
+                                  color: discount.isActive ? '#1f2937' : '#9ca3af',
+                                  fontFamily: 'monospace',
+                                  letterSpacing: 1
+                                }}
+                              >
+                                {discount.code}
+                              </Typography>
+                              <Typography 
+                                variant="h4" 
+                                fontWeight={800} 
+                                sx={{ 
+                                  color: '#dc2626',
+                                  fontSize: { xs: '1.5rem', sm: '2rem' }
+                                }}
+                              >
+                                {discount.discountPercent}%
+                              </Typography>
+                            </Box>
+                            <IconButton
+                              onClick={() => handleToggleDiscountStatus(discount)}
+                              sx={{ 
+                                color: discount.isActive ? '#10b981' : '#ef4444',
+                                '&:hover': { 
+                                  backgroundColor: discount.isActive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)' 
+                                }
+                              }}
+                            >
+                              {discount.isActive ? <ToggleOnIcon /> : <ToggleOffIcon />}
+                            </IconButton>
+                          </Box>
+
+                          {discount.description && (
+                            <Typography 
+                              variant="body2" 
+                              color="text.secondary" 
+                              sx={{ mb: 2, lineHeight: 1.5 }}
+                            >
+                              {discount.description}
+                            </Typography>
+                          )}
+
+                          <Box sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            mb: 3 
+                          }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Used {discount._count.usages} time{discount._count.usages !== 1 ? 's' : ''}
+                            </Typography>
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                px: 2, 
+                                py: 0.5, 
+                                borderRadius: 2,
+                                backgroundColor: discount.isActive ? '#dcfce7' : '#fee2e2',
+                                color: discount.isActive ? '#166534' : '#991b1b',
+                                fontWeight: 600
+                              }}
+                            >
+                              {discount.isActive ? 'Active' : 'Inactive'}
+                            </Typography>
+                          </Box>
+
+                          <Stack direction="row" spacing={1}>
+                            <Button
+                              size="small"
+                              startIcon={<EditIcon />}
+                              onClick={() => openEditDiscountDialog(discount)}
+                              sx={{ 
+                                flex: 1,
+                                borderRadius: { xs: 1.5, sm: 2 },
+                                textTransform: 'none',
+                                fontWeight: 600
+                              }}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="small"
+                              color="error"
+                              startIcon={<DeleteIcon />}
+                              onClick={() => openDeleteDiscountDialog(discount)}
+                              disabled={discount._count.usages > 0}
+                              sx={{ 
+                                flex: 1,
+                                borderRadius: { xs: 1.5, sm: 2 },
+                                textTransform: 'none',
+                                fontWeight: 600
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))
+                )}
+              </Grid>
+            </Box>
+          </TabPanel>
+        )}
+
         {/* System Tab */}
-        <TabPanel value={activeTab} index={2}>
+        <TabPanel value={activeTab} index={userRole === 'Boss' ? 3 : 2}>
           <Box sx={{ p: { xs: 3, sm: 4 } }}>
             <Typography 
               variant="h6" 
@@ -1150,6 +1521,184 @@ export default function SettingsPage() {
             </Stack>
           </DialogActions>
         </form>
+      </Dialog>
+
+      {/* Discount Code Create/Edit Dialog */}
+      <Dialog 
+        open={discountDialogOpen} 
+        onClose={() => setDiscountDialogOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: { xs: 2, sm: 3 },
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          pb: 2,
+          fontSize: { xs: '1.25rem', sm: '1.5rem' },
+          fontWeight: 700
+        }}>
+          {editingDiscount ? 'Edit Discount Code' : 'Create Discount Code'}
+        </DialogTitle>
+        <form onSubmit={discountForm.handleSubmit(editingDiscount ? handleEditDiscount : handleCreateDiscount)}>
+          <DialogContent sx={{ pb: 2 }}>
+            <Stack spacing={3}>
+              <TextField
+                label="Discount Code"
+                fullWidth
+                variant="outlined"
+                placeholder="e.g., SUMMER20, NEWCLIENT"
+                {...discountForm.register('code')}
+                error={!!discountForm.formState.errors.code}
+                helperText={discountForm.formState.errors.code?.message || 'Code will be converted to uppercase'}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: { xs: 1.5, sm: 2 }
+                  }
+                }}
+              />
+              <TextField
+                label="Description (Optional)"
+                fullWidth
+                variant="outlined"
+                multiline
+                rows={2}
+                placeholder="Brief description of this discount code"
+                {...discountForm.register('description')}
+                error={!!discountForm.formState.errors.description}
+                helperText={discountForm.formState.errors.description?.message}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: { xs: 1.5, sm: 2 }
+                  }
+                }}
+              />
+              <TextField
+                label="Discount Percentage"
+                type="number"
+                fullWidth
+                variant="outlined"
+                inputProps={{ min: 0.1, max: 100, step: 0.1 }}
+                {...discountForm.register('discountPercent', { valueAsNumber: true })}
+                error={!!discountForm.formState.errors.discountPercent}
+                helperText={discountForm.formState.errors.discountPercent?.message || 'Enter percentage (e.g., 10 for 10% off)'}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: { xs: 1.5, sm: 2 }
+                  }
+                }}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ p: 3, pt: 2 }}>
+            <Stack 
+              direction="row" 
+              spacing={2}
+              sx={{ width: '100%' }}
+            >
+              <GradientButton
+                variant="blue"
+                animated
+                onClick={() => setDiscountDialogOpen(false)}
+                sx={{ 
+                  flex: 1,
+                  px: { xs: 2.5, sm: 3 }, 
+                  py: { xs: 1, sm: 1.2 }, 
+                  fontSize: { xs: 13, sm: 14 },
+                  fontWeight: 600
+                }}
+              >
+                Cancel
+              </GradientButton>
+              <GradientButton 
+                type="submit" 
+                variant="red"
+                animated
+                sx={{ 
+                  flex: 1,
+                  px: { xs: 2.5, sm: 3 }, 
+                  py: { xs: 1, sm: 1.2 }, 
+                  fontSize: { xs: 13, sm: 14 },
+                  fontWeight: 600
+                }}
+                disabled={loading}
+              >
+                {loading ? (editingDiscount ? 'Updating...' : 'Creating...') : (editingDiscount ? 'Update Code' : 'Create Code')}
+              </GradientButton>
+            </Stack>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {/* Delete Discount Code Dialog */}
+      <Dialog 
+        open={deleteDiscountOpen} 
+        onClose={() => setDeleteDiscountOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: { xs: 2, sm: 3 },
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          pb: 2,
+          fontSize: { xs: '1.25rem', sm: '1.5rem' },
+          fontWeight: 700,
+          color: 'error.main'
+        }}>
+          Delete Discount Code
+        </DialogTitle>
+        <DialogContent sx={{ pb: 2 }}>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Are you sure you want to delete the discount code &quot;{deletingDiscount?.code}&quot;?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            This action cannot be undone. The discount code will be permanently removed from your system.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 2 }}>
+          <Stack 
+            direction="row" 
+            spacing={2}
+            sx={{ width: '100%' }}
+          >
+            <GradientButton
+              variant="blue"
+              animated
+              onClick={() => setDeleteDiscountOpen(false)}
+              sx={{ 
+                flex: 1,
+                px: { xs: 2.5, sm: 3 }, 
+                py: { xs: 1, sm: 1.2 }, 
+                fontSize: { xs: 13, sm: 14 },
+                fontWeight: 600
+              }}
+            >
+              Cancel
+            </GradientButton>
+            <GradientButton 
+              variant="red"
+              animated
+              onClick={handleDeleteDiscount}
+              sx={{ 
+                flex: 1,
+                px: { xs: 2.5, sm: 3 }, 
+                py: { xs: 1, sm: 1.2 }, 
+                fontSize: { xs: 13, sm: 14 },
+                fontWeight: 600
+              }}
+              disabled={loading}
+            >
+              {loading ? 'Deleting...' : 'Delete Code'}
+            </GradientButton>
+          </Stack>
+        </DialogActions>
       </Dialog>
     </DashboardLayout>
   );

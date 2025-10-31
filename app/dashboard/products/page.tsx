@@ -154,6 +154,7 @@ export default function ProductsPage() {
   };
 
   const handleEdit = (pkg: Package) => {
+    console.log('Opening edit modal for package:', pkg);
     setEditingPackage(pkg);
     setName(pkg.name);
     setDesc(pkg.description);
@@ -182,33 +183,48 @@ export default function ProductsPage() {
       formData.append('name', name);
       formData.append('description', desc);
       formData.append('price', price);
-      formData.append('barber', barber);
+      formData.append('barber', barber || '');
       formData.append('duration', duration.toString());
-      if (hasDiscount && discountCode) {
-        formData.append('discountCode', discountCode);
+      
+      // Only append discount code if it has a value
+      if (hasDiscount && discountCode.trim()) {
+        formData.append('discountCode', discountCode.trim());
+      } else if (!hasDiscount) {
+        formData.append('discountCode', ''); // Clear discount code if unchecked
       }
+      
       if (packageImage) {
         formData.append('image', packageImage);
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'}/packages/${editingPackage.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: formData
+      console.log('Updating package with data:', {
+        name,
+        description: desc,
+        price,
+        barber,
+        duration,
+        discountCode: hasDiscount ? discountCode : '',
+        hasImage: !!packageImage
       });
+
+      const result = await uploadFile<{ success: boolean; data: Package; message: string }>(`/packages/${editingPackage.id}`, formData, 'PUT');
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update package');
+      console.log('Update result:', result);
+      
+      if (result.success) {
+        setSnackbar({ open: true, message: 'Package updated successfully', severity: 'success' });
+        resetEditModal();
+        fetchPackages();
+      } else {
+        throw new Error(result.message || 'Failed to update package');
       }
-      setSnackbar({ open: true, message: 'Package updated successfully', severity: 'success' });
-      resetEditModal();
-      fetchPackages();
     } catch (error: any) {
       console.error('Error updating package:', error);
-      setSnackbar({ open: true, message: error.message || 'Failed to update package', severity: 'error' });
+      setSnackbar({ 
+        open: true, 
+        message: error.response?.data?.message || error.message || 'Failed to update package', 
+        severity: 'error' 
+      });
     } finally {
       setUpdating(false);
     }

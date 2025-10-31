@@ -26,6 +26,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 
 interface Appointment {
   id: number;
+  clientId: number;
   status: string;
   appointmentDate: string | null;
   notes: string | null;

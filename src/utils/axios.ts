@@ -90,8 +90,9 @@ export const apiDelete = async <T>(url: string, config?: any): Promise<T> => {
   return res.data;
 };
 
-export const uploadFile = async <T>(url: string, formData: FormData, config?: any): Promise<T> => {
-  const res = await axiosInstance.post<T>(url, formData, {
+export const uploadFile = async <T>(url: string, formData: FormData, method: 'POST' | 'PUT' = 'POST', config?: any): Promise<T> => {
+  const axiosMethod = method.toLowerCase() === 'put' ? axiosInstance.put : axiosInstance.post;
+  const res = await axiosMethod<T>(url, formData, {
     ...(config || {}),
     headers: {
       ...((config && config.headers) || {}),
