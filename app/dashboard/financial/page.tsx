@@ -2494,7 +2494,7 @@ export default function FinancialPage() {
                 ⚠️ This will reset:
               </Typography>
               <Typography variant="body2" color="#721c24" sx={{ textAlign: 'left' }}>
-                • All appointment statuses to "pending"<br/>
+                • All appointment statuses to &quot;pending&quot;<br/>
                 • All staff earnings and commission data<br/>
                 • All expense records for this period<br/>
                 • All financial calculations and reports

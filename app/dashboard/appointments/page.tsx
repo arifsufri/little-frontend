@@ -144,16 +144,7 @@ export default function AppointmentsPage() {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
-  React.useEffect(() => {
-    fetchAppointments();
-    fetchPackages();
-    fetchClients();
-    if (userRole === 'Boss' || userRole === 'Staff') {
-      fetchStaff();
-    }
-  }, [userRole]);
-
-  const fetchAppointments = async () => {
+  const fetchAppointments = React.useCallback(async () => {
     try {
       const response = await apiGet<{ success: boolean; data: Appointment[] }>('/appointments');
       let appointmentsData = response.data || [];
@@ -187,7 +178,16 @@ export default function AppointmentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userRole]);
+
+  React.useEffect(() => {
+    fetchAppointments();
+    fetchPackages();
+    fetchClients();
+    if (userRole === 'Boss' || userRole === 'Staff') {
+      fetchStaff();
+    }
+  }, [fetchAppointments, userRole]);
 
   const fetchPackages = async () => {
     try {
