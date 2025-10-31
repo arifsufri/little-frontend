@@ -738,7 +738,7 @@ export default function FinancialPage() {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="h6" fontWeight={600} color="text.primary">
                     Today&apos;s Business Summary
-                  </Typography>
+                        </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {new Date().toLocaleDateString('en-US', { 
                       weekday: 'long', 
@@ -746,15 +746,15 @@ export default function FinancialPage() {
                       month: 'long', 
                       day: 'numeric' 
                     })}
-                  </Typography>
-                </Box>
+                        </Typography>
+                      </Box>
                 
                 <Grid container spacing={2} sx={{ mb: 2 }}>
                   <Grid item xs={3}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="caption" color="text.secondary" fontWeight={600}>
                         TODAY&apos;S REVENUE
-                      </Typography>
+                        </Typography>
                       <Typography variant="h5" fontWeight={700} color="text.primary">
                         {(() => {
                           const today = new Date().toISOString().split('T')[0];
@@ -762,14 +762,14 @@ export default function FinancialPage() {
                           const estimatedDailyRevenue = Math.round(financialData.overview.totalRevenue * 0.1);
                           return formatCurrency(getBossCurrentRevenue(today, estimatedDailyRevenue));
                         })()}
-                      </Typography>
-                    </Box>
-                  </Grid>
+                        </Typography>
+                      </Box>
+              </Grid>
                   <Grid item xs={3}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="caption" color="text.secondary" fontWeight={600}>
                         TODAY&apos;S CUSTOMERS
-                      </Typography>
+                        </Typography>
                       <Typography variant="h5" fontWeight={700} color="text.primary">
                         {(() => {
                           const today = new Date().toISOString().split('T')[0];
@@ -777,14 +777,14 @@ export default function FinancialPage() {
                           const estimatedDailyCustomers = Math.round(financialData.overview.totalCustomers * 0.15);
                           return getBossCurrentCustomers(today, estimatedDailyCustomers);
                         })()}
-                      </Typography>
-                    </Box>
-                  </Grid>
+                        </Typography>
+                      </Box>
+              </Grid>
                   <Grid item xs={3}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="caption" color="text.secondary" fontWeight={600}>
                         TODAY&apos;S EXPENSES
-                      </Typography>
+                        </Typography>
                       <Typography variant="h5" fontWeight={700} color="text.primary">
                         {(() => {
                           const today = new Date().toISOString().split('T')[0];
@@ -792,8 +792,8 @@ export default function FinancialPage() {
                           const estimatedDailyExpenses = Math.round(financialData.overview.totalExpenses * 0.08);
                           return formatCurrency(getBossCurrentExpenses(today, estimatedDailyExpenses));
                         })()}
-                      </Typography>
-                    </Box>
+                        </Typography>
+                      </Box>
                   </Grid>
                   <Grid item xs={3}>
                     <Box sx={{ textAlign: 'center' }}>
@@ -811,7 +811,7 @@ export default function FinancialPage() {
                       </Typography>
                     </Box>
                   </Grid>
-                </Grid>
+              </Grid>
 
                 {/* Close Daily Account Button */}
                 <Button
@@ -830,7 +830,7 @@ export default function FinancialPage() {
                     textTransform: 'none',
                     borderColor: '#8B0000',
                     color: '#8B0000',
-                    '&:hover': {
+                  '&:hover': {
                       borderColor: '#8B0000',
                       bgcolor: 'rgba(139,0,0,0.1)'
                     }
@@ -838,7 +838,7 @@ export default function FinancialPage() {
                 >
                   Close Daily Account
                 </Button>
-              </Box>
+                      </Box>
 
               {/* Period Overview Cards */}
               <Grid container spacing={{ xs: 2, sm: 3 }}>
@@ -852,7 +852,7 @@ export default function FinancialPage() {
                     bgColor="linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)"
                     subtitle="All income"
                   />
-                </Grid>
+              </Grid>
 
                 <Grid item xs={6} sm={6} md={2.4}>
                   <FinancialCard
@@ -863,7 +863,7 @@ export default function FinancialPage() {
                     bgColor="linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)"
                     subtitle="Staff earnings"
                   />
-                </Grid>
+            </Grid>
 
                 <Grid item xs={6} sm={6} md={2.4}>
                   <FinancialCard
