@@ -2219,7 +2219,9 @@ export default function AppointmentsPage() {
                                     {discount.code}
                                   </Typography>
                                   <Chip
-                                    label={`${discount.discountPercent}% OFF`}
+                                    label={discount.discountType === 'fixed_amount' 
+                                      ? `RM${discount.discountAmount} OFF` 
+                                      : `${discount.discountPercent}% OFF`}
                                     size="small"
                                     color="success"
                                     variant="filled"
@@ -2462,7 +2464,9 @@ export default function AppointmentsPage() {
                   {discountInfo && multipleDiscountCodes.length === 0 && (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="body2" color="success.main" fontWeight={600}>
-                        Discount ({discountInfo.discountPercent}%):
+                        Discount ({discountInfo.discountType === 'fixed_amount' 
+                          ? `RM${discountInfo.discountAmount}` 
+                          : `${discountInfo.discountPercent}%`}):
                       </Typography>
                       <Typography variant="body2" color="success.main" fontWeight={600}>
                         -RM{(calculateTotalPrice() - calculateDiscountedPrice()).toFixed(2)}
