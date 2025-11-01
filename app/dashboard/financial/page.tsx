@@ -267,9 +267,16 @@ export default function FinancialPage() {
   const [staffData, setStaffData] = React.useState<StaffFinancialData | null>(null);
   const [todaysAppointments, setTodaysAppointments] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [dateRange, setDateRange] = React.useState({
-    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+  const [dateRange, setDateRange] = React.useState(() => {
+    // Initialize with Malaysia timezone
+    const malaysiaToday = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"}));
+    const startOfMonth = new Date(malaysiaToday.getFullYear(), malaysiaToday.getMonth(), 1);
+    const startOfMonthMalaysia = new Date(startOfMonth.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"}));
+    
+    return {
+      startDate: startOfMonthMalaysia.toISOString().split('T')[0],
+      endDate: malaysiaToday.toISOString().split('T')[0]
+    };
   });
   const [dateFilter, setDateFilter] = React.useState('current_month');
   
@@ -279,7 +286,7 @@ export default function FinancialPage() {
     category: '',
     description: '',
     amount: '',
-    date: new Date().toISOString().split('T')[0]
+    date: new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"})).toISOString().split('T')[0]
   });
   const [snackbar, setSnackbar] = React.useState({
     open: false,
@@ -310,10 +317,21 @@ export default function FinancialPage() {
     setSnackbar({ open: true, message, severity });
   };
 
+  // Get current date in Malaysia timezone
+  const getMalaysiaDate = () => {
+    return new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"}));
+  };
+
+  // Get today's date string in Malaysia timezone (YYYY-MM-DD format)
+  const getTodayMalaysiaString = () => {
+    const malaysiaDate = getMalaysiaDate();
+    return malaysiaDate.toISOString().split('T')[0];
+  };
+
   // Handle preset date filter changes
   const handleDateFilterChange = (filterType: string) => {
     setDateFilter(filterType);
-    const today = new Date();
+    const today = getMalaysiaDate();
     let startDate: Date;
     let endDate: Date = new Date(today);
 
@@ -362,16 +380,22 @@ export default function FinancialPage() {
         endDate = new Date(today);
     }
 
+    // Convert to Malaysia timezone and format as YYYY-MM-DD
+    const formatMalaysiaDate = (date: Date) => {
+      const malaysiaDate = new Date(date.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"}));
+      return malaysiaDate.toISOString().split('T')[0];
+    };
+
     setDateRange({
-      startDate: startDate.toISOString().split('T')[0],
-      endDate: endDate.toISOString().split('T')[0]
+      startDate: formatMalaysiaDate(startDate),
+      endDate: formatMalaysiaDate(endDate)
     });
   };
 
   const handleCloseDailyAccount = async () => {
     setIsClosingDaily(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayMalaysiaString();
       const todayData = staffData?.earningsHistory.find(day => day.date === today);
       
       if (!todayData || todayData.totalEarnings === 0) {
@@ -590,14 +614,14 @@ export default function FinancialPage() {
 
   // Calculate actual today's revenue from completed appointments
   const calculateTodaysRevenue = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayMalaysiaString();
     const actualRevenue = todaysAppointments.reduce((sum, apt) => sum + (apt.finalPrice || apt.package?.price || 0), 0);
     return getBossCurrentRevenue(today, actualRevenue);
   };
 
   // Calculate actual today's customers from completed appointments
   const calculateTodaysCustomers = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayMalaysiaString();
     const uniqueCustomers = new Set(todaysAppointments.map(apt => apt.clientId)).size;
     return getBossCurrentCustomers(today, uniqueCustomers);
   };
@@ -815,153 +839,55 @@ export default function FinancialPage() {
           )}
         </Box>
 
-        {/* Date Range Filter - Modern Card Design */}
-        <Card 
-          variant="outlined" 
-          sx={{ 
-            mb: 4, 
-            mt: { xs: 2, sm: 0 },
-            borderRadius: 3,
-            border: '1px solid',
-            borderColor: 'divider',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-            overflow: 'visible'
-          }}
-        >
-          <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
-            {/* Filter Header */}
+        {/* Compact Date Filter */}
         <Box sx={{ 
           display: 'flex', 
-              alignItems: 'center', 
-              gap: 1.5, 
-              mb: 3 
-            }}>
-              <Box sx={{
-                p: 1,
-                borderRadius: 2,
-                bgcolor: 'primary.main',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <FilterListIcon fontSize="small" />
-              </Box>
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  fontWeight: 600,
-                  color: 'text.primary',
-                  fontSize: { xs: '1.1rem', sm: '1.25rem' }
-                }}
-              >
-                Filter Period
-              </Typography>
-            </Box>
-
-            {/* Filter Controls */}
-            <Box sx={{ 
-              display: 'flex', 
-              flexDirection: { xs: 'column', sm: 'row' },
-              gap: { xs: 2, sm: 3 },
-              alignItems: { xs: 'stretch', sm: 'flex-start' }
-            }}>
-              {/* Period Selector */}
-              <Box sx={{ flex: 1, minWidth: { xs: '100%', sm: 250 } }}>
-                <FormControl fullWidth size="medium">
-                  <InputLabel sx={{ fontWeight: 500 }}>Select Period</InputLabel>
-                  <Select
-                    value={dateFilter}
-                    onChange={(e) => handleDateFilterChange(e.target.value)}
-                    label="Select Period"
-                    sx={{
-                      borderRadius: 2,
-                      '& .MuiOutlinedInput-root': {
-                        '&:hover fieldset': {
-                          borderColor: 'primary.main',
-                        },
-                      }
-                    }}
-                  >
-                    <MenuItem value="today">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <CalendarTodayIcon fontSize="small" color="primary" />
-                        <Typography>Today</Typography>
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="yesterday">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <CalendarTodayIcon fontSize="small" color="secondary" />
-                        <Typography>Yesterday</Typography>
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="this_week">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <CalendarTodayIcon fontSize="small" color="info" />
-                        <Typography>This Week</Typography>
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="last_week">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <CalendarTodayIcon fontSize="small" color="warning" />
-                        <Typography>Last Week</Typography>
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="current_month">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <CalendarTodayIcon fontSize="small" color="success" />
-                        <Typography>Current Month</Typography>
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="last_month">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <CalendarTodayIcon fontSize="small" color="error" />
-                        <Typography>Last Month</Typography>
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="last_3_months">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <CalendarTodayIcon fontSize="small" sx={{ color: 'purple' }} />
-                        <Typography>Last 3 Months</Typography>
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="this_year">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <CalendarTodayIcon fontSize="small" sx={{ color: 'orange' }} />
-                        <Typography>This Year</Typography>
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="custom">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <CalendarTodayIcon fontSize="small" sx={{ color: 'grey.600' }} />
-                        <Typography>Custom Range</Typography>
-                      </Box>
-                    </MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-
-              {/* Custom Date Fields */}
-              {dateFilter === 'custom' && (
-                <Box sx={{ 
-                  display: 'flex', 
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  gap: 2,
-                  flex: 1,
-                  minWidth: { xs: '100%', sm: 400 }
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 2, sm: 3 },
+          alignItems: { xs: 'stretch', sm: 'center' },
+          mb: 3,
+          p: 2,
+          bgcolor: 'grey.50',
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'grey.200'
         }}>
+          {/* Period Selector */}
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+            <InputLabel>Filter Period</InputLabel>
+            <Select
+              value={dateFilter}
+              onChange={(e) => handleDateFilterChange(e.target.value)}
+              label="Filter Period"
+              sx={{ bgcolor: 'white' }}
+            >
+              <MenuItem value="today">Today</MenuItem>
+              <MenuItem value="yesterday">Yesterday</MenuItem>
+              <MenuItem value="this_week">This Week</MenuItem>
+              <MenuItem value="last_week">Last Week</MenuItem>
+              <MenuItem value="current_month">Current Month</MenuItem>
+              <MenuItem value="last_month">Last Month</MenuItem>
+              <MenuItem value="last_3_months">Last 3 Months</MenuItem>
+              <MenuItem value="this_year">This Year</MenuItem>
+              <MenuItem value="custom">Custom Range</MenuItem>
+            </Select>
+          </FormControl>
+
+          {/* Custom Date Fields */}
+          {dateFilter === 'custom' && (
+            <>
           <TextField
             label="Start Date"
             type="date"
             value={dateRange.startDate}
             onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
             InputLabelProps={{ shrink: true }}
-                    fullWidth
-                    sx={{ 
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
-                      }
-                    }}
+            size="small"
+                sx={{ 
+                  minWidth: { xs: '100%', sm: 150 },
+                  bgcolor: 'white',
+                  '& .MuiOutlinedInput-root': { bgcolor: 'white' }
+                }}
           />
           <TextField
             label="End Date"
@@ -969,91 +895,98 @@ export default function FinancialPage() {
             value={dateRange.endDate}
             onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
             InputLabelProps={{ shrink: true }}
-                    fullWidth
-                    sx={{ 
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
-                      }
-                    }}
-                  />
-                </Box>
-              )}
-            </Box>
+            size="small"
+                sx={{ 
+                  minWidth: { xs: '100%', sm: 150 },
+                  bgcolor: 'white',
+                  '& .MuiOutlinedInput-root': { bgcolor: 'white' }
+                }}
+              />
+            </>
+          )}
 
-            {/* Date Range Display and Apply Button */}
-            <Box sx={{ 
-              display: 'flex', 
-              flexDirection: { xs: 'column', sm: 'row' },
-              gap: 2, 
-              alignItems: { xs: 'stretch', sm: 'center' },
-              justifyContent: 'space-between',
-              mt: 3,
-              pt: 2.5,
-              borderTop: '1px solid',
-              borderColor: 'divider'
-            }}>
-              {/* Current Date Range Display */}
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1.5,
-                px: 2.5,
-                py: 1.5,
-                bgcolor: 'primary.50',
-                borderRadius: 2.5,
-                border: '1px solid',
-                borderColor: 'primary.100',
-                minWidth: 'fit-content'
-              }}>
-                <CalendarTodayIcon fontSize="small" color="primary" />
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    color: 'primary.dark',
-                    fontWeight: 500,
-                    fontSize: '0.875rem'
-                  }}
-                >
-                  {new Date(dateRange.startDate).toLocaleDateString('en-MY', { 
-                    day: 'numeric', 
-                    month: 'short', 
-                    year: 'numeric' 
-                  })} - {new Date(dateRange.endDate).toLocaleDateString('en-MY', { 
-                    day: 'numeric', 
-                    month: 'short', 
-                    year: 'numeric' 
-                  })}
-                </Typography>
-              </Box>
-
-              {/* Apply Filter Button */}
-          <Button
-                variant="contained"
-            onClick={fetchFinancialData}
-                startIcon={<FilterListIcon />}
-                size="large"
+          {/* Clickable Date Range Display */}
+          <Box 
+            onClick={() => {
+              if (dateFilter !== 'custom') {
+                setDateFilter('custom');
+              }
+            }}
             sx={{ 
-                  borderRadius: 2.5,
-                  minWidth: { xs: '100%', sm: 140 },
-                  height: 48,
-                  bgcolor: 'primary.main',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  fontSize: '0.95rem',
-                  boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
-                  '&:hover': {
-                    bgcolor: 'primary.dark',
-                    boxShadow: '0 6px 16px rgba(25, 118, 210, 0.4)',
-                    transform: 'translateY(-1px)'
-                  },
-                  transition: 'all 0.2s ease-in-out'
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1,
+              px: 1.5,
+              py: 0.5,
+              bgcolor: 'white',
+              borderRadius: 1,
+              border: '1px solid',
+              borderColor: dateFilter === 'custom' ? 'primary.main' : 'grey.300',
+              minWidth: 'fit-content',
+              flex: 1,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease-in-out',
+              '&:hover': {
+                borderColor: 'primary.main',
+                bgcolor: 'primary.50',
+                transform: 'translateY(-1px)',
+                boxShadow: '0 2px 8px rgba(25, 118, 210, 0.15)'
+              }
             }}
           >
-            Apply Filter
+            <CalendarTodayIcon 
+              fontSize="small" 
+              color={dateFilter === 'custom' ? 'primary' : 'action'} 
+            />
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                fontSize: '0.8rem', 
+                color: dateFilter === 'custom' ? 'primary.main' : 'text.secondary',
+                fontWeight: dateFilter === 'custom' ? 600 : 400
+              }}
+            >
+              {new Date(dateRange.startDate + 'T00:00:00').toLocaleDateString('en-MY', { 
+                day: 'numeric', 
+                month: 'short', 
+                year: 'numeric',
+                timeZone: 'Asia/Kuala_Lumpur'
+              })} - {new Date(dateRange.endDate + 'T00:00:00').toLocaleDateString('en-MY', { 
+                day: 'numeric', 
+                month: 'short', 
+                year: 'numeric',
+                timeZone: 'Asia/Kuala_Lumpur'
+              })}
+            </Typography>
+            {dateFilter !== 'custom' && (
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  fontSize: '0.7rem', 
+                  color: 'text.disabled',
+                  ml: 0.5,
+                  fontStyle: 'italic'
+                }}
+              >
+                (click to edit)
+              </Typography>
+            )}
+          </Box>
+
+          {/* Apply Filter Button */}
+          <Button
+            variant="contained"
+            onClick={fetchFinancialData}
+            size="small"
+            sx={{ 
+              minWidth: { xs: '100%', sm: 100 },
+              textTransform: 'none',
+              fontWeight: 600
+            }}
+          >
+            Apply
           </Button>
         </Box>
-          </CardContent>
-        </Card>
       </Box>
 
       {userRole === 'Boss' ? (
@@ -1078,7 +1011,7 @@ export default function FinancialPage() {
           >
             <Tab label="Overview" />
             <Tab label="Barber Performance" />
-            <Tab label="Service Analysis" />
+            {/* <Tab label="Service Analysis" /> */}
             <Tab label="Expenses" />
             <Tab label="Monthly Summary" />
           </Tabs>

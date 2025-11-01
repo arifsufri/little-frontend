@@ -57,6 +57,7 @@ interface Client {
     id: number;
     status: string;
     createdAt: string;
+    finalPrice?: number;
     package: {
       name: string;
       price: number;
@@ -156,7 +157,11 @@ export default function ClientsPage() {
   const getTotalSpent = (appointments: Client['appointments']) => {
     return appointments
       .filter(apt => apt.status === 'completed')
-      .reduce((total, apt) => total + apt.package.price, 0);
+      .reduce((total, apt) => {
+        // Use finalPrice if available (includes discounts), otherwise use original package price
+        const actualPrice = apt.finalPrice !== undefined ? apt.finalPrice : apt.package.price;
+        return total + actualPrice;
+      }, 0);
   };
 
   const getAppointmentCount = (appointments: Client['appointments']) => {
