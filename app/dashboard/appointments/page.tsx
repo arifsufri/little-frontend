@@ -140,12 +140,16 @@ export default function AppointmentsPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [clients, setClients] = React.useState<any[]>([]);
   const [staff, setStaff] = React.useState<any[]>([]);
+  const [discountCodes, setDiscountCodes] = React.useState<any[]>([]);
   const [selectedBarberId, setSelectedBarberId] = React.useState<string>('');
+  const [editAppointmentOpen, setEditAppointmentOpen] = React.useState(false);
+  const [editingAppointment, setEditingAppointment] = React.useState<any>(null);
   const [newAppointment, setNewAppointment] = React.useState({
     clientId: '',
     packageId: '',
     appointmentDate: '',
-    notes: ''
+    notes: '',
+    discountCode: ''
   });
 
   const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
@@ -198,6 +202,7 @@ export default function AppointmentsPage() {
     fetchClients();
     if (userRole === 'Boss' || userRole === 'Staff') {
       fetchStaff();
+      fetchDiscountCodes();
     }
   }, [fetchAppointments, userRole]);
 
@@ -231,6 +236,15 @@ export default function AppointmentsPage() {
     }
   };
 
+  const fetchDiscountCodes = async () => {
+    try {
+      const response = await apiGet<{ success: boolean; data: any[] }>('/discount-codes');
+      setDiscountCodes(response.data || []);
+    } catch (error) {
+      console.error('Error fetching discount codes:', error);
+      setDiscountCodes([]);
+    }
+  };
 
   const handleChangeBarber = async () => {
     if (!selectedAppointment) return;
@@ -286,7 +300,8 @@ export default function AppointmentsPage() {
         clientId: parseInt(newAppointment.clientId),
         packageId: parseInt(newAppointment.packageId),
         appointmentDate: newAppointment.appointmentDate ? new Date(newAppointment.appointmentDate).toISOString() : null,
-        notes: newAppointment.notes || null
+        notes: newAppointment.notes || null,
+        ...(newAppointment.discountCode && { discountCode: newAppointment.discountCode })
       };
 
       await apiPost('/appointments', appointmentData);
@@ -297,7 +312,8 @@ export default function AppointmentsPage() {
         clientId: '',
         packageId: '',
         appointmentDate: '',
-        notes: ''
+        notes: '',
+        discountCode: ''
       });
       
       // Refresh appointments
@@ -308,6 +324,75 @@ export default function AppointmentsPage() {
       console.error('Error creating appointment:', error);
       const errorMessage = error?.message || error?.error || 'Failed to create appointment. Please try again.';
       alert(errorMessage);
+    }
+  };
+
+  const handleEditAppointment = (appointment: any) => {
+    // Find the discount code from the discountCodeId if it exists
+    const currentDiscountCode = appointment.discountCodeId ? 
+      discountCodes.find(dc => dc.id === appointment.discountCodeId)?.code || '' : '';
+    
+    setEditingAppointment({
+      ...appointment,
+      clientId: appointment.client?.id?.toString() || '',
+      packageId: appointment.package?.id?.toString() || '',
+      appointmentDate: appointment.appointmentDate ? 
+        new Date(appointment.appointmentDate).toISOString().slice(0, 16) : '',
+      notes: appointment.notes || '',
+      discountCode: currentDiscountCode
+    });
+    setEditAppointmentOpen(true);
+    handleMenuClose();
+  };
+
+  const handleUpdateAppointment = async () => {
+    if (!editingAppointment) return;
+
+    try {
+      const updateData = {
+        clientId: parseInt(editingAppointment.clientId),
+        packageId: parseInt(editingAppointment.packageId),
+        appointmentDate: editingAppointment.appointmentDate ? 
+          new Date(editingAppointment.appointmentDate).toISOString() : null,
+        notes: editingAppointment.notes || null,
+        ...(editingAppointment.discountCode && { discountCode: editingAppointment.discountCode })
+      };
+
+      console.log('Updating appointment with data:', updateData);
+
+      // Use PATCH method for editing
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/appointments/${editingAppointment.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      console.log('Response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Backend error response:', errorData);
+        throw new Error(errorData.message || errorData.error || 'Failed to update appointment');
+      }
+      
+      const result = await response.json();
+      console.log('Update successful:', result);
+      
+      // Reset form and close modal
+      setEditAppointmentOpen(false);
+      setEditingAppointment(null);
+      
+      // Refresh appointments
+      fetchAppointments();
+      
+      showNotification('Appointment updated successfully!', 'success');
+    } catch (error: any) {
+      console.error('Error updating appointment:', error);
+      const errorMessage = error?.message || 'Failed to update appointment. Please try again.';
+      showNotification(errorMessage, 'error');
     }
   };
 
@@ -1116,6 +1201,12 @@ export default function AppointmentsPage() {
           <MenuItem onClick={() => handleViewDetails(selectedAppointment!)}>
             View Details
           </MenuItem>
+          {/* Edit Appointment - Boss and Staff can edit */}
+          {(userRole === 'Boss' || userRole === 'Staff') && (
+            <MenuItem onClick={() => handleEditAppointment(selectedAppointment!)}>
+              Edit Appointment
+            </MenuItem>
+          )}
           {/* Boss can change barber for any appointment, Staff only for non-completed/non-cancelled */}
           {userRole === 'Boss' && (
             <MenuItem onClick={() => setChangeBarberOpen(true)}>
@@ -1783,6 +1874,35 @@ export default function AppointmentsPage() {
                 fullWidth
                 placeholder="Any special requirements or notes..."
               />
+
+              {/* Discount Code */}
+              <FormControl fullWidth>
+                <InputLabel>Discount Code (Optional)</InputLabel>
+                <Select
+                  value={newAppointment.discountCode}
+                  onChange={(e) => setNewAppointment({...newAppointment, discountCode: e.target.value})}
+                  label="Discount Code (Optional)"
+                >
+                  <MenuItem value="">
+                    <em>No discount</em>
+                  </MenuItem>
+                  {discountCodes.map((discount) => (
+                    <MenuItem key={discount.id} value={discount.code}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                        <Box>
+                          <Typography>{discount.code}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {discount.description}
+                          </Typography>
+                        </Box>
+                        <Typography color="success.main" fontWeight={600}>
+                          {discount.discountPercent}% OFF
+                        </Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Stack>
           </DialogContent>
           <DialogActions sx={{ 
@@ -2018,6 +2138,169 @@ export default function AppointmentsPage() {
               }}
             >
               Delete Appointment
+            </GradientButton>
+          </DialogActions>
+        </Dialog>
+
+        {/* Edit Appointment Dialog */}
+        <Dialog 
+          open={editAppointmentOpen} 
+          onClose={() => setEditAppointmentOpen(false)} 
+          maxWidth="sm" 
+          fullWidth
+          sx={{
+            '& .MuiDialog-paper': {
+              margin: { xs: 1, sm: 2 },
+              borderRadius: { xs: 2, sm: 2 },
+              maxHeight: { xs: '90vh', sm: 'none' }
+            }
+          }}
+        >
+          <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
+            <Typography 
+              variant="h6" 
+              fontWeight={600}
+              sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+            >
+              Edit Appointment
+            </Typography>
+          </DialogTitle>
+          <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
+            {editingAppointment && (
+              <Stack spacing={3} sx={{ mt: 1 }}>
+                {/* Client Selection */}
+                <FormControl fullWidth>
+                  <InputLabel>Select Client</InputLabel>
+                  <Select
+                    value={editingAppointment.clientId}
+                    onChange={(e) => setEditingAppointment({...editingAppointment, clientId: e.target.value})}
+                    label="Select Client"
+                  >
+                    {clients.map((client) => (
+                      <MenuItem key={client.id} value={client.id}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                          <Typography>{client.fullName}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {client.clientId} - {client.phoneNumber}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {/* Package Selection */}
+                <FormControl fullWidth>
+                  <InputLabel>Select Package</InputLabel>
+                  <Select
+                    value={editingAppointment.packageId}
+                    onChange={(e) => setEditingAppointment({...editingAppointment, packageId: e.target.value})}
+                    label="Select Package"
+                  >
+                    {packages.map((pkg) => (
+                      <MenuItem key={pkg.id} value={pkg.id}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                          <Box>
+                            <Typography>{pkg.name}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {pkg.duration} mins {pkg.barber && `• by ${pkg.barber}`}
+                            </Typography>
+                          </Box>
+                          <Typography color="success.main" fontWeight={600}>
+                            RM{pkg.price}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {/* Appointment Date */}
+                <TextField
+                  label="Appointment Date & Time"
+                  type="datetime-local"
+                  value={editingAppointment.appointmentDate}
+                  onChange={(e) => setEditingAppointment({...editingAppointment, appointmentDate: e.target.value})}
+                  fullWidth
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                  helperText="Optional - leave empty for walk-in appointments"
+                />
+
+                {/* Notes */}
+                <TextField
+                  label="Notes"
+                  multiline
+                  rows={3}
+                  value={editingAppointment.notes}
+                  onChange={(e) => setEditingAppointment({...editingAppointment, notes: e.target.value})}
+                  fullWidth
+                  placeholder="Any special requirements or notes..."
+                />
+
+                {/* Discount Code */}
+                <FormControl fullWidth>
+                  <InputLabel>Discount Code (Optional)</InputLabel>
+                  <Select
+                    value={editingAppointment.discountCode}
+                    onChange={(e) => setEditingAppointment({...editingAppointment, discountCode: e.target.value})}
+                    label="Discount Code (Optional)"
+                  >
+                    <MenuItem value="">
+                      <em>No discount</em>
+                    </MenuItem>
+                    {discountCodes.map((discount) => (
+                      <MenuItem key={discount.id} value={discount.code}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                          <Box>
+                            <Typography>{discount.code}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {discount.description}
+                            </Typography>
+                          </Box>
+                          <Typography color="success.main" fontWeight={600}>
+                            {discount.discountPercent}% OFF
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ 
+            p: { xs: 2, sm: 3 }, 
+            gap: { xs: 1.5, sm: 2 },
+            flexDirection: 'row'
+          }}>
+            <GradientButton
+              variant="blue"
+              animated
+              onClick={() => setEditAppointmentOpen(false)}
+              sx={{ 
+                flex: 1,
+                px: { xs: 2, sm: 3 }, 
+                py: { xs: 1, sm: 1.2 }, 
+                fontSize: { xs: 13, sm: 14 }
+              }}
+            >
+              Cancel
+            </GradientButton>
+            <GradientButton
+              variant="red"
+              animated
+              onClick={handleUpdateAppointment}
+              disabled={!editingAppointment?.clientId || !editingAppointment?.packageId}
+              sx={{ 
+                flex: 1,
+                px: { xs: 2, sm: 3 }, 
+                py: { xs: 1, sm: 1.2 }, 
+                fontSize: { xs: 13, sm: 14 }
+              }}
+            >
+              Update Appointment
             </GradientButton>
           </DialogActions>
         </Dialog>
