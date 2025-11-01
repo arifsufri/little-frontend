@@ -271,6 +271,7 @@ export default function FinancialPage() {
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
   });
+  const [dateFilter, setDateFilter] = React.useState('current_month');
   
   // Expense management state
   const [expenseDialogOpen, setExpenseDialogOpen] = React.useState(false);
@@ -307,6 +308,64 @@ export default function FinancialPage() {
 
   const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
     setSnackbar({ open: true, message, severity });
+  };
+
+  // Handle preset date filter changes
+  const handleDateFilterChange = (filterType: string) => {
+    setDateFilter(filterType);
+    const today = new Date();
+    let startDate: Date;
+    let endDate: Date = new Date(today);
+
+    switch (filterType) {
+      case 'today':
+        startDate = new Date(today);
+        endDate = new Date(today);
+        break;
+      case 'yesterday':
+        startDate = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+        endDate = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case 'this_week':
+        const dayOfWeek = today.getDay();
+        const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 0, Monday = 1
+        startDate = new Date(today.getTime() - daysToMonday * 24 * 60 * 60 * 1000);
+        endDate = new Date(today);
+        break;
+      case 'last_week':
+        const lastWeekEnd = new Date(today.getTime() - today.getDay() * 24 * 60 * 60 * 1000);
+        const lastWeekStart = new Date(lastWeekEnd.getTime() - 6 * 24 * 60 * 60 * 1000);
+        startDate = lastWeekStart;
+        endDate = lastWeekEnd;
+        break;
+      case 'current_month':
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        endDate = new Date(today);
+        break;
+      case 'last_month':
+        startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+        break;
+      case 'last_3_months':
+        startDate = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+        endDate = new Date(today);
+        break;
+      case 'this_year':
+        startDate = new Date(today.getFullYear(), 0, 1);
+        endDate = new Date(today);
+        break;
+      case 'custom':
+        // Don't change dates for custom filter
+        return;
+      default:
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        endDate = new Date(today);
+    }
+
+    setDateRange({
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0]
+    });
   };
 
   const handleCloseDailyAccount = async () => {
@@ -549,6 +608,14 @@ export default function FinancialPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange, userRole]);
 
+  // Auto-fetch when preset filter changes (but not for custom)
+  React.useEffect(() => {
+    if (dateFilter !== 'custom') {
+      fetchFinancialData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFilter]);
+
   const fetchFinancialData = async () => {
     try {
       setLoading(true);
@@ -670,65 +737,218 @@ export default function FinancialPage() {
         px: { xs: 0, sm: 0 },
         boxSizing: 'border-box'
       }}>
-      {/* Header */}
+      {/* Modern Header Section */}
       <Box sx={{ 
-        mb: { xs: 2, sm: 4 }
+        mb: { xs: 3, sm: 4 }
       }}>
         <Box sx={{ 
           display: 'flex', 
-          alignItems: { xs: 'flex-start', sm: 'center' }, 
           justifyContent: 'space-between', 
+          alignItems: { xs: 'flex-start', sm: 'center' },
           flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 2, sm: 2 }, 
-          pb: 2,
-          width: '100%',
-          maxWidth: '100%',
-          minWidth: 0,
-          overflow: 'hidden'
+          gap: { xs: 3, sm: 2 },
+          pb: 3,
+          borderBottom: '1px solid',
+          borderColor: 'divider'
         }}>
+          {/* Title Section */}
+          <Box>
           <Typography 
-            variant="h4" 
-            fontWeight={900} 
+              variant="h3" 
+              component="h1" 
             sx={{ 
+                fontWeight: 700,
               fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
-              fontSize: { xs: '1.75rem', sm: '3rem' },
-              color: '#000000',
-              lineHeight: 1.2
+                fontSize: { xs: '2rem', sm: '2.5rem' },
+                color: 'text.primary',
+                lineHeight: 1.2,
+                mb: 0.5
             }}
           >
             Financial Reports
           </Typography>
+            <Typography 
+              variant="body1" 
+              sx={{ 
+                color: 'text.secondary',
+                fontSize: { xs: '0.95rem', sm: '1rem' },
+                fontWeight: 400
+              }}
+            >
+              Track your business performance and financial insights
+            </Typography>
+          </Box>
           
+          {/* Action Button */}
           {userRole === 'Boss' && (
+            <Box sx={{ 
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              width: { xs: '100%', sm: 'auto' }
+            }}>
             <GradientButton
               variant="red"
               animated
               startIcon={<AddIcon />}
               onClick={() => setExpenseDialogOpen(true)}
               sx={{ 
-                px: { xs: 2, sm: 3 }, 
-                py: { xs: 1, sm: 1.2 }, 
-                fontSize: { xs: 13, sm: 14 },
+                  px: { xs: 3, sm: 4 }, 
+                  py: { xs: 1.5, sm: 1.8 }, 
+                  fontSize: { xs: '0.9rem', sm: '0.95rem' },
+                  fontWeight: 600,
                 width: { xs: '100%', sm: 'auto' },
-                borderRadius: { xs: 3, sm: 4 }
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  minWidth: { sm: 160 },
+                  boxShadow: '0 4px 12px rgba(139, 14, 16, 0.3)',
+                  '&:hover': {
+                    boxShadow: '0 6px 16px rgba(139, 14, 16, 0.4)',
+                    transform: 'translateY(-1px)'
+                  },
+                  transition: 'all 0.2s ease-in-out'
               }}
             >
               Add Expense
             </GradientButton>
+            </Box>
           )}
         </Box>
 
-        {/* Date Range Filter */}
-        <Box sx={{ mb: 3, mt: { xs: 2, sm: 0 } }}>
-          {/* Date Fields Container */}
+        {/* Date Range Filter - Modern Card Design */}
+        <Card 
+          variant="outlined" 
+          sx={{ 
+            mb: 4, 
+            mt: { xs: 2, sm: 0 },
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+            overflow: 'visible'
+          }}
+        >
+          <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+            {/* Filter Header */}
         <Box sx={{ 
           display: 'flex', 
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 1.5, sm: 2 }, 
-          alignItems: { xs: 'stretch', sm: 'center' },
-            justifyContent: { xs: 'center', sm: 'flex-start' },
-            mb: { xs: 3, sm: 0 },
-            px: { xs: 0, sm: 0 }
+              alignItems: 'center', 
+              gap: 1.5, 
+              mb: 3 
+            }}>
+              <Box sx={{
+                p: 1,
+                borderRadius: 2,
+                bgcolor: 'primary.main',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <FilterListIcon fontSize="small" />
+              </Box>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                }}
+              >
+                Filter Period
+              </Typography>
+            </Box>
+
+            {/* Filter Controls */}
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 2, sm: 3 },
+              alignItems: { xs: 'stretch', sm: 'flex-start' }
+            }}>
+              {/* Period Selector */}
+              <Box sx={{ flex: 1, minWidth: { xs: '100%', sm: 250 } }}>
+                <FormControl fullWidth size="medium">
+                  <InputLabel sx={{ fontWeight: 500 }}>Select Period</InputLabel>
+                  <Select
+                    value={dateFilter}
+                    onChange={(e) => handleDateFilterChange(e.target.value)}
+                    label="Select Period"
+                    sx={{
+                      borderRadius: 2,
+                      '& .MuiOutlinedInput-root': {
+                        '&:hover fieldset': {
+                          borderColor: 'primary.main',
+                        },
+                      }
+                    }}
+                  >
+                    <MenuItem value="today">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <CalendarTodayIcon fontSize="small" color="primary" />
+                        <Typography>Today</Typography>
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="yesterday">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <CalendarTodayIcon fontSize="small" color="secondary" />
+                        <Typography>Yesterday</Typography>
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="this_week">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <CalendarTodayIcon fontSize="small" color="info" />
+                        <Typography>This Week</Typography>
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="last_week">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <CalendarTodayIcon fontSize="small" color="warning" />
+                        <Typography>Last Week</Typography>
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="current_month">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <CalendarTodayIcon fontSize="small" color="success" />
+                        <Typography>Current Month</Typography>
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="last_month">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <CalendarTodayIcon fontSize="small" color="error" />
+                        <Typography>Last Month</Typography>
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="last_3_months">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <CalendarTodayIcon fontSize="small" sx={{ color: 'purple' }} />
+                        <Typography>Last 3 Months</Typography>
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="this_year">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <CalendarTodayIcon fontSize="small" sx={{ color: 'orange' }} />
+                        <Typography>This Year</Typography>
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="custom">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <CalendarTodayIcon fontSize="small" sx={{ color: 'grey.600' }} />
+                        <Typography>Custom Range</Typography>
+                      </Box>
+                    </MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {/* Custom Date Fields */}
+              {dateFilter === 'custom' && (
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  gap: 2,
+                  flex: 1,
+                  minWidth: { xs: '100%', sm: 400 }
         }}>
           <TextField
             label="Start Date"
@@ -736,11 +956,12 @@ export default function FinancialPage() {
             value={dateRange.startDate}
             onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
             InputLabelProps={{ shrink: true }}
-            size="small"
-              sx={{ 
-                width: { xs: '100%', sm: '200px' },
-                maxWidth: { xs: 'none', sm: '200px' }
-              }}
+                    fullWidth
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2,
+                      }
+                    }}
           />
           <TextField
             label="End Date"
@@ -748,43 +969,91 @@ export default function FinancialPage() {
             value={dateRange.endDate}
             onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
             InputLabelProps={{ shrink: true }}
-            size="small"
-              sx={{ 
-                width: { xs: '100%', sm: '200px' },
-                maxWidth: { xs: 'none', sm: '200px' }
-              }}
-          />
-            {/* Apply Filter Button - Desktop Only */}
+                    fullWidth
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2,
+                      }
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+
+            {/* Date Range Display and Apply Button */}
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: 2, 
+              alignItems: { xs: 'stretch', sm: 'center' },
+              justifyContent: 'space-between',
+              mt: 3,
+              pt: 2.5,
+              borderTop: '1px solid',
+              borderColor: 'divider'
+            }}>
+              {/* Current Date Range Display */}
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1.5,
+                px: 2.5,
+                py: 1.5,
+                bgcolor: 'primary.50',
+                borderRadius: 2.5,
+                border: '1px solid',
+                borderColor: 'primary.100',
+                minWidth: 'fit-content'
+              }}>
+                <CalendarTodayIcon fontSize="small" color="primary" />
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: 'primary.dark',
+                    fontWeight: 500,
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  {new Date(dateRange.startDate).toLocaleDateString('en-MY', { 
+                    day: 'numeric', 
+                    month: 'short', 
+                    year: 'numeric' 
+                  })} - {new Date(dateRange.endDate).toLocaleDateString('en-MY', { 
+                    day: 'numeric', 
+                    month: 'short', 
+                    year: 'numeric' 
+                  })}
+                </Typography>
+              </Box>
+
+              {/* Apply Filter Button */}
           <Button
-            variant="outlined"
+                variant="contained"
             onClick={fetchFinancialData}
+                startIcon={<FilterListIcon />}
+                size="large"
             sx={{ 
-                display: { xs: 'none', sm: 'block' },
-                borderRadius: 2,
-                ml: 1
+                  borderRadius: 2.5,
+                  minWidth: { xs: '100%', sm: 140 },
+                  height: 48,
+                  bgcolor: 'primary.main',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  fontSize: '0.95rem',
+                  boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+                  '&:hover': {
+                    bgcolor: 'primary.dark',
+                    boxShadow: '0 6px 16px rgba(25, 118, 210, 0.4)',
+                    transform: 'translateY(-1px)'
+                  },
+                  transition: 'all 0.2s ease-in-out'
             }}
           >
             Apply Filter
           </Button>
-          </Box>
-          
-          {/* Apply Filter Button - Mobile Only */}
-          <Box sx={{ 
-            display: { xs: 'block', sm: 'none' },
-            mt: 1
-          }}>
-            <Button
-              variant="outlined"
-              onClick={fetchFinancialData}
-              sx={{ 
-                width: '100%',
-                borderRadius: 2
-              }}
-            >
-              Apply Filter
-            </Button>
-          </Box>
         </Box>
+          </CardContent>
+        </Card>
       </Box>
 
       {userRole === 'Boss' ? (

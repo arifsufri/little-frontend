@@ -59,13 +59,11 @@ interface Appointment {
 interface AppointmentCardProps {
   appointment: Appointment;
   onMenuClick: (event: React.MouseEvent<HTMLElement>, appointment: Appointment) => void;
-  onViewDetails: (appointment: Appointment) => void;
 }
 
 const AppointmentCard: React.FC<AppointmentCardProps> = ({
   appointment,
-  onMenuClick,
-  onViewDetails
+  onMenuClick
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -120,7 +118,6 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                  outlineOffset: '-2px'
                }
       }}
-      onClick={() => onViewDetails(appointment)}
     >
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
         {/* Header with client info and menu */}

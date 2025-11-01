@@ -46,6 +46,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import PersonIcon from '@mui/icons-material/Person';
@@ -110,9 +111,11 @@ export default function AppointmentsPage() {
   const [loading, setLoading] = React.useState(true);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [selectedAppointment, setSelectedAppointment] = React.useState<Appointment | null>(null);
-  const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('all');
+  const [staffFilter, setStaffFilter] = React.useState('all');
+  const [dateFilter, setDateFilter] = React.useState('all');
+  const [customDate, setCustomDate] = React.useState('');
   const [confirmationOpen, setConfirmationOpen] = React.useState(false);
   const [packages, setPackages] = React.useState<Package[]>([]);
   const [selectedAdditionalPackages, setSelectedAdditionalPackages] = React.useState<number[]>([]);
@@ -211,7 +214,8 @@ export default function AppointmentsPage() {
   const [itemsPerPage] = React.useState(10);
   const [newAppointment, setNewAppointment] = React.useState({
     clientId: '',
-    packageId: ''
+    packageId: '',
+    barberId: ''
   });
   const [newAdditionalPackages, setNewAdditionalPackages] = React.useState<number[]>([]);
 
@@ -223,11 +227,21 @@ export default function AppointmentsPage() {
   const getAppointmentServices = (appointment: any) => {
     const services = [appointment.package.name];
     
+    // Add additional packages
     if (appointment.additionalPackages && Array.isArray(appointment.additionalPackages)) {
       appointment.additionalPackages.forEach((packageId: number) => {
         const additionalPackage = packages.find(pkg => pkg.id === packageId);
         if (additionalPackage) {
           services.push(additionalPackage.name);
+        }
+      });
+    }
+    
+    // Add custom packages
+    if (appointment.customPackages && Array.isArray(appointment.customPackages)) {
+      appointment.customPackages.forEach((customPkg: any) => {
+        if (customPkg && customPkg.name) {
+          services.push(`${customPkg.name} (Custom)`);
         }
       });
     }
@@ -379,11 +393,30 @@ export default function AppointmentsPage() {
       const malaysiaTime = new Date().toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"});
       const appointmentDate = new Date(malaysiaTime).toISOString();
       
+      // Determine barber assignment based on user role
+      let barberId = null;
+      if (userRole === 'Staff') {
+        // Staff automatically assigns themselves
+        const token = localStorage.getItem('token');
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            barberId = payload.userId;
+          } catch (error) {
+            console.error('Error parsing token:', error);
+          }
+        }
+      } else if (userRole === 'Boss' && newAppointment.barberId) {
+        // Boss can select a barber
+        barberId = parseInt(newAppointment.barberId);
+      }
+      
       const appointmentData = {
         clientId: parseInt(newAppointment.clientId),
         packageId: parseInt(newAppointment.packageId),
         appointmentDate: appointmentDate,
-        additionalPackages: newAdditionalPackages
+        additionalPackages: newAdditionalPackages,
+        ...(barberId && { barberId })
       };
 
       await apiPost('/appointments', appointmentData);
@@ -392,7 +425,8 @@ export default function AppointmentsPage() {
       setCreateAppointmentOpen(false);
       setNewAppointment({
         clientId: '',
-        packageId: ''
+        packageId: '',
+        barberId: ''
       });
       setNewAdditionalPackages([]);
       
@@ -583,6 +617,20 @@ export default function AppointmentsPage() {
     if (!selectedAppointment) return;
 
     if (newStatus === 'completed') {
+      // Populate additional packages from the appointment
+      if (selectedAppointment.additionalPackages && Array.isArray(selectedAppointment.additionalPackages)) {
+        setSelectedAdditionalPackages(selectedAppointment.additionalPackages);
+      } else {
+        setSelectedAdditionalPackages([]);
+      }
+      
+      // Populate custom packages from the appointment
+      if (selectedAppointment.customPackages && Array.isArray(selectedAppointment.customPackages)) {
+        setCustomPackages(selectedAppointment.customPackages);
+      } else {
+        setCustomPackages([]);
+      }
+      
       // Open confirmation modal for completion
       setConfirmationOpen(true);
       // Don't call handleMenuClose() here to preserve selectedAppointment
@@ -1164,11 +1212,6 @@ export default function AppointmentsPage() {
     }
   }, [selectedAdditionalPackages, customPackages, confirmationOpen, selectedAppointment, calculateTotalPrice, calculateDiscountedPrice, discountInfo, multipleDiscountCodes, calculateMultipleDiscountsTotal]);
 
-  const handleViewDetails = (appointment: Appointment) => {
-    setSelectedAppointment(appointment);
-    setDetailsOpen(true);
-    handleMenuClose();
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-MY', {
@@ -1226,8 +1269,84 @@ export default function AppointmentsPage() {
       filtered = filtered.filter(appointment => appointment.status === statusFilter);
     }
 
+    // Apply staff filter
+    if (staffFilter !== 'all') {
+      if (staffFilter === 'unassigned') {
+        filtered = filtered.filter(appointment => !appointment.barber || appointment.barber === null);
+      } else {
+        filtered = filtered.filter(appointment => appointment.barber && appointment.barber.id.toString() === staffFilter);
+      }
+    }
+
+    // Apply date filter
+    if (dateFilter !== 'all') {
+      const today = new Date();
+      const filterDate = new Date(today);
+      
+      switch (dateFilter) {
+        case 'today':
+          filterDate.setHours(0, 0, 0, 0);
+          const todayEnd = new Date(filterDate);
+          todayEnd.setHours(23, 59, 59, 999);
+          filtered = filtered.filter(appointment => {
+            if (!appointment.appointmentDate) return false;
+            const appointmentDate = new Date(appointment.appointmentDate);
+            return appointmentDate >= filterDate && appointmentDate <= todayEnd;
+          });
+          break;
+        case 'yesterday':
+          filterDate.setDate(today.getDate() - 1);
+          filterDate.setHours(0, 0, 0, 0);
+          const yesterdayEnd = new Date(filterDate);
+          yesterdayEnd.setHours(23, 59, 59, 999);
+          filtered = filtered.filter(appointment => {
+            if (!appointment.appointmentDate) return false;
+            const appointmentDate = new Date(appointment.appointmentDate);
+            return appointmentDate >= filterDate && appointmentDate <= yesterdayEnd;
+          });
+          break;
+        case 'this_week':
+          const dayOfWeek = today.getDay();
+          const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+          const weekStart = new Date(today.getTime() - daysToMonday * 24 * 60 * 60 * 1000);
+          weekStart.setHours(0, 0, 0, 0);
+          const weekEnd = new Date(today);
+          weekEnd.setHours(23, 59, 59, 999);
+          filtered = filtered.filter(appointment => {
+            if (!appointment.appointmentDate) return false;
+            const appointmentDate = new Date(appointment.appointmentDate);
+            return appointmentDate >= weekStart && appointmentDate <= weekEnd;
+          });
+          break;
+        case 'this_month':
+          const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+          monthStart.setHours(0, 0, 0, 0);
+          const monthEnd = new Date(today);
+          monthEnd.setHours(23, 59, 59, 999);
+          filtered = filtered.filter(appointment => {
+            if (!appointment.appointmentDate) return false;
+            const appointmentDate = new Date(appointment.appointmentDate);
+            return appointmentDate >= monthStart && appointmentDate <= monthEnd;
+          });
+          break;
+        default:
+          // For custom date (specific date), expect dateFilter to be in YYYY-MM-DD format
+          if (dateFilter.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const customDate = new Date(dateFilter);
+            customDate.setHours(0, 0, 0, 0);
+            const customDateEnd = new Date(customDate);
+            customDateEnd.setHours(23, 59, 59, 999);
+            filtered = filtered.filter(appointment => {
+              if (!appointment.appointmentDate) return false;
+              const appointmentDate = new Date(appointment.appointmentDate);
+              return appointmentDate >= customDate && appointmentDate <= customDateEnd;
+            });
+          }
+      }
+    }
+
     return filtered;
-  }, [appointments, searchTerm, statusFilter]);
+  }, [appointments, searchTerm, statusFilter, staffFilter, dateFilter]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
@@ -1242,7 +1361,7 @@ export default function AppointmentsPage() {
   // Reset page when search or filter changes
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, staffFilter, dateFilter]);
 
   const getStatusCounts = () => {
     return {
@@ -1381,7 +1500,7 @@ export default function AppointmentsPage() {
                       letterSpacing: '0.5px'
                     }}
                   >
-                    Confirmed
+                    In Progress
                   </Typography>
                   <Typography 
                     variant="h4" 
@@ -1392,7 +1511,7 @@ export default function AppointmentsPage() {
                       lineHeight: 1.1
                     }}
                   >
-                    {statusCounts.confirmed}
+                    {statusCounts.pending + statusCounts.confirmed}
                   </Typography>
                 </Box>
                 <Avatar sx={{ 
@@ -1597,11 +1716,132 @@ export default function AppointmentsPage() {
                       </Box>
                     </MenuItem>
                     <MenuItem value="pending">Pending</MenuItem>
-                    <MenuItem value="confirmed">Confirmed</MenuItem>
                     <MenuItem value="completed">Completed</MenuItem>
                     <MenuItem value="cancelled">Cancelled</MenuItem>
                   </Select>
                 </FormControl>
+
+                {/* Staff Filter */}
+                <FormControl 
+                  size="small" 
+                  sx={{ 
+                    minWidth: { xs: '100%', sm: 150 },
+                    maxWidth: { xs: '100%', sm: 200 }
+                  }}
+                >
+                  <InputLabel>Staff Filter</InputLabel>
+                  <Select
+                    value={staffFilter}
+                    label="Staff Filter"
+                    onChange={(e) => setStaffFilter(e.target.value)}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: { xs: 1.5, sm: 2 },
+                      }
+                    }}
+                  >
+                    <MenuItem value="all">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <PersonIcon fontSize="small" color="action" />
+                        All Staff
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="unassigned">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <PersonIcon fontSize="small" color="disabled" />
+                        Unassigned
+                      </Box>
+                    </MenuItem>
+                    {staff.filter(member => member.status === 'active').map((member) => (
+                      <MenuItem key={member.id} value={member.id.toString()}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <PersonIcon fontSize="small" color="primary" />
+                          {member.name}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {/* Date Filter */}
+                <FormControl 
+                  size="small" 
+                  sx={{ 
+                    minWidth: { xs: '100%', sm: 150 },
+                    maxWidth: { xs: '100%', sm: 200 }
+                  }}
+                >
+                  <InputLabel>Date Filter</InputLabel>
+                  <Select
+                    value={dateFilter}
+                    label="Date Filter"
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: { xs: 1.5, sm: 2 },
+                      }
+                    }}
+                  >
+                    <MenuItem value="all">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CalendarTodayIcon fontSize="small" color="action" />
+                        All Dates
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="today">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CalendarTodayIcon fontSize="small" color="primary" />
+                        Today
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="yesterday">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CalendarTodayIcon fontSize="small" color="secondary" />
+                        Yesterday
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="this_week">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CalendarTodayIcon fontSize="small" color="info" />
+                        This Week
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="this_month">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CalendarTodayIcon fontSize="small" color="success" />
+                        This Month
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="custom">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CalendarTodayIcon fontSize="small" color="warning" />
+                        Custom Date
+                      </Box>
+                    </MenuItem>
+                  </Select>
+                </FormControl>
+
+                {/* Custom Date Picker - Only show when Custom Date is selected */}
+                {dateFilter === 'custom' && (
+                  <TextField
+                    label="Select Date"
+                    type="date"
+                    value={customDate}
+                    onChange={(e) => {
+                      setCustomDate(e.target.value);
+                      setDateFilter(e.target.value); // Set the actual date as the filter value
+                    }}
+                    InputLabelProps={{ shrink: true }}
+                    size="small"
+                    sx={{ 
+                      minWidth: { xs: '100%', sm: 150 },
+                      maxWidth: { xs: '100%', sm: 200 },
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: { xs: 1.5, sm: 2 },
+                      }
+                    }}
+                  />
+                )}
                 
                 <Box sx={{ 
                   display: { xs: 'flex', sm: 'flex' }, 
@@ -1639,7 +1879,6 @@ export default function AppointmentsPage() {
                     <AppointmentCard
                       appointment={appointment}
                       onMenuClick={handleMenuClick}
-                      onViewDetails={handleViewDetails}
                     />
                   </Grid>
                 ))}
@@ -1784,13 +2023,10 @@ export default function AppointmentsPage() {
           open={Boolean(anchorEl)}
           onClose={handleMenuClose}
         >
-          <MenuItem onClick={() => handleViewDetails(selectedAppointment!)}>
-            View Details
-          </MenuItem>
-          {/* Edit Appointment - Boss and Staff can edit */}
-          {(userRole === 'Boss' || userRole === 'Staff') && (
+          {/* Edit Appointment - Boss and Staff can edit, but not when status is pending */}
+          {(userRole === 'Boss' || userRole === 'Staff') && selectedAppointment?.status !== 'pending' && (
             <MenuItem onClick={() => handleEditAppointment(selectedAppointment!)}>
-              Edit Appointment
+              Edit 
             </MenuItem>
           )}
           {/* Boss can change barber for any appointment, Staff only for non-completed/non-cancelled */}
@@ -1804,214 +2040,25 @@ export default function AppointmentsPage() {
               Change Barber
             </MenuItem>
           )}
-          {selectedAppointment?.status === 'pending' && (
-            <MenuItem onClick={() => handleStatusUpdate('confirmed')}>
-              Confirm Appointment
-            </MenuItem>
-          )}
-          {selectedAppointment?.status === 'confirmed' && (
+          {(selectedAppointment?.status === 'pending' || selectedAppointment?.status === 'confirmed') && (
             <MenuItem onClick={() => handleStatusUpdate('completed')}>
               Mark as Completed
             </MenuItem>
           )}
           {selectedAppointment?.status !== 'cancelled' && selectedAppointment?.status !== 'completed' && (
             <MenuItem onClick={() => handleStatusUpdate('cancelled')} sx={{ color: 'error.main' }}>
-              Cancel Appointment
+              Cancel
             </MenuItem>
           )}
           {/* Boss can delete any appointment */}
           {userRole === 'Boss' && (
             <MenuItem onClick={() => setDeleteConfirmOpen(true)} sx={{ color: 'error.main' }}>
               <DeleteIcon sx={{ mr: 1, fontSize: '1rem' }} />
-              Delete Appointment
+              Delete 
             </MenuItem>
           )}
         </Menu>
 
-        {/* Details Dialog */}
-        <Dialog 
-          open={detailsOpen} 
-          onClose={() => setDetailsOpen(false)} 
-          maxWidth="sm" 
-          fullWidth
-          sx={{
-            '& .MuiDialog-paper': {
-              margin: { xs: 1, sm: 2 },
-              borderRadius: { xs: 2, sm: 2 },
-              maxHeight: { xs: '90vh', sm: 'none' }
-            }
-          }}
-        >
-          {selectedAppointment && (
-            <>
-              <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 } }}>
-                  <Avatar sx={{ width: { xs: 40, sm: 48 }, height: { xs: 40, sm: 48 } }}>
-                    <PersonIcon />
-                  </Avatar>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography 
-                      variant="h6"
-                      sx={{ 
-                        fontSize: { xs: '1.1rem', sm: '1.25rem' },
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {selectedAppointment.client.fullName}
-                    </Typography>
-                    <Typography 
-                      variant="caption" 
-                      color="text.secondary"
-                      sx={{ fontSize: { xs: '0.75rem', sm: '0.8rem' } }}
-                    >
-                      {selectedAppointment.client.clientId}
-                    </Typography>
-                  </Box>
-                </Box>
-              </DialogTitle>
-              <DialogContent sx={{ px: { xs: 2, sm: 3 }, pb: { xs: 1, sm: 2 }, overflow: 'auto' }}>
-                <Grid container spacing={{ xs: 2, sm: 2 }}>
-                  <Grid item xs={12}>
-                    <Typography 
-                      variant="subtitle2" 
-                      color="text.secondary"
-                      sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mb: 0.5 }}
-                    >
-                      Phone
-                    </Typography>
-                    <Typography 
-                      variant="body1"
-                      sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
-                    >
-                      {selectedAppointment.client.phoneNumber}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography 
-                      variant="subtitle2" 
-                      color="text.secondary"
-                      sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mb: 0.5 }}
-                    >
-                      Service
-                    </Typography>
-                    <Typography 
-                      variant="body1"
-                      sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
-                    >
-                      {selectedAppointment.package.name}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography 
-                      variant="subtitle2" 
-                      color="text.secondary"
-                      sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mb: 0.5 }}
-                    >
-                      Price
-                    </Typography>
-                    <Typography 
-                      variant="body1"
-                      sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
-                    >
-                      RM{selectedAppointment.finalPrice || selectedAppointment.package.price}
-                    </Typography>
-                    {selectedAppointment.finalPrice && selectedAppointment.finalPrice !== selectedAppointment.package.price && (
-                      <Typography 
-                        variant="caption" 
-                        color="text.secondary"
-                        sx={{ fontSize: { xs: '0.75rem', sm: '0.8rem' } }}
-                      >
-                        Base: RM{selectedAppointment.package.price}
-                      </Typography>
-                    )}
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography 
-                      variant="subtitle2" 
-                      color="text.secondary"
-                      sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mb: 0.5 }}
-                    >
-                      Duration
-                    </Typography>
-                    <Typography 
-                      variant="body1"
-                      sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
-                    >
-                      {selectedAppointment.package.duration} mins
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography 
-                      variant="subtitle2" 
-                      color="text.secondary"
-                      sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mb: 0.5 }}
-                    >
-                      Status
-                    </Typography>
-                    <Chip 
-                      label={selectedAppointment.status}
-                      color={getStatusColor(selectedAppointment.status) as any}
-                      size="small"
-                      sx={{ fontSize: { xs: '0.75rem', sm: '0.8rem' } }}
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography 
-                      variant="subtitle2" 
-                      color="text.secondary"
-                      sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mb: 0.5 }}
-                    >
-                      Booked Date
-                    </Typography>
-                    <Typography 
-                      variant="body1"
-                      sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
-                    >
-                      {formatDate(selectedAppointment.createdAt)}
-                    </Typography>
-                  </Grid>
-                  {selectedAppointment.notes && (
-                    <Grid item xs={12}>
-                      <Typography 
-                        variant="subtitle2" 
-                        color="text.secondary"
-                        sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mb: 0.5 }}
-                      >
-                        Notes
-                      </Typography>
-                      <Typography 
-                        variant="body1"
-                        sx={{ 
-                          fontSize: { xs: '0.9rem', sm: '1rem' },
-                          lineHeight: 1.5
-                        }}
-                      >
-                        {selectedAppointment.notes}
-                      </Typography>
-                    </Grid>
-                  )}
-                </Grid>
-              </DialogContent>
-              <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: { xs: 2, sm: 3 } }}>
-                <GradientButton 
-                  variant="red"
-                  animated
-                  sx={{ 
-                    px: { xs: 2, sm: 3 }, 
-                    py: { xs: 1, sm: 1.2 }, 
-                    fontSize: { xs: 13, sm: 14 },
-                    width: { xs: '100%', sm: 'auto' }
-                  }}
-                  onClick={() => setDetailsOpen(false)}
-                >
-                  Close
-                </GradientButton>
-              </DialogActions>
-            </>
-          )}
-        </Dialog>
 
         {/* Confirmation Modal for Completion */}
         <Dialog 
@@ -2047,7 +2094,7 @@ export default function AppointmentsPage() {
                 whiteSpace: 'nowrap'
               }}
             >
-              {selectedAppointment && `${selectedAppointment.client.fullName} - ${selectedAppointment.package.name}`}
+              {selectedAppointment && `${selectedAppointment.client.fullName} - ${getAppointmentServices(selectedAppointment).join(', ')}`}
             </Typography>
           </DialogTitle>
           <DialogContent sx={{ 
@@ -2629,6 +2676,59 @@ export default function AppointmentsPage() {
                 </Select>
               </FormControl>
 
+              {/* Barber Selection - Only for Boss */}
+              {userRole === 'Boss' && (
+                <FormControl fullWidth>
+                  <InputLabel>Assign Barber (Optional)</InputLabel>
+                  <Select
+                    value={newAppointment.barberId}
+                    onChange={(e) => setNewAppointment({...newAppointment, barberId: e.target.value})}
+                    label="Assign Barber (Optional)"
+                  >
+                    <MenuItem value="">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <PersonIcon fontSize="small" color="disabled" />
+                        <Typography>No barber assigned</Typography>
+                      </Box>
+                    </MenuItem>
+                    {staff.filter(member => member.status === 'active').map((member) => (
+                      <MenuItem key={member.id} value={member.id}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <PersonIcon fontSize="small" color="primary" />
+                            <Typography>{member.name}</Typography>
+                          </Box>
+                          <Typography variant="caption" color="text.secondary">
+                            {member.role}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+
+              {/* Staff Auto-Assignment Info */}
+              {userRole === 'Staff' && (
+                <Box sx={{ 
+                  p: 2, 
+                  bgcolor: 'info.light', 
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'info.main'
+                }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <PersonIcon fontSize="small" color="info" />
+                    <Typography variant="subtitle2" color="info.dark" fontWeight={600}>
+                      Barber Assignment
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="info.dark">
+                    You will be automatically assigned as the barber for this appointment.
+                  </Typography>
+                </Box>
+              )}
+
               {/* Additional Packages */}
               <Box>
                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
@@ -2738,7 +2838,7 @@ export default function AppointmentsPage() {
             </Typography>
             {selectedAppointment && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                {selectedAppointment.client.fullName} - {selectedAppointment.package.name}
+                {selectedAppointment.client.fullName} - {getAppointmentServices(selectedAppointment).join(', ')}
               </Typography>
             )}
           </DialogTitle>
@@ -2867,7 +2967,7 @@ export default function AppointmentsPage() {
                   <strong>Client:</strong> {selectedAppointment.client.fullName}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  <strong>Service:</strong> {selectedAppointment.package.name}
+                  <strong>Service:</strong> {getAppointmentServices(selectedAppointment).join(', ')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   <strong>Status:</strong> {selectedAppointment.status}

@@ -586,7 +586,7 @@ export default function ClientsPage() {
             />
 
             {/* Info Box */}
-            <Box sx={{ 
+            {/* <Box sx={{ 
               p: 2, 
               bgcolor: 'info.50', 
               borderRadius: 2,
@@ -602,7 +602,7 @@ export default function ClientsPage() {
                 3. Login using their phone number<br/>
                 4. Book appointments and view their booking history
               </Typography>
-            </Box>
+            </Box> */}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ 

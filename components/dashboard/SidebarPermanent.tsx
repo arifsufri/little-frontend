@@ -78,37 +78,46 @@ export default function SidebarPermanent({ width = 260 }: { width?: number }) {
       </Box>
       <Divider />
       <Box sx={{ overflow: 'auto' }}>
-        <List
-        >
-          {visibleItems.map((item) => {
+        <List>
+          {visibleItems.map((item, index) => {
             const active = isActive(item.href);
+            const showDividerAfter = 
+              item.href === '/dashboard' || 
+              item.href === '/dashboard/clients' || 
+              item.href === '/dashboard/products' || 
+              item.href === '/dashboard/financial'; 
+            
             return (
-              <ListItemButton 
-                key={item.href} 
-                component={NextLink} 
-                href={item.href}
-                sx={{
-                  backgroundColor: active ? '#550000' : 'transparent',
-                  borderRadius: 2,
-                  mx: 1,
-                  mb: 0.5,
-                  '&:hover': {
-                    backgroundColor: active ? '#670e10' : 'rgba(0, 0, 0, 0.04)',
-                  },
-                }}
-              >
-                <ListItemIcon sx={{ color: active ? '#ffffff' : 'text.secondary' }}>{item.icon}</ListItemIcon>
-                <ListItemText 
-                  primaryTypographyProps={{ 
-                    sx: { 
-                      fontFamily: 'Manrope, Inter, system-ui, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif',
-                      color: active ? '#ffffff' : 'inherit',
-                      fontWeight: active ? 600 : 400,
-                    } 
-                  }} 
-                  primary={item.label} 
-                />
-              </ListItemButton>
+              <React.Fragment key={item.href}>
+                <ListItemButton 
+                  component={NextLink} 
+                  href={item.href}
+                  sx={{
+                    backgroundColor: active ? '#550000' : 'transparent',
+                    borderRadius: 2,
+                    mx: 1,
+                    mb: 0.5,
+                    '&:hover': {
+                      backgroundColor: active ? '#670e10' : 'rgba(0, 0, 0, 0.04)',
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ color: active ? '#ffffff' : 'text.secondary' }}>{item.icon}</ListItemIcon>
+                  <ListItemText 
+                    primaryTypographyProps={{ 
+                      sx: { 
+                        fontFamily: 'Manrope, Inter, system-ui, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif',
+                        color: active ? '#ffffff' : 'inherit',
+                        fontWeight: active ? 600 : 400,
+                      } 
+                    }} 
+                    primary={item.label} 
+                  />
+                </ListItemButton>
+                {showDividerAfter && (
+                  <Divider sx={{ mx: 2, my: 1, borderColor: 'rgba(0, 0, 0, 0.08)' }} />
+                )}
+              </React.Fragment>
             );
           })}
         </List>
