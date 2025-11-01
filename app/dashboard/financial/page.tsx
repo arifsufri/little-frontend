@@ -600,11 +600,18 @@ export default function FinancialPage() {
   const fetchTodaysAppointments = async () => {
     try {
       const response = await apiGet<{ success: boolean; data: any[] }>('/appointments');
-      const today = new Date().toDateString();
-      const todaysCompleted = response.data.filter(apt => 
-        apt.status === 'completed' &&
-        new Date(apt.updatedAt || apt.createdAt).toDateString() === today
-      );
+      const todayMalaysia = getTodayMalaysiaString();
+      const todaysCompleted = response.data.filter(apt => {
+        const appointmentDate = apt.updatedAt || apt.createdAt;
+        if (!appointmentDate) return false;
+        
+        // Convert appointment date to Malaysia timezone and get date string
+        const appointmentMalaysiaDate = new Date(appointmentDate).toLocaleDateString('en-CA', {
+          timeZone: 'Asia/Kuala_Lumpur'
+        });
+        
+        return apt.status === 'completed' && appointmentMalaysiaDate === todayMalaysia;
+      });
       setTodaysAppointments(todaysCompleted);
     } catch (error) {
       console.error('Error fetching today\'s appointments:', error);
