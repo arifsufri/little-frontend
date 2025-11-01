@@ -692,9 +692,9 @@ export default function FinancialPage() {
           {/* Date Fields Container */}
         <Box sx={{ 
           display: 'flex', 
-            flexDirection: { xs: 'column', sm: 'row' },
-            gap: { xs: 1.5, sm: 2 }, 
-            alignItems: { xs: 'stretch', sm: 'center' },
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 1.5, sm: 2 }, 
+          alignItems: { xs: 'stretch', sm: 'center' },
             justifyContent: { xs: 'center', sm: 'flex-start' },
             mb: { xs: 3, sm: 0 },
             px: { xs: 0, sm: 0 }
@@ -1057,52 +1057,52 @@ export default function FinancialPage() {
                   </Grid>
                 ) : (
                   // Desktop Table Layout
-                  <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-                    <Table>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell><strong>Barber</strong></TableCell>
-                          <TableCell><strong>Customers</strong></TableCell>
-                          <TableCell><strong>Appointments</strong></TableCell>
-                          <TableCell><strong>Total Sales</strong></TableCell>
-                          <TableCell><strong>Commission Rate</strong></TableCell>
-                          <TableCell><strong>Commission Paid</strong></TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {financialData.barberPerformance.map((barber) => (
-                          <TableRow key={barber.id} hover>
-                            <TableCell>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                                  {barber.name.charAt(0)}
-                                </Avatar>
-                                <Typography variant="body2" fontWeight={500}>
-                                  {barber.name}
-                                </Typography>
-                              </Box>
-                            </TableCell>
-                            <TableCell>{barber.customerCount}</TableCell>
-                            <TableCell>{barber.appointmentCount}</TableCell>
-                            <TableCell>{formatCurrency(barber.totalSales)}</TableCell>
-                            <TableCell>
-                              <Chip 
-                                label={`${barber.commissionRate}%`}
-                                color="primary"
-                                size="small"
-                                variant="outlined"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={500} color="success.main">
-                                {formatCurrency(barber.commissionPaid)}
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>Barber</strong></TableCell>
+                        <TableCell><strong>Customers</strong></TableCell>
+                        <TableCell><strong>Appointments</strong></TableCell>
+                        <TableCell><strong>Total Sales</strong></TableCell>
+                        <TableCell><strong>Commission Rate</strong></TableCell>
+                        <TableCell><strong>Commission Paid</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {financialData.barberPerformance.map((barber) => (
+                        <TableRow key={barber.id} hover>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+                                {barber.name.charAt(0)}
+                              </Avatar>
+                              <Typography variant="body2" fontWeight={500}>
+                                {barber.name}
                               </Typography>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
+                            </Box>
+                          </TableCell>
+                          <TableCell>{barber.customerCount}</TableCell>
+                          <TableCell>{barber.appointmentCount}</TableCell>
+                          <TableCell>{formatCurrency(barber.totalSales)}</TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={`${barber.commissionRate}%`}
+                              color="primary"
+                              size="small"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={500} color="success.main">
+                              {formatCurrency(barber.commissionPaid)}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
                 )}
               </CardContent>
             </Card>
@@ -1232,49 +1232,49 @@ export default function FinancialPage() {
                   </Grid>
                 ) : (
                   // Desktop Table Layout
-                  <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-                    <Table>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell><strong>Date</strong></TableCell>
-                          <TableCell><strong>Category</strong></TableCell>
-                          <TableCell><strong>Description</strong></TableCell>
-                          <TableCell><strong>Amount</strong></TableCell>
-                          <TableCell><strong>Actions</strong></TableCell>
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>Date</strong></TableCell>
+                        <TableCell><strong>Category</strong></TableCell>
+                        <TableCell><strong>Description</strong></TableCell>
+                        <TableCell><strong>Amount</strong></TableCell>
+                        <TableCell><strong>Actions</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {financialData.expenses.map((expense) => (
+                        <TableRow key={expense.id} hover>
+                          <TableCell>{formatDate(expense.date)}</TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={expense.category}
+                              color="secondary"
+                              size="small"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>{expense.description}</TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={500} color="error.main">
+                              {formatCurrency(expense.amount)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <IconButton 
+                              size="small" 
+                              color="error"
+                              onClick={() => handleDeleteExpense(expense.id)}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </TableCell>
                         </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {financialData.expenses.map((expense) => (
-                          <TableRow key={expense.id} hover>
-                            <TableCell>{formatDate(expense.date)}</TableCell>
-                            <TableCell>
-                              <Chip 
-                                label={expense.category}
-                                color="secondary"
-                                size="small"
-                                variant="outlined"
-                              />
-                            </TableCell>
-                            <TableCell>{expense.description}</TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={500} color="error.main">
-                                {formatCurrency(expense.amount)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <IconButton 
-                                size="small" 
-                                color="error"
-                                onClick={() => handleDeleteExpense(expense.id)}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
                 )}
               </CardContent>
             </Card>
@@ -1298,29 +1298,29 @@ export default function FinancialPage() {
                     alignItems: 'center',
                     mb: { xs: 2, sm: 3 }
                   }}>
-                    <Typography 
+                      <Typography 
                       variant="h6" 
                       fontWeight={600} 
-                      sx={{ 
+                        sx={{ 
                         fontSize: { xs: '1.1rem', sm: '1.25rem' }
                       }}
                     >
                       Monthly Payroll Summary
-                    </Typography>
+                      </Typography>
                     <GradientButton
                       variant="red"
                       animated
                       startIcon={<RestartAltIcon />}
                       onClick={() => setResetMonthlyOpen(true)}
-                      sx={{ 
+                        sx={{ 
                         px: { xs: 2, sm: 3 }, 
                         py: { xs: 0.8, sm: 1 }, 
                         fontSize: { xs: 12, sm: 13 }
-                      }}
-                    >
+                        }}
+                      >
                       Reset Monthly
                     </GradientButton>
-                  </Box>
+                    </Box>
 
                   {/* Summary Cards */}
                   <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -1337,10 +1337,10 @@ export default function FinancialPage() {
                         <Typography variant="body2" color="text.secondary">
                           Total Staff Earnings
                         </Typography>
-                      </Card>
-                    </Grid>
+              </Card>
+            </Grid>
                     <Grid item xs={12} sm={6} md={3}>
-                      <Card sx={{ 
+              <Card sx={{ 
                         p: 2, 
                         textAlign: 'center',
                         border: '2px solid #3b82f6',
@@ -1348,7 +1348,7 @@ export default function FinancialPage() {
                       }}>
                         <Typography variant="h4" fontWeight={700} color="#3b82f6">
                           {financialData.barberPerformance.length}
-                        </Typography>
+                      </Typography>
                         <Typography variant="body2" color="text.secondary">
                           Active Staff
                         </Typography>
@@ -1387,13 +1387,13 @@ export default function FinancialPage() {
                   </Grid>
 
                   {/* Staff Payroll Table */}
-                  <Typography 
+                      <Typography 
                     variant="h6" 
                     fontWeight={600} 
                     sx={{ mb: 2, fontSize: { xs: '1rem', sm: '1.1rem' } }}
                   >
                     Staff Payroll Breakdown
-                  </Typography>
+                      </Typography>
                   
                   <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
                     <Table>
@@ -1415,7 +1415,7 @@ export default function FinancialPage() {
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
                                   {barber.name.charAt(0)}
-                                </Avatar>
+                    </Avatar>
                                 <Typography variant="body2" fontWeight={500}>
                                   {barber.name}
                                 </Typography>
@@ -1504,16 +1504,16 @@ export default function FinancialPage() {
                 backgroundColor: '#fff'
               }}>
                 <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                  <Typography 
+                      <Typography 
                     variant="h6" 
                     fontWeight={600} 
-                    sx={{ 
+                        sx={{ 
                       mb: { xs: 2, sm: 3 },
                       fontSize: { xs: '1.1rem', sm: '1.25rem' }
                     }}
                   >
                     Business Profitability Analysis
-                  </Typography>
+                      </Typography>
 
                   <Grid container spacing={3}>
                     {/* Revenue Breakdown */}
@@ -1554,14 +1554,14 @@ export default function FinancialPage() {
                             borderTop: '2px solid #e0e0e0'
                           }}>
                             <Typography variant="h6" fontWeight={600}>Net Profit:</Typography>
-                            <Typography 
+                      <Typography 
                               variant="h6" 
                               fontWeight={700} 
                               color={financialData.overview.netProfit >= 0 ? 'success.main' : 'error.main'}
                             >
                               {formatCurrency(financialData.overview.netProfit)}
-                            </Typography>
-                          </Box>
+                      </Typography>
+                    </Box>
                         </Stack>
                       </Box>
                     </Grid>
@@ -1608,7 +1608,7 @@ export default function FinancialPage() {
                               {formatCurrency(financialData.overview.totalCommissionPaid / financialData.barberPerformance.length)}
                             </Typography>
                           </Box>
-                        </Stack>
+                  </Stack>
                       </Box>
                     </Grid>
                   </Grid>

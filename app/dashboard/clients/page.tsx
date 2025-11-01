@@ -220,7 +220,7 @@ export default function ClientsPage() {
           >
             Clients
           </Typography>
-          {userRole === 'Boss' && (
+          {(userRole === 'Boss' || userRole === 'Staff') && (
             <GradientButton
               variant="red"
               animated

@@ -652,7 +652,7 @@ export default function AppointmentsPage() {
           >
             Appointments
           </Typography>
-          {userRole === 'Boss' && (
+          {(userRole === 'Boss' || userRole === 'Staff') && (
             <GradientButton
               variant="red"
               animated
