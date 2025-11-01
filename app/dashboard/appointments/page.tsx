@@ -73,6 +73,7 @@ interface CustomPackage {
 interface Appointment {
   id: number;
   clientId: number;
+  packageId: number;
   status: string;
   appointmentDate: string | null;
   notes: string | null;
@@ -139,6 +140,18 @@ export default function AppointmentsPage() {
     additionalPackages: [],
     customPackages: []
   });
+
+  // Multiple discount codes state
+  const [multipleDiscountCodes, setMultipleDiscountCodes] = React.useState<Array<{
+    code: string;
+    discountPercent: number;
+    appliedToPackages: number[];
+    discountAmount?: number;
+  }>>([]);
+  const [currentDiscountCode, setCurrentDiscountCode] = React.useState('');
+  const [currentDiscountPackages, setCurrentDiscountPackages] = React.useState<number[]>([]);
+  const [validatingCurrentDiscount, setValidatingCurrentDiscount] = React.useState(false);
+
   const [isCompleting, setIsCompleting] = React.useState(false);
   const [snackbar, setSnackbar] = React.useState({
     open: false,
@@ -175,6 +188,17 @@ export default function AppointmentsPage() {
     additionalPackages: [],
     customPackages: []
   });
+
+  // Edit modal multiple discount codes state
+  const [editMultipleDiscountCodes, setEditMultipleDiscountCodes] = React.useState<Array<{
+    code: string;
+    discountPercent: number;
+    appliedToPackages: number[];
+    discountAmount?: number;
+  }>>([]);
+  const [editCurrentDiscountCode, setEditCurrentDiscountCode] = React.useState('');
+  const [editCurrentDiscountPackages, setEditCurrentDiscountPackages] = React.useState<number[]>([]);
+  const [editValidatingCurrentDiscount, setEditValidatingCurrentDiscount] = React.useState(false);
   
   // Pagination states
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -388,8 +412,27 @@ export default function AppointmentsPage() {
     const additionalPkgs = appointment.additionalPackages || [];
     setEditAdditionalPackages(additionalPkgs);
     
-    // Set discount info if appointment has a discount
-    if (appointment.discountCodeId && currentDiscountCode) {
+    // Handle multiple discount codes if they exist
+    if (appointment.appliedDiscounts && Array.isArray(appointment.appliedDiscounts) && appointment.appliedDiscounts.length > 0) {
+      // Pre-populate multiple discount codes
+      const existingDiscounts = appointment.appliedDiscounts.map((appliedDiscount: any) => ({
+        code: appliedDiscount.discountCode.code,
+        discountPercent: appliedDiscount.discountCode.discountPercent,
+        appliedToPackages: Array.isArray(appliedDiscount.appliedToPackages) ? appliedDiscount.appliedToPackages : []
+      }));
+      setEditMultipleDiscountCodes(existingDiscounts);
+      
+      // Reset legacy single discount states
+      setEditDiscountCode('');
+      setEditDiscountInfo(null);
+      setEditDiscountError(null);
+      setEditDiscountAppliedTo({
+        basePackage: false,
+        additionalPackages: [],
+        customPackages: []
+      });
+    } else if (appointment.discountCodeId && currentDiscountCode) {
+      // Handle legacy single discount code
       const discountData = discountCodes.find(dc => dc.id === appointment.discountCodeId);
       if (discountData) {
         setEditDiscountCode(currentDiscountCode);
@@ -406,8 +449,10 @@ export default function AppointmentsPage() {
           customPackages: []
         });
       }
+      // Reset multiple discount codes state
+      setEditMultipleDiscountCodes([]);
     } else {
-      // Reset discount states
+      // Reset all discount states
       setEditDiscountCode('');
       setEditDiscountInfo(null);
       setEditDiscountError(null);
@@ -416,6 +461,7 @@ export default function AppointmentsPage() {
         additionalPackages: [],
         customPackages: []
       });
+      setEditMultipleDiscountCodes([]);
     }
     
     setEditingAppointment({
@@ -442,7 +488,21 @@ export default function AppointmentsPage() {
           new Date(editingAppointment.appointmentDate).toISOString() : null,
         notes: editingAppointment.notes || null,
         additionalPackages: editAdditionalPackages,
-        ...(editDiscountCode && { discountCode: editDiscountCode })
+        ...(editDiscountCode && {
+          discountCode: editDiscountCode,
+          discountAppliedTo: {
+            basePackage: editDiscountAppliedTo.basePackage,
+            additionalPackages: editDiscountAppliedTo.additionalPackages,
+            customPackages: editDiscountAppliedTo.customPackages
+          }
+        }),
+        // New multiple discount codes support for edit modal
+        ...(editMultipleDiscountCodes.length > 0 && {
+          multipleDiscountCodes: editMultipleDiscountCodes.map(discount => ({
+            code: discount.code,
+            appliedToPackages: discount.appliedToPackages
+          }))
+        })
       };
 
       console.log('Updating appointment with data:', updateData);
@@ -481,6 +541,11 @@ export default function AppointmentsPage() {
         additionalPackages: [],
         customPackages: []
       });
+      // Reset edit multiple discount codes state
+      setEditMultipleDiscountCodes([]);
+      setEditCurrentDiscountCode('');
+      setEditCurrentDiscountPackages([]);
+      setEditValidatingCurrentDiscount(false);
       
       // Refresh appointments
       fetchAppointments();
@@ -559,9 +624,14 @@ export default function AppointmentsPage() {
         status: 'completed',
         additionalPackages: selectedAdditionalPackages,
         customPackages: customPackages,
-        finalPrice: finalPrice,
+        finalPrice: multipleDiscountCodes.length > 0 ? calculateMultipleDiscountsTotal() : finalPrice,
+        // Legacy single discount support
         discountCodeId: discountInfo?.id || null,
-        discountAmount: discountInfo ? (calculateTotalPrice() - finalPrice) : null
+        discountAmount: discountInfo ? (calculateTotalPrice() - finalPrice) : null,
+        multipleDiscountCodes: multipleDiscountCodes.length > 0 ? multipleDiscountCodes.map(discount => ({
+          code: discount.code,
+          appliedToPackages: discount.appliedToPackages
+        })) : null
       };
 
       console.log('Sending update data:', updateData);
@@ -712,15 +782,140 @@ export default function AppointmentsPage() {
       if (response.success) {
         setDiscountInfo(response.data);
         setDiscountError(null);
-        setFinalPrice(calculateDiscountedPrice());
+        // Update final price based on current discount system
+        if (multipleDiscountCodes.length > 0) {
+          setFinalPrice(calculateMultipleDiscountsTotal());
+        } else {
+          setFinalPrice(calculateDiscountedPrice());
+        }
       }
     } catch (error: any) {
       setDiscountInfo(null);
       setDiscountError(error.message || 'Invalid discount code');
-      setFinalPrice(calculateTotalPrice());
+      // Update final price based on current discount system
+      if (multipleDiscountCodes.length > 0) {
+        setFinalPrice(calculateMultipleDiscountsTotal());
+      } else {
+        setFinalPrice(calculateTotalPrice());
+      }
     } finally {
       setValidatingDiscount(false);
     }
+  };
+
+  // Multiple discount code functions
+  const validateCurrentDiscountCode = async (code: string) => {
+    if (!code.trim() || !selectedAppointment) return null;
+    
+    setValidatingCurrentDiscount(true);
+    
+    try {
+      const response = await apiPost<{
+        success: boolean;
+        data: {
+          id: number;
+          code: string;
+          description?: string;
+          discountPercent: number;
+        };
+        message: string;
+      }>('/discount-codes/validate', {
+        code: code.toUpperCase(),
+        clientId: selectedAppointment.clientId
+      });
+      
+      if (response.success) {
+        return response.data;
+      }
+      return null;
+    } catch (error: any) {
+      setSnackbar({
+        open: true,
+        message: error.message || 'Invalid discount code',
+        severity: 'error'
+      });
+      return null;
+    } finally {
+      setValidatingCurrentDiscount(false);
+    }
+  };
+
+  const addDiscountCode = async () => {
+    if (!currentDiscountCode.trim() || currentDiscountPackages.length === 0) {
+      setSnackbar({
+        open: true,
+        message: 'Please enter a discount code and select packages',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    // Check if discount code already added
+    if (multipleDiscountCodes.some(d => d.code === currentDiscountCode.toUpperCase())) {
+      setSnackbar({
+        open: true,
+        message: 'This discount code is already added',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    const discountData = await validateCurrentDiscountCode(currentDiscountCode);
+    if (discountData) {
+      const newDiscount = {
+        code: discountData.code,
+        discountPercent: discountData.discountPercent,
+        appliedToPackages: [...currentDiscountPackages]
+      };
+      
+      setMultipleDiscountCodes(prev => [...prev, newDiscount]);
+      setCurrentDiscountCode('');
+      setCurrentDiscountPackages([]);
+      
+      setSnackbar({
+        open: true,
+        message: `Discount code "${discountData.code}" added successfully`,
+        severity: 'success'
+      });
+    }
+  };
+
+  const removeDiscountCode = (codeToRemove: string) => {
+    setMultipleDiscountCodes(prev => prev.filter(d => d.code !== codeToRemove));
+  };
+
+  const calculateMultipleDiscountsTotal = () => {
+    if (!selectedAppointment || multipleDiscountCodes.length === 0) return calculateTotalPrice();
+
+    let totalPrice = calculateTotalPrice();
+    let totalDiscount = 0;
+
+    multipleDiscountCodes.forEach(discount => {
+      let discountableAmount = 0;
+      
+      // Calculate discountable amount for this specific discount
+      discount.appliedToPackages.forEach(packageId => {
+        if (packageId === selectedAppointment.packageId) {
+          discountableAmount += selectedAppointment.package?.price || 0;
+        } else {
+          // Check additional packages
+          const additionalPkg = packages.find(p => p.id === packageId);
+          if (additionalPkg && selectedAdditionalPackages.includes(packageId)) {
+            discountableAmount += additionalPkg.price;
+          }
+          // Check custom packages (use index as ID)
+          const customPkgIndex = customPackages.findIndex((p, index) => index === packageId);
+          if (customPkgIndex !== -1) {
+            discountableAmount += customPackages[customPkgIndex].price;
+          }
+        }
+      });
+
+      const discountAmount = (discountableAmount * discount.discountPercent) / 100;
+      totalDiscount += discountAmount;
+    });
+
+    return Math.max(0, totalPrice - totalDiscount);
   };
 
   const validateEditDiscountCode = async (code: string) => {
@@ -756,6 +951,139 @@ export default function AppointmentsPage() {
     }
   };
 
+  // Edit modal multiple discount code functions
+  const validateEditCurrentDiscountCode = async (code: string) => {
+    if (!code.trim() || !editingAppointment) return null;
+    
+    setEditValidatingCurrentDiscount(true);
+    
+    try {
+      const response = await apiPost<{
+        success: boolean;
+        data: {
+          id: number;
+          code: string;
+          description?: string;
+          discountPercent: number;
+        };
+        message: string;
+      }>('/discount-codes/validate', {
+        code: code.toUpperCase(),
+        clientId: editingAppointment.clientId
+      });
+      
+      if (response.success) {
+        return response.data;
+      }
+      return null;
+    } catch (error: any) {
+      setSnackbar({
+        open: true,
+        message: error.message || 'Invalid discount code',
+        severity: 'error'
+      });
+      return null;
+    } finally {
+      setEditValidatingCurrentDiscount(false);
+    }
+  };
+
+  const addEditDiscountCode = async () => {
+    if (!editCurrentDiscountCode.trim() || editCurrentDiscountPackages.length === 0) {
+      setSnackbar({
+        open: true,
+        message: 'Please enter a discount code and select packages',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    // Check if discount code already added
+    if (editMultipleDiscountCodes.some(d => d.code === editCurrentDiscountCode.toUpperCase())) {
+      setSnackbar({
+        open: true,
+        message: 'This discount code is already added',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    const discountData = await validateEditCurrentDiscountCode(editCurrentDiscountCode);
+    if (discountData) {
+      const newDiscount = {
+        code: discountData.code,
+        discountPercent: discountData.discountPercent,
+        appliedToPackages: [...editCurrentDiscountPackages]
+      };
+      
+      setEditMultipleDiscountCodes(prev => [...prev, newDiscount]);
+      setEditCurrentDiscountCode('');
+      setEditCurrentDiscountPackages([]);
+      
+      setSnackbar({
+        open: true,
+        message: `Discount code "${discountData.code}" added successfully`,
+        severity: 'success'
+      });
+    }
+  };
+
+  const removeEditDiscountCode = (codeToRemove: string) => {
+    setEditMultipleDiscountCodes(prev => prev.filter(d => d.code !== codeToRemove));
+  };
+
+  const calculateEditMultipleDiscountsTotal = () => {
+    if (!editingAppointment || editMultipleDiscountCodes.length === 0) {
+      return calculateEditBasePrice();
+    }
+
+    const basePrice = calculateEditBasePrice();
+    const discountAmount = calculateEditDiscountAmount();
+    
+    return Math.max(0, basePrice - discountAmount);
+  };
+
+  const calculateEditBasePrice = () => {
+    if (!editingAppointment) return 0;
+    
+    let basePrice = editingAppointment.package?.price || 0;
+    editAdditionalPackages.forEach(packageId => {
+      const pkg = packages.find(p => p.id === packageId);
+      if (pkg) basePrice += pkg.price;
+    });
+    return basePrice;
+  };
+
+  const calculateEditDiscountAmount = () => {
+    if (!editingAppointment || editMultipleDiscountCodes.length === 0) {
+      return 0;
+    }
+
+    let totalDiscount = 0;
+
+    editMultipleDiscountCodes.forEach(discount => {
+      let discountableAmount = 0;
+      
+      // Calculate discountable amount for this specific discount
+      discount.appliedToPackages.forEach(packageId => {
+        if (packageId === editingAppointment.packageId) {
+          discountableAmount += editingAppointment.package?.price || 0;
+        } else {
+          // Check additional packages
+          const additionalPkg = packages.find(p => p.id === packageId);
+          if (additionalPkg && editAdditionalPackages.includes(packageId)) {
+            discountableAmount += additionalPkg.price;
+          }
+        }
+      });
+
+      const discountAmount = (discountableAmount * discount.discountPercent) / 100;
+      totalDiscount += discountAmount;
+    });
+
+    return totalDiscount;
+  };
+
   const resetConfirmationModal = () => {
     setConfirmationOpen(false);
     setSelectedAppointment(null);
@@ -774,17 +1102,25 @@ export default function AppointmentsPage() {
       customPackages: []
     });
     setValidatingDiscount(false);
+    // Reset multiple discount codes state
+    setMultipleDiscountCodes([]);
+    setCurrentDiscountCode('');
+    setCurrentDiscountPackages([]);
+    setValidatingCurrentDiscount(false);
   };
 
   React.useEffect(() => {
     if (confirmationOpen) {
-      if (discountInfo) {
+      // Update final price based on current discount system
+      if (multipleDiscountCodes.length > 0) {
+        setFinalPrice(calculateMultipleDiscountsTotal());
+      } else if (discountInfo) {
         setFinalPrice(calculateDiscountedPrice());
       } else {
-      setFinalPrice(calculateTotalPrice());
+        setFinalPrice(calculateTotalPrice());
+      }
     }
-    }
-  }, [selectedAdditionalPackages, customPackages, confirmationOpen, selectedAppointment, calculateTotalPrice, calculateDiscountedPrice, discountInfo]);
+  }, [selectedAdditionalPackages, customPackages, confirmationOpen, selectedAppointment, calculateTotalPrice, calculateDiscountedPrice, discountInfo, multipleDiscountCodes, calculateMultipleDiscountsTotal]);
 
   const handleViewDetails = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
@@ -1724,246 +2060,192 @@ export default function AppointmentsPage() {
               </Box>
                 </Grid>
 
-                {/* Discount Code */}
+                {/* Multiple Discount Codes */}
                 <Grid item xs={12} md={6}>
                   <Box sx={{ pl: { xs: 0, md: 1 } }}>
                     <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-                      Discount Code (Optional)
+                      Discount Codes (Optional)
                     </Typography>
-                    <TextField
-                      label="Enter Discount Code"
-                      value={discountCode}
-                      onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
-                      placeholder="e.g., SUMMER20"
-                      fullWidth
-                      size="small"
-                      error={!!discountError}
-                      helperText={discountError || 'Enter code and click Apply'}
-                      InputProps={{
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <GradientButton
-                              variant="blue"
-                              onClick={() => validateDiscountCode(discountCode)}
-                              disabled={!discountCode.trim() || validatingDiscount}
-                              sx={{ px: 2, py: 0.5, fontSize: 12, minWidth: 'auto' }}
-                            >
-                              {validatingDiscount ? 'Checking...' : 'Apply'}
-                            </GradientButton>
-                          </InputAdornment>
-                        )
-                      }}
-                    />
-                    
-                    {discountInfo && (
-                      <Box sx={{ 
-                        mt: 2,
-                        borderRadius: 3,
-                        overflow: 'hidden',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                      }}>
-                        {/* Header */}
-                        <Box sx={{ 
-                          background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
-                          p: 2,
-                          color: 'white'
-                        }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Box sx={{ 
-                                width: 24, 
-                                height: 24, 
-                                borderRadius: '50%', 
-                                bgcolor: 'rgba(255,255,255,0.2)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}>
-                                ✓
-                              </Box>
-                              <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1.1rem' }}>
-                                {discountInfo.code}
-                              </Typography>
-                              <Box sx={{ 
-                                bgcolor: 'rgba(255,255,255,0.2)', 
-                                px: 1.5, 
-                                py: 0.5, 
-                                borderRadius: 2,
-                                fontSize: '0.75rem',
-                                fontWeight: 600
-                              }}>
-                                {discountInfo.discountPercent}% OFF
-                              </Box>
-                            </Box>
-                            <Button
-                              size="small"
+                    {/* Add New Discount Code */}
+                    <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                      <TextField
+                        label="Enter Discount Code"
+                        value={currentDiscountCode}
+                        onChange={(e) => setCurrentDiscountCode(e.target.value.toUpperCase())}
+                        placeholder="e.g., SUMMER20"
+                        size="small"
+                        sx={{ flex: 1 }}
+                      />
+                      <GradientButton
+                        variant="blue"
+                        onClick={addDiscountCode}
+                        disabled={!currentDiscountCode.trim() || validatingCurrentDiscount || currentDiscountPackages.length === 0}
+                        sx={{ px: 2, py: 1, fontSize: 12, minWidth: 'auto' }}
+                      >
+                        {validatingCurrentDiscount ? 'Checking...' : 'Add'}
+                      </GradientButton>
+                    </Box>
+
+                    {/* Package Selection for Current Discount */}
+                    {currentDiscountCode.trim() && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                          Select packages for "{currentDiscountCode}":
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                          {/* Base Package */}
+                          {selectedAppointment && (
+                            <Chip
+                              label={`${selectedAppointment.package.name} (RM${selectedAppointment.package.price})`}
+                              variant={currentDiscountPackages.includes(selectedAppointment.packageId) ? "filled" : "outlined"}
+                              color={currentDiscountPackages.includes(selectedAppointment.packageId) ? "primary" : "default"}
                               onClick={() => {
-                                setDiscountCode('');
-                                setDiscountInfo(null);
-                                setDiscountError(null);
-                                setDiscountAppliedTo({
-                                  basePackage: false,
-                                  additionalPackages: [],
-                                  customPackages: []
-                                });
-                                setFinalPrice(calculateTotalPrice());
+                                const packageId = selectedAppointment.packageId;
+                                setCurrentDiscountPackages(prev => 
+                                  prev.includes(packageId) 
+                                    ? prev.filter(id => id !== packageId)
+                                    : [...prev, packageId]
+                                );
                               }}
-                              sx={{ 
-                                color: 'white',
-                                bgcolor: 'rgba(255,255,255,0.1)',
-                                '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' },
-                                fontSize: '0.75rem',
-                                minWidth: 'auto',
-                                px: 1.5,
-                                py: 0.5,
-                                borderRadius: 1.5
+                              sx={{ cursor: 'pointer', fontSize: '0.75rem' }}
+                            />
+                          )}
+                          
+                          {/* Additional Packages */}
+                          {selectedAdditionalPackages.map(packageId => {
+                            const pkg = packages.find(p => p.id === packageId);
+                            if (!pkg) return null;
+                            return (
+                              <Chip
+                                key={packageId}
+                                label={`${pkg.name} (RM${pkg.price})`}
+                                variant={currentDiscountPackages.includes(packageId) ? "filled" : "outlined"}
+                                color={currentDiscountPackages.includes(packageId) ? "primary" : "default"}
+                                onClick={() => {
+                                  setCurrentDiscountPackages(prev => 
+                                    prev.includes(packageId) 
+                                      ? prev.filter(id => id !== packageId)
+                                      : [...prev, packageId]
+                                  );
+                                }}
+                                sx={{ cursor: 'pointer', fontSize: '0.75rem' }}
+                              />
+                            );
+                          })}
+                          
+                          {/* Custom Packages */}
+                          {customPackages.map((pkg, index) => (
+                            <Chip
+                              key={`custom-${index}`}
+                              label={`${pkg.name} (RM${pkg.price})`}
+                              variant={currentDiscountPackages.includes(index) ? "filled" : "outlined"}
+                              color={currentDiscountPackages.includes(index) ? "primary" : "default"}
+                              onClick={() => {
+                                setCurrentDiscountPackages(prev => 
+                                  prev.includes(index) 
+                                    ? prev.filter(id => id !== index)
+                                    : [...prev, index]
+                                );
+                              }}
+                              sx={{ cursor: 'pointer', fontSize: '0.75rem' }}
+                            />
+                          ))}
+                        </Box>
+                      </Box>
+                    )}
+
+                    {/* Applied Discount Codes */}
+                    {multipleDiscountCodes.length > 0 && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                          Applied Discount Codes:
+                        </Typography>
+                        <Stack spacing={1}>
+                          {multipleDiscountCodes.map((discount, index) => (
+                            <Box
+                              key={index}
+                              sx={{
+                                p: 2,
+                                border: '1px solid #e0e0e0',
+                                borderRadius: 2,
+                                bgcolor: '#f8f9fa'
                               }}
                             >
-                              Remove
-                            </Button>
-                          </Box>
-                        </Box>
-                        
-                        {/* Content */}
-                        <Box sx={{ p: 2.5, bgcolor: 'white' }}>
-                          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2, color: 'text.primary' }}>
-                            Select packages to apply discount:
-                          </Typography>
-                          
-                          <Stack spacing={2}>
-                            {/* Base Package Selection */}
-                            {selectedAppointment && (
-                              <Box>
-                                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 500 }}>
-                                  Main Service
-                                </Typography>
-                                <Chip
-                                  label={`${selectedAppointment.package.name} - RM${selectedAppointment.package.price}`}
-                                  variant={discountAppliedTo.basePackage ? "filled" : "outlined"}
-                                  color={discountAppliedTo.basePackage ? "success" : "default"}
-                                  onClick={() => {
-                                    setDiscountAppliedTo(prev => ({
-                                      ...prev,
-                                      basePackage: !prev.basePackage
-                                    }));
-                                  }}
-                                  sx={{ 
-                                    cursor: 'pointer',
-                                    height: 36,
-                                    fontSize: '0.875rem',
-                                    fontWeight: 500,
-                                    transition: 'all 0.2s ease',
-                                    '&:hover': {
-                                      transform: 'translateY(-1px)',
-                                      boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
-                                    }
-                                  }}
-                                />
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {discount.code}
+                                  </Typography>
+                                  <Chip
+                                    label={`${discount.discountPercent}% OFF`}
+                                    size="small"
+                                    color="success"
+                                    variant="filled"
+                                  />
+                                </Box>
+                                <Button
+                                  size="small"
+                                  color="error"
+                                  onClick={() => removeDiscountCode(discount.code)}
+                                  sx={{ fontSize: '0.75rem', minWidth: 'auto', px: 1 }}
+                                >
+                                  Remove
+                                </Button>
                               </Box>
-                            )}
-                            
-                            {/* Additional Packages Selection */}
-                            {selectedAdditionalPackages.length > 0 && (
-                              <Box>
-                                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 500 }}>
-                                  Additional Services
-                                </Typography>
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                  {selectedAdditionalPackages.map(packageId => {
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {discount.appliedToPackages.map(packageId => {
+                                  let packageName = '';
+                                  let packagePrice = 0;
+                                  
+                                  if (selectedAppointment && packageId === selectedAppointment.packageId) {
+                                    packageName = selectedAppointment.package.name;
+                                    packagePrice = selectedAppointment.package.price;
+                                  } else {
                                     const pkg = packages.find(p => p.id === packageId);
-                                    if (!pkg) return null;
-                                    
-                                    const isSelected = discountAppliedTo.additionalPackages.includes(packageId);
-                                    return (
-                                      <Chip
-                                        key={packageId}
-                                        label={`${pkg.name} - RM${pkg.price}`}
-                                        variant={isSelected ? "filled" : "outlined"}
-                                        color={isSelected ? "success" : "default"}
-                                        onClick={() => {
-                                          setDiscountAppliedTo(prev => ({
-                                            ...prev,
-                                            additionalPackages: isSelected 
-                                              ? prev.additionalPackages.filter(id => id !== packageId)
-                                              : [...prev.additionalPackages, packageId]
-                                          }));
-                                        }}
-                                        sx={{ 
-                                          cursor: 'pointer',
-                                          height: 36,
-                                          fontSize: '0.875rem',
-                                          fontWeight: 500,
-                                          transition: 'all 0.2s ease',
-                                          '&:hover': {
-                                            transform: 'translateY(-1px)',
-                                            boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
-                                          }
-                                        }}
-                                      />
-                                    );
-                                  })}
-                                </Box>
+                                    if (pkg) {
+                                      packageName = pkg.name;
+                                      packagePrice = pkg.price;
+                                    } else {
+                                      // Check custom packages by index
+                                      const customPkg = customPackages[packageId];
+                                      if (customPkg) {
+                                        packageName = customPkg.name;
+                                        packagePrice = customPkg.price;
+                                      }
+                                    }
+                                  }
+                                  
+                                  return (
+                                    <Chip
+                                      key={packageId}
+                                      label={`${packageName} (RM${packagePrice})`}
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{ fontSize: '0.7rem' }}
+                                    />
+                                  );
+                                })}
                               </Box>
-                            )}
-                            
-                            {/* Custom Packages Selection */}
-                            {customPackages.length > 0 && (
-                              <Box>
-                                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 500 }}>
-                                  Custom Services
-                                </Typography>
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                  {customPackages.map((pkg, index) => {
-                                    const isSelected = discountAppliedTo.customPackages.includes(index);
-                                    return (
-                                      <Chip
-                                        key={index}
-                                        label={`${pkg.name} - RM${pkg.price}`}
-                                        variant={isSelected ? "filled" : "outlined"}
-                                        color={isSelected ? "success" : "default"}
-                                        onClick={() => {
-                                          setDiscountAppliedTo(prev => ({
-                                            ...prev,
-                                            customPackages: isSelected 
-                                              ? prev.customPackages.filter(i => i !== index)
-                                              : [...prev.customPackages, index]
-                                          }));
-                                        }}
-                                        sx={{ 
-                                          cursor: 'pointer',
-                                          height: 36,
-                                          fontSize: '0.875rem',
-                                          fontWeight: 500,
-                                          transition: 'all 0.2s ease',
-                                          '&:hover': {
-                                            transform: 'translateY(-1px)',
-                                            boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
-                                          }
-                                        }}
-                                      />
-                                    );
-                                  })}
-                                </Box>
-                              </Box>
-                            )}
-                          </Stack>
-                          
-                          {/* Discount Summary */}
-                          <Box sx={{ 
-                            mt: 3,
-                            p: 2,
-                            bgcolor: '#f8f9fa',
-                            borderRadius: 2,
-                            border: '1px solid #e9ecef'
-                          }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Typography variant="body2" fontWeight={600} color="success.main">
-                                💰 Total Discount
-                              </Typography>
-                              <Typography variant="h6" fontWeight={700} color="success.main">
-                                RM{(calculateTotalPrice() - calculateDiscountedPrice()).toFixed(2)}
-                              </Typography>
                             </Box>
+                          ))}
+                        </Stack>
+                        
+                        {/* Total Discount Summary */}
+                        <Box sx={{ 
+                          mt: 2,
+                          p: 2,
+                          bgcolor: 'success.light',
+                          borderRadius: 2,
+                          border: '1px solid',
+                          borderColor: 'success.main'
+                        }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" fontWeight={600} color="success.dark">
+                              💰 Total Discount
+                            </Typography>
+                            <Typography variant="h6" fontWeight={700} color="success.dark">
+                              RM{(calculateTotalPrice() - calculateMultipleDiscountsTotal()).toFixed(2)}
+                            </Typography>
                           </Box>
                         </Box>
                       </Box>
@@ -2084,7 +2366,51 @@ export default function AppointmentsPage() {
                     </Typography>
                   </Box>
                   
-                  {discountInfo && (
+                  {/* Multiple Discount Codes Display */}
+                  {multipleDiscountCodes.length > 0 && (
+                    <Box>
+                      {multipleDiscountCodes.map((discount, index) => (
+                        <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography variant="body2" color="success.main" fontWeight={600}>
+                            {discount.code} ({discount.discountPercent}%):
+                          </Typography>
+                          <Typography variant="body2" color="success.main" fontWeight={600}>
+                            -RM{(() => {
+                              let discountableAmount = 0;
+                              discount.appliedToPackages.forEach(packageId => {
+                                if (packageId === selectedAppointment?.packageId) {
+                                  discountableAmount += selectedAppointment.package?.price || 0;
+                                } else {
+                                  const additionalPkg = packages.find(p => p.id === packageId);
+                                  if (additionalPkg && selectedAdditionalPackages.includes(packageId)) {
+                                    discountableAmount += additionalPkg.price;
+                                  }
+                                  const customPkg = customPackages.find((p, idx) => idx === packageId);
+                                  if (customPkg) {
+                                    discountableAmount += customPkg.price;
+                                  }
+                                }
+                              });
+                              return ((discountableAmount * discount.discountPercent) / 100).toFixed(2);
+                            })()}
+                          </Typography>
+                        </Box>
+                      ))}
+                      
+                      {/* Total Discount Summary */}
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, pt: 1, borderTop: '1px solid', borderColor: 'grey.300' }}>
+                        <Typography variant="body1" color="success.main" fontWeight={700}>
+                          Total Discount ({multipleDiscountCodes.length} codes):
+                        </Typography>
+                        <Typography variant="body1" color="success.main" fontWeight={700}>
+                          -RM{(calculateTotalPrice() - calculateMultipleDiscountsTotal()).toFixed(2)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                  
+                  {/* Legacy Single Discount Display */}
+                  {discountInfo && multipleDiscountCodes.length === 0 && (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="body2" color="success.main" fontWeight={600}>
                         Discount ({discountInfo.discountPercent}%):
@@ -2106,7 +2432,15 @@ export default function AppointmentsPage() {
                       Total Amount:
                     </Typography>
                     <Typography variant="h6" fontWeight={700} color="success.main">
-                      RM{discountInfo ? calculateDiscountedPrice().toFixed(2) : calculateTotalPrice()}
+                      RM{(() => {
+                        if (multipleDiscountCodes.length > 0) {
+                          return calculateMultipleDiscountsTotal().toFixed(2);
+                        } else if (discountInfo) {
+                          return calculateDiscountedPrice().toFixed(2);
+                        } else {
+                          return calculateTotalPrice().toFixed(2);
+                        }
+                      })()}
                     </Typography>
                   </Box>
                 </Stack>
@@ -2678,225 +3012,228 @@ export default function AppointmentsPage() {
                   )}
                 </Box>
 
-                {/* Discount Code */}
+                {/* Multiple Discount Codes */}
                 <Box>
                   <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                    Discount Code (Optional)
+                    Discount Codes (Optional)
                   </Typography>
-                  <TextField
-                    label="Enter Discount Code"
-                    value={editDiscountCode}
-                    onChange={(e) => setEditDiscountCode(e.target.value.toUpperCase())}
-                    placeholder="e.g., SUMMER20"
-                    fullWidth
-                    size="small"
-                    error={!!editDiscountError}
-                    helperText={editDiscountError || 'Enter code and click Apply'}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <GradientButton
-                            variant="blue"
-                            onClick={() => validateEditDiscountCode(editDiscountCode)}
-                            disabled={!editDiscountCode.trim() || editValidatingDiscount}
-                            sx={{ px: 2, py: 0.5, fontSize: 12, minWidth: 'auto' }}
-                          >
-                            {editValidatingDiscount ? 'Checking...' : 'Apply'}
-                          </GradientButton>
-                        </InputAdornment>
-                      )
-                    }}
-                  />
-                  
-                  {editDiscountInfo && (
-                    <Box sx={{ 
-                      mt: 2,
-                      borderRadius: 3,
-                      overflow: 'hidden',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                    }}>
-                      {/* Header */}
-                      <Box sx={{ 
-                        background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
-                        p: 2,
-                        color: 'white'
-                      }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box sx={{ 
-                              width: 24, 
-                              height: 24, 
-                              borderRadius: '50%', 
-                              bgcolor: 'rgba(255,255,255,0.2)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}>
-                              ✓
-                            </Box>
-                            <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1.1rem' }}>
-                              {editDiscountInfo.code}
-                            </Typography>
-                            <Box sx={{ 
-                              bgcolor: 'rgba(255,255,255,0.2)', 
-                              px: 1.5, 
-                              py: 0.5, 
-                              borderRadius: 2,
-                              fontSize: '0.75rem',
-                              fontWeight: 600
-                            }}>
-                              {editDiscountInfo.discountPercent}% OFF
-                            </Box>
-                          </Box>
-                          <Button
-                            size="small"
+                  {/* Add New Discount Code */}
+                  <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                    <TextField
+                      label="Enter Discount Code"
+                      value={editCurrentDiscountCode}
+                      onChange={(e) => setEditCurrentDiscountCode(e.target.value.toUpperCase())}
+                      placeholder="e.g., SUMMER20"
+                      size="small"
+                      sx={{ flex: 1 }}
+                    />
+                    <GradientButton
+                      variant="blue"
+                      onClick={addEditDiscountCode}
+                      disabled={!editCurrentDiscountCode.trim() || editValidatingCurrentDiscount || editCurrentDiscountPackages.length === 0}
+                      sx={{ px: 2, py: 1, fontSize: 12, minWidth: 'auto' }}
+                    >
+                      {editValidatingCurrentDiscount ? 'Checking...' : 'Add'}
+                    </GradientButton>
+                  </Box>
+
+                  {/* Package Selection for Current Discount */}
+                  {editCurrentDiscountCode.trim() && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                        Select packages for "{editCurrentDiscountCode}":
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {/* Base Package */}
+                        {editingAppointment && (
+                          <Chip
+                            label={`${editingAppointment.package?.name} (RM${editingAppointment.package?.price})`}
+                            variant={editCurrentDiscountPackages.includes(editingAppointment.packageId) ? "filled" : "outlined"}
+                            color={editCurrentDiscountPackages.includes(editingAppointment.packageId) ? "primary" : "default"}
                             onClick={() => {
-                              setEditDiscountCode('');
-                              setEditDiscountInfo(null);
-                              setEditDiscountError(null);
-                              setEditDiscountAppliedTo({
-                                basePackage: false,
-                                additionalPackages: [],
-                                customPackages: []
-                              });
+                              const packageId = editingAppointment.packageId;
+                              setEditCurrentDiscountPackages(prev => 
+                                prev.includes(packageId) 
+                                  ? prev.filter(id => id !== packageId)
+                                  : [...prev, packageId]
+                              );
                             }}
-                            sx={{ 
-                              color: 'white',
-                              bgcolor: 'rgba(255,255,255,0.1)',
-                              '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' },
-                              fontSize: '0.75rem',
-                              minWidth: 'auto',
-                              px: 1.5,
-                              py: 0.5,
-                              borderRadius: 1.5
+                            sx={{ cursor: 'pointer', fontSize: '0.75rem' }}
+                          />
+                        )}
+                        
+                        {/* Additional Packages */}
+                        {editAdditionalPackages.map(packageId => {
+                          const pkg = packages.find(p => p.id === packageId);
+                          if (!pkg) return null;
+                          return (
+                            <Chip
+                              key={packageId}
+                              label={`${pkg.name} (RM${pkg.price})`}
+                              variant={editCurrentDiscountPackages.includes(packageId) ? "filled" : "outlined"}
+                              color={editCurrentDiscountPackages.includes(packageId) ? "primary" : "default"}
+                              onClick={() => {
+                                setEditCurrentDiscountPackages(prev => 
+                                  prev.includes(packageId) 
+                                    ? prev.filter(id => id !== packageId)
+                                    : [...prev, packageId]
+                                );
+                              }}
+                              sx={{ cursor: 'pointer', fontSize: '0.75rem' }}
+                            />
+                          );
+                        })}
+                      </Box>
+                    </Box>
+                  )}
+                  
+                  {/* Applied Discount Codes */}
+                  {editMultipleDiscountCodes.length > 0 && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                        Applied Discount Codes:
+                      </Typography>
+                      <Stack spacing={1}>
+                        {editMultipleDiscountCodes.map((discount, index) => (
+                          <Box
+                            key={index}
+                            sx={{
+                              p: 2,
+                              border: '1px solid #e0e0e0',
+                              borderRadius: 2,
+                              bgcolor: '#f8f9fa'
                             }}
                           >
-                            Remove
-                          </Button>
-                        </Box>
-                      </Box>
-                      
-                      {/* Content */}
-                      <Box sx={{ p: 2.5, bgcolor: 'white' }}>
-                        <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2, color: 'text.primary' }}>
-                          Select packages to apply discount:
-                        </Typography>
-                        
-                        <Stack spacing={2}>
-                          {/* Base Package Selection */}
-                          {editingAppointment && (
-                            <Box>
-                              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 500 }}>
-                                Main Service
-                              </Typography>
-                              <Chip
-                                label={`${packages.find(p => p.id === editingAppointment.packageId)?.name || 'Package'} - RM${packages.find(p => p.id === editingAppointment.packageId)?.price || 0}`}
-                                variant={editDiscountAppliedTo.basePackage ? "filled" : "outlined"}
-                                color={editDiscountAppliedTo.basePackage ? "success" : "default"}
-                                onClick={() => {
-                                  setEditDiscountAppliedTo(prev => ({
-                                    ...prev,
-                                    basePackage: !prev.basePackage
-                                  }));
-                                }}
-                                sx={{ 
-                                  cursor: 'pointer',
-                                  height: 36,
-                                  fontSize: '0.875rem',
-                                  fontWeight: 500,
-                                  transition: 'all 0.2s ease',
-                                  '&:hover': {
-                                    transform: 'translateY(-1px)',
-                                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
-                                  }
-                                }}
-                              />
-                            </Box>
-                          )}
-                          
-                          {/* Additional Packages Selection */}
-                          {editAdditionalPackages.length > 0 && (
-                            <Box>
-                              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 500 }}>
-                                Additional Services
-                              </Typography>
-                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                {editAdditionalPackages.map(packageId => {
-                                  const pkg = packages.find(p => p.id === packageId);
-                                  if (!pkg) return null;
-                                  
-                                  const isSelected = editDiscountAppliedTo.additionalPackages.includes(packageId);
-                                  return (
-                                    <Chip
-                                      key={packageId}
-                                      label={`${pkg.name} - RM${pkg.price}`}
-                                      variant={isSelected ? "filled" : "outlined"}
-                                      color={isSelected ? "success" : "default"}
-                                      onClick={() => {
-                                        setEditDiscountAppliedTo(prev => ({
-                                          ...prev,
-                                          additionalPackages: isSelected 
-                                            ? prev.additionalPackages.filter(id => id !== packageId)
-                                            : [...prev.additionalPackages, packageId]
-                                        }));
-                                      }}
-                                      sx={{ 
-                                        cursor: 'pointer',
-                                        height: 36,
-                                        fontSize: '0.875rem',
-                                        fontWeight: 500,
-                                        transition: 'all 0.2s ease',
-                                        '&:hover': {
-                                          transform: 'translateY(-1px)',
-                                          boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
-                                        }
-                                      }}
-                                    />
-                                  );
-                                })}
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="body2" fontWeight={600}>
+                                  {discount.code}
+                                </Typography>
+                                <Chip
+                                  label={`${discount.discountPercent}% OFF`}
+                                  size="small"
+                                  color="success"
+                                  variant="filled"
+                                />
                               </Box>
+                              <Button
+                                size="small"
+                                color="error"
+                                onClick={() => removeEditDiscountCode(discount.code)}
+                                sx={{ fontSize: '0.75rem', minWidth: 'auto', px: 1 }}
+                              >
+                                Remove
+                              </Button>
                             </Box>
-                          )}
-                        </Stack>
-                        
-                        {/* Discount Summary */}
-                        <Box sx={{ 
-                          mt: 3,
-                          p: 2,
-                          bgcolor: '#f8f9fa',
-                          borderRadius: 2,
-                          border: '1px solid #e9ecef'
-                        }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2" fontWeight={600} color="success.main">
-                              💰 Total Discount
-                            </Typography>
-                            <Typography variant="h6" fontWeight={700} color="success.main">
-                              RM{(() => {
-                                if (!editDiscountInfo) return '0.00';
-                                let discountableAmount = 0;
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                              {discount.appliedToPackages.map(packageId => {
+                                let packageName = '';
+                                let packagePrice = 0;
                                 
-                                // Add base package if discount applied
-                                if (editDiscountAppliedTo.basePackage && editingAppointment) {
-                                  const pkg = packages.find(p => p.id === editingAppointment.packageId);
-                                  if (pkg) discountableAmount += pkg.price;
+                                if (editingAppointment && packageId === editingAppointment.packageId) {
+                                  packageName = editingAppointment.package?.name || '';
+                                  packagePrice = editingAppointment.package?.price || 0;
+                                } else {
+                                  const pkg = packages.find(p => p.id === packageId);
+                                  if (pkg) {
+                                    packageName = pkg.name;
+                                    packagePrice = pkg.price;
+                                  }
                                 }
                                 
-                                // Add selected additional packages
-                                editDiscountAppliedTo.additionalPackages.forEach(packageId => {
-                                  const pkg = packages.find(p => p.id === packageId);
-                                  if (pkg) discountableAmount += pkg.price;
-                                });
-                                
-                                const discountAmount = (discountableAmount * editDiscountInfo.discountPercent) / 100;
-                                return discountAmount.toFixed(2);
-                              })()}
-                            </Typography>
+                                return (
+                                  <Chip
+                                    key={packageId}
+                                    label={`${packageName} (RM${packagePrice})`}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ fontSize: '0.7rem' }}
+                                  />
+                                );
+                              })}
+                            </Box>
                           </Box>
+                        ))}
+                      </Stack>
+                      
+                      {/* Total Discount Summary */}
+                      <Box sx={{ 
+                        mt: 2,
+                        p: 2,
+                        bgcolor: 'success.light',
+                        borderRadius: 2,
+                        border: '1px solid',
+                        borderColor: 'success.main'
+                      }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="body2" fontWeight={600} color="success.dark">
+                            💰 Total Discount
+                          </Typography>
+                          <Typography variant="h6" fontWeight={700} color="success.dark">
+                            RM{calculateEditDiscountAmount().toFixed(2)}
+                          </Typography>
                         </Box>
                       </Box>
                     </Box>
                   )}
+                </Box>
+
+                {/* Price Summary */}
+                <Box sx={{ mt: 3, p: 2, bgcolor: '#f8f9fa', borderRadius: 2, border: '1px solid #e0e0e0' }}>
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2 }}>
+                    💰 Price Summary
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Base Package: {editingAppointment?.package?.name}
+                    </Typography>
+                    <Typography variant="body2" fontWeight={500}>
+                      RM{editingAppointment?.package?.price || 0}
+                    </Typography>
+                  </Box>
+                  
+                  {editAdditionalPackages.length > 0 && (
+                    <Box>
+                      {editAdditionalPackages.map(packageId => {
+                        const pkg = packages.find(p => p.id === packageId);
+                        return pkg ? (
+                          <Box key={packageId} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              + {pkg.name}
+                            </Typography>
+                            <Typography variant="body2" fontWeight={500}>
+                              RM{pkg.price}
+                            </Typography>
+                          </Box>
+                        ) : null;
+                      })}
+                    </Box>
+                  )}
+                  
+                  {editMultipleDiscountCodes.length > 0 && (
+                    <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #e0e0e0' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2" color="success.main" fontWeight={500}>
+                          Total Discount ({editMultipleDiscountCodes.length} codes)
+                        </Typography>
+                        <Typography variant="body2" color="success.main" fontWeight={600}>
+                          -RM{calculateEditDiscountAmount().toFixed(2)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                  
+                  <Box sx={{ mt: 2, pt: 2, borderTop: '2px solid #e0e0e0' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="h6" fontWeight={700}>
+                        Final Total
+                      </Typography>
+                      <Typography variant="h6" fontWeight={700} color="primary.main">
+                        RM{calculateEditMultipleDiscountsTotal().toFixed(2)}
+                      </Typography>
+                    </Box>
+                  </Box>
                 </Box>
               </Stack>
             )}
@@ -2921,6 +3258,11 @@ export default function AppointmentsPage() {
                   additionalPackages: [],
                   customPackages: []
                 });
+                // Reset edit multiple discount codes state
+                setEditMultipleDiscountCodes([]);
+                setEditCurrentDiscountCode('');
+                setEditCurrentDiscountPackages([]);
+                setEditValidatingCurrentDiscount(false);
               }}
               sx={{ 
                 flex: 1,

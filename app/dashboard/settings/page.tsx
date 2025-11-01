@@ -22,7 +22,10 @@ import {
   useTheme,
   useMediaQuery,
   Paper,
-  Stack
+  Stack,
+  Chip,
+  FormControl,
+  FormLabel
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import PersonIcon from '@mui/icons-material/Person';
@@ -64,18 +67,29 @@ const PasswordSchema = z.object({
 const DiscountCodeSchema = z.object({
   code: z.string().min(1, 'Discount code is required').max(20, 'Code must be 20 characters or less'),
   description: z.string().optional(),
-  discountPercent: z.number().min(0.1, 'Discount must be at least 0.1%').max(100, 'Discount cannot exceed 100%')
+  discountPercent: z.number().min(0.1, 'Discount must be at least 0.1%').max(100, 'Discount cannot exceed 100%'),
+  applicablePackages: z.array(z.number()).optional()
 });
 
 type ProfileForm = z.infer<typeof ProfileSchema>;
 type PasswordForm = z.infer<typeof PasswordSchema>;
 type DiscountCodeForm = z.infer<typeof DiscountCodeSchema>;
 
+interface Package {
+  id: number;
+  name: string;
+  description?: string;
+  price: number;
+  duration: number;
+  isActive: boolean;
+}
+
 interface DiscountCode {
   id: number;
   code: string;
   description?: string;
   discountPercent: number;
+  applicablePackages: number[];
   isActive: boolean;
   createdAt: string;
   creator: {
@@ -137,6 +151,9 @@ export default function SettingsPage() {
   const [editingDiscount, setEditingDiscount] = React.useState<DiscountCode | null>(null);
   const [deleteDiscountOpen, setDeleteDiscountOpen] = React.useState(false);
   const [deletingDiscount, setDeletingDiscount] = React.useState<DiscountCode | null>(null);
+  
+  // Packages state for discount code creation
+  const [packages, setPackages] = React.useState<Package[]>([]);
 
   // Form handlers
   const profileForm = useForm<ProfileForm>({
@@ -198,6 +215,15 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchPackages = async () => {
+    try {
+      const response = await apiGet<{ success: boolean; data: Package[] }>('/packages');
+      setPackages(response.data || []);
+    } catch (error) {
+      console.error('Error fetching packages:', error);
+    }
+  };
+
   const handleCreateDiscount = async (data: DiscountCodeForm) => {
     setLoading(true);
     setErrorMsg(null);
@@ -206,7 +232,8 @@ export default function SettingsPage() {
       const response = await apiPost<{ success: boolean; data: DiscountCode }>('/discount-codes', {
         code: data.code.toUpperCase(),
         description: data.description || null,
-        discountPercent: data.discountPercent
+        discountPercent: data.discountPercent,
+        applicablePackages: data.applicablePackages || []
       });
       
       if (response.success) {
@@ -232,7 +259,8 @@ export default function SettingsPage() {
       const response = await apiPut<{ success: boolean; data: DiscountCode }>(`/discount-codes/${editingDiscount.id}`, {
         code: data.code.toUpperCase(),
         description: data.description || null,
-        discountPercent: data.discountPercent
+        discountPercent: data.discountPercent,
+        applicablePackages: data.applicablePackages || []
       });
       
       if (response.success) {
@@ -284,7 +312,8 @@ export default function SettingsPage() {
     discountForm.reset({
       code: '',
       description: '',
-      discountPercent: 10
+      discountPercent: 10,
+      applicablePackages: []
     });
     setDiscountDialogOpen(true);
   };
@@ -294,7 +323,8 @@ export default function SettingsPage() {
     discountForm.reset({
       code: discount.code,
       description: discount.description || '',
-      discountPercent: discount.discountPercent
+      discountPercent: discount.discountPercent,
+      applicablePackages: discount.applicablePackages || []
     });
     setDiscountDialogOpen(true);
   };
@@ -510,6 +540,7 @@ export default function SettingsPage() {
   React.useEffect(() => {
     if (userRole === 'Boss') {
       loadDiscountCodes();
+      fetchPackages();
     }
   }, [userRole]);
 
@@ -1165,6 +1196,38 @@ export default function SettingsPage() {
                             </Typography>
                           )}
 
+                          {/* Applicable Packages Display */}
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
+                              Applies to:
+                            </Typography>
+                            {discount.applicablePackages && discount.applicablePackages.length > 0 ? (
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {discount.applicablePackages.map((packageId) => {
+                                  const pkg = packages.find(p => p.id === packageId);
+                                  return pkg ? (
+                                    <Chip
+                                      key={packageId}
+                                      label={pkg.name}
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{ 
+                                        fontSize: '0.75rem',
+                                        height: 24,
+                                        borderColor: '#e5e7eb',
+                                        color: '#6b7280'
+                                      }}
+                                    />
+                                  ) : null;
+                                })}
+                              </Box>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', fontSize: '0.875rem' }}>
+                                All packages
+                              </Typography>
+                            )}
+                          </Box>
+
                           <Box sx={{ 
                             display: 'flex', 
                             justifyContent: 'space-between', 
@@ -1591,6 +1654,57 @@ export default function SettingsPage() {
                   }
                 }}
               />
+              
+              {/* Package Selection */}
+              <FormControl>
+                <FormLabel sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
+                  Applicable Packages
+                </FormLabel>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Select which packages this discount applies to. Leave empty to apply to all packages.
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {packages.map((pkg) => {
+                    const selectedPackages = discountForm.watch('applicablePackages') || [];
+                    const isSelected = selectedPackages.includes(pkg.id);
+                    
+                    return (
+                      <Chip
+                        key={pkg.id}
+                        label={`${pkg.name} (RM${pkg.price})`}
+                        clickable
+                        color={isSelected ? 'primary' : 'default'}
+                        variant={isSelected ? 'filled' : 'outlined'}
+                        onClick={() => {
+                          const currentPackages = discountForm.getValues('applicablePackages') || [];
+                          let newPackages;
+                          
+                          if (isSelected) {
+                            // Remove package
+                            newPackages = currentPackages.filter(id => id !== pkg.id);
+                          } else {
+                            // Add package
+                            newPackages = [...currentPackages, pkg.id];
+                          }
+                          
+                          discountForm.setValue('applicablePackages', newPackages);
+                        }}
+                        sx={{
+                          borderRadius: 2,
+                          '&:hover': {
+                            backgroundColor: isSelected ? 'primary.dark' : 'action.hover'
+                          }
+                        }}
+                      />
+                    );
+                  })}
+                </Box>
+                {packages.length === 0 && (
+                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                    No packages available
+                  </Typography>
+                )}
+              </FormControl>
             </Stack>
           </DialogContent>
           <DialogActions sx={{ p: 3, pt: 2 }}>

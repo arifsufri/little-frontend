@@ -536,6 +536,13 @@ export default function FinancialPage() {
     return getBossCurrentRevenue(today, actualRevenue);
   };
 
+  // Calculate actual today's customers from completed appointments
+  const calculateTodaysCustomers = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const uniqueCustomers = new Set(todaysAppointments.map(apt => apt.clientId)).size;
+    return getBossCurrentCustomers(today, uniqueCustomers);
+  };
+
   React.useEffect(() => {
     fetchFinancialData();
     fetchTodaysAppointments();
@@ -850,12 +857,7 @@ export default function FinancialPage() {
                         TODAY&apos;S CUSTOMERS
                         </Typography>
                       <Typography variant="h5" fontWeight={700} color="text.primary">
-                        {(() => {
-                          const today = new Date().toISOString().split('T')[0];
-                          // Use a portion of total customers as today's estimate (for demo purposes)
-                          const estimatedDailyCustomers = Math.round(financialData.overview.totalCustomers * 0.15);
-                          return getBossCurrentCustomers(today, estimatedDailyCustomers);
-                        })()}
+                        {calculateTodaysCustomers()}
                         </Typography>
                       </Box>
               </Grid>
