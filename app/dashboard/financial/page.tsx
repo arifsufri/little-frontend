@@ -265,6 +265,7 @@ export default function FinancialPage() {
   const [tabValue, setTabValue] = React.useState(0);
   const [financialData, setFinancialData] = React.useState<FinancialData | null>(null);
   const [staffData, setStaffData] = React.useState<StaffFinancialData | null>(null);
+  const [todaysAppointments, setTodaysAppointments] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [dateRange, setDateRange] = React.useState({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
@@ -513,8 +514,31 @@ export default function FinancialPage() {
     }
   };
 
+  const fetchTodaysAppointments = async () => {
+    try {
+      const response = await apiGet<{ success: boolean; data: any[] }>('/appointments');
+      const today = new Date().toDateString();
+      const todaysCompleted = response.data.filter(apt => 
+        apt.status === 'completed' &&
+        new Date(apt.updatedAt || apt.createdAt).toDateString() === today
+      );
+      setTodaysAppointments(todaysCompleted);
+    } catch (error) {
+      console.error('Error fetching today\'s appointments:', error);
+      setTodaysAppointments([]);
+    }
+  };
+
+  // Calculate actual today's revenue from completed appointments
+  const calculateTodaysRevenue = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const actualRevenue = todaysAppointments.reduce((sum, apt) => sum + (apt.finalPrice || apt.package?.price || 0), 0);
+    return getBossCurrentRevenue(today, actualRevenue);
+  };
+
   React.useEffect(() => {
     fetchFinancialData();
+    fetchTodaysAppointments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange, userRole]);
 
@@ -816,12 +840,7 @@ export default function FinancialPage() {
                         TODAY&apos;S REVENUE
                         </Typography>
                       <Typography variant="h5" fontWeight={700} color="text.primary">
-                        {(() => {
-                          const today = new Date().toISOString().split('T')[0];
-                          // Use a portion of total revenue as today's estimate (for demo purposes)
-                          const estimatedDailyRevenue = Math.round(financialData.overview.totalRevenue * 0.1);
-                          return formatCurrency(getBossCurrentRevenue(today, estimatedDailyRevenue));
-                        })()}
+                        {formatCurrency(calculateTodaysRevenue())}
                         </Typography>
                       </Box>
               </Grid>
@@ -878,11 +897,7 @@ export default function FinancialPage() {
                   variant="outlined"
                   size="small"
                   onClick={() => setBossCloseDailyOpen(true)}
-                  disabled={(() => {
-                    const today = new Date().toISOString().split('T')[0];
-                    const estimatedDailyRevenue = Math.round(financialData.overview.totalRevenue * 0.1);
-                    return getBossCurrentRevenue(today, estimatedDailyRevenue) === 0;
-                  })()}
+                  disabled={calculateTodaysRevenue() === 0}
                   sx={{
                     position: 'absolute',
                     bottom: 8,
@@ -2249,11 +2264,7 @@ export default function FinancialPage() {
         <DialogContent sx={{ pb: 2 }}>
           <Box sx={{ textAlign: 'center', py: 2 }}>
             <Typography variant="h4" fontWeight={700} color="success.main" sx={{ mb: 1 }}>
-              {(() => {
-                const today = new Date().toISOString().split('T')[0];
-                const estimatedDailyRevenue = Math.round((financialData?.overview.totalRevenue || 0) * 0.1);
-                return formatCurrency(getBossCurrentRevenue(today, estimatedDailyRevenue));
-              })()}
+              {formatCurrency(calculateTodaysRevenue())}
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
               Today&apos;s Total Revenue
@@ -2308,9 +2319,8 @@ export default function FinancialPage() {
                   <Typography variant="h6" fontWeight={600} color="success.main">
                     {(() => {
                       const today = new Date().toISOString().split('T')[0];
-                      const estimatedDailyRevenue = Math.round((financialData?.overview.totalRevenue || 0) * 0.1);
                       const estimatedDailyExpenses = Math.round((financialData?.overview.totalExpenses || 0) * 0.08);
-                      const netProfit = getBossCurrentRevenue(today, estimatedDailyRevenue) - getBossCurrentExpenses(today, estimatedDailyExpenses);
+                      const netProfit = calculateTodaysRevenue() - getBossCurrentExpenses(today, estimatedDailyExpenses);
                       return formatCurrency(netProfit);
                     })()}
                   </Typography>

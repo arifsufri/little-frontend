@@ -37,7 +37,8 @@ import {
   useTheme,
   useMediaQuery,
   Snackbar,
-  Alert
+  Alert,
+  Pagination
 } from '@mui/material';
 import EventIcon from '@mui/icons-material/Event';
 import PendingIcon from '@mui/icons-material/Pending';
@@ -129,6 +130,15 @@ export default function AppointmentsPage() {
     discountPercent: number;
   } | null>(null);
   const [discountError, setDiscountError] = React.useState<string | null>(null);
+  const [discountAppliedTo, setDiscountAppliedTo] = React.useState<{
+    basePackage: boolean;
+    additionalPackages: number[];
+    customPackages: number[];
+  }>({
+    basePackage: false,
+    additionalPackages: [],
+    customPackages: []
+  });
   const [isCompleting, setIsCompleting] = React.useState(false);
   const [snackbar, setSnackbar] = React.useState({
     open: false,
@@ -144,16 +154,55 @@ export default function AppointmentsPage() {
   const [selectedBarberId, setSelectedBarberId] = React.useState<string>('');
   const [editAppointmentOpen, setEditAppointmentOpen] = React.useState(false);
   const [editingAppointment, setEditingAppointment] = React.useState<any>(null);
+  const [editAdditionalPackages, setEditAdditionalPackages] = React.useState<number[]>([]);
+  
+  // Edit modal discount states
+  const [editDiscountCode, setEditDiscountCode] = React.useState('');
+  const [editDiscountInfo, setEditDiscountInfo] = React.useState<{
+    id: number;
+    code: string;
+    description?: string;
+    discountPercent: number;
+  } | null>(null);
+  const [editDiscountError, setEditDiscountError] = React.useState<string | null>(null);
+  const [editValidatingDiscount, setEditValidatingDiscount] = React.useState(false);
+  const [editDiscountAppliedTo, setEditDiscountAppliedTo] = React.useState<{
+    basePackage: boolean;
+    additionalPackages: number[];
+    customPackages: number[];
+  }>({
+    basePackage: false,
+    additionalPackages: [],
+    customPackages: []
+  });
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [itemsPerPage] = React.useState(10);
   const [newAppointment, setNewAppointment] = React.useState({
     clientId: '',
-    packageId: '',
-    appointmentDate: '',
-    notes: '',
-    discountCode: ''
+    packageId: ''
   });
+  const [newAdditionalPackages, setNewAdditionalPackages] = React.useState<number[]>([]);
 
   const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
     setSnackbar({ open: true, message, severity });
+  };
+
+  // Helper function to get all services for an appointment
+  const getAppointmentServices = (appointment: any) => {
+    const services = [appointment.package.name];
+    
+    if (appointment.additionalPackages && Array.isArray(appointment.additionalPackages)) {
+      appointment.additionalPackages.forEach((packageId: number) => {
+        const additionalPackage = packages.find(pkg => pkg.id === packageId);
+        if (additionalPackage) {
+          services.push(additionalPackage.name);
+        }
+      });
+    }
+    
+    return services;
   };
 
   const handleCloseSnackbar = () => {
@@ -296,12 +345,15 @@ export default function AppointmentsPage() {
 
   const handleCreateAppointment = async () => {
     try {
+      // Get current Malaysia time (Asia/Kuala_Lumpur timezone)
+      const malaysiaTime = new Date().toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"});
+      const appointmentDate = new Date(malaysiaTime).toISOString();
+      
       const appointmentData = {
         clientId: parseInt(newAppointment.clientId),
         packageId: parseInt(newAppointment.packageId),
-        appointmentDate: newAppointment.appointmentDate ? new Date(newAppointment.appointmentDate).toISOString() : null,
-        notes: newAppointment.notes || null,
-        ...(newAppointment.discountCode && { discountCode: newAppointment.discountCode })
+        appointmentDate: appointmentDate,
+        additionalPackages: newAdditionalPackages
       };
 
       await apiPost('/appointments', appointmentData);
@@ -310,11 +362,9 @@ export default function AppointmentsPage() {
       setCreateAppointmentOpen(false);
       setNewAppointment({
         clientId: '',
-        packageId: '',
-        appointmentDate: '',
-        notes: '',
-        discountCode: ''
+        packageId: ''
       });
+      setNewAdditionalPackages([]);
       
       // Refresh appointments
       fetchAppointments();
@@ -328,14 +378,50 @@ export default function AppointmentsPage() {
   };
 
   const handleEditAppointment = (appointment: any) => {
+    console.log('Editing appointment:', appointment); // Debug log
+    
     // Find the discount code from the discountCodeId if it exists
     const currentDiscountCode = appointment.discountCodeId ? 
       discountCodes.find(dc => dc.id === appointment.discountCodeId)?.code || '' : '';
     
+    // Set additional packages from the appointment
+    const additionalPkgs = appointment.additionalPackages || [];
+    setEditAdditionalPackages(additionalPkgs);
+    
+    // Set discount info if appointment has a discount
+    if (appointment.discountCodeId && currentDiscountCode) {
+      const discountData = discountCodes.find(dc => dc.id === appointment.discountCodeId);
+      if (discountData) {
+        setEditDiscountCode(currentDiscountCode);
+        setEditDiscountInfo({
+          id: discountData.id,
+          code: discountData.code,
+          description: discountData.description,
+          discountPercent: discountData.discountPercent
+        });
+        // Set which packages have discount applied (for now, assume all packages)
+        setEditDiscountAppliedTo({
+          basePackage: true,
+          additionalPackages: additionalPkgs,
+          customPackages: []
+        });
+      }
+    } else {
+      // Reset discount states
+      setEditDiscountCode('');
+      setEditDiscountInfo(null);
+      setEditDiscountError(null);
+      setEditDiscountAppliedTo({
+        basePackage: false,
+        additionalPackages: [],
+        customPackages: []
+      });
+    }
+    
     setEditingAppointment({
       ...appointment,
-      clientId: appointment.client?.id?.toString() || '',
-      packageId: appointment.package?.id?.toString() || '',
+      clientId: appointment.clientId || '',  // Use the direct clientId from appointment
+      packageId: appointment.packageId || '', // Use the direct packageId from appointment
       appointmentDate: appointment.appointmentDate ? 
         new Date(appointment.appointmentDate).toISOString().slice(0, 16) : '',
       notes: appointment.notes || '',
@@ -350,12 +436,13 @@ export default function AppointmentsPage() {
 
     try {
       const updateData = {
-        clientId: parseInt(editingAppointment.clientId),
-        packageId: parseInt(editingAppointment.packageId),
+        clientId: typeof editingAppointment.clientId === 'string' ? parseInt(editingAppointment.clientId) : editingAppointment.clientId,
+        packageId: typeof editingAppointment.packageId === 'string' ? parseInt(editingAppointment.packageId) : editingAppointment.packageId,
         appointmentDate: editingAppointment.appointmentDate ? 
           new Date(editingAppointment.appointmentDate).toISOString() : null,
         notes: editingAppointment.notes || null,
-        ...(editingAppointment.discountCode && { discountCode: editingAppointment.discountCode })
+        additionalPackages: editAdditionalPackages,
+        ...(editDiscountCode && { discountCode: editDiscountCode })
       };
 
       console.log('Updating appointment with data:', updateData);
@@ -384,6 +471,16 @@ export default function AppointmentsPage() {
       // Reset form and close modal
       setEditAppointmentOpen(false);
       setEditingAppointment(null);
+      setEditAdditionalPackages([]);
+      // Reset edit discount states
+      setEditDiscountCode('');
+      setEditDiscountInfo(null);
+      setEditDiscountError(null);
+      setEditDiscountAppliedTo({
+        basePackage: false,
+        additionalPackages: [],
+        customPackages: []
+      });
       
       // Refresh appointments
       fetchAppointments();
@@ -570,9 +667,26 @@ export default function AppointmentsPage() {
     const totalPrice = calculateTotalPrice();
     if (!discountInfo) return totalPrice;
     
-    const discountAmount = (totalPrice * discountInfo.discountPercent) / 100;
+    let discountableAmount = 0;
+    
+    if (discountAppliedTo.basePackage && selectedAppointment) {
+      discountableAmount += selectedAppointment.package.price;
+    }
+    
+    discountAppliedTo.additionalPackages.forEach(packageId => {
+      const pkg = packages.find(p => p.id === packageId);
+      if (pkg) discountableAmount += pkg.price;
+    });
+    
+    discountAppliedTo.customPackages.forEach(index => {
+      if (customPackages[index]) {
+        discountableAmount += customPackages[index].price;
+      }
+    });
+    
+    const discountAmount = (discountableAmount * discountInfo.discountPercent) / 100;
     return totalPrice - discountAmount;
-  }, [calculateTotalPrice, discountInfo]);
+  }, [calculateTotalPrice, discountInfo, discountAppliedTo, selectedAppointment, packages, customPackages]);
 
   const validateDiscountCode = async (code: string) => {
     if (!code.trim() || !selectedAppointment) return;
@@ -598,16 +712,47 @@ export default function AppointmentsPage() {
       if (response.success) {
         setDiscountInfo(response.data);
         setDiscountError(null);
-        // Update final price with discount
         setFinalPrice(calculateDiscountedPrice());
       }
     } catch (error: any) {
       setDiscountInfo(null);
       setDiscountError(error.message || 'Invalid discount code');
-      // Reset final price to original
       setFinalPrice(calculateTotalPrice());
     } finally {
       setValidatingDiscount(false);
+    }
+  };
+
+  const validateEditDiscountCode = async (code: string) => {
+    if (!code.trim() || !editingAppointment) return;
+    
+    setEditValidatingDiscount(true);
+    setEditDiscountError(null);
+    
+    try {
+      const response = await apiPost<{
+        success: boolean;
+        data: {
+          id: number;
+          code: string;
+          description?: string;
+          discountPercent: number;
+        };
+        message: string;
+      }>('/discount-codes/validate', {
+        code: code.toUpperCase(),
+        clientId: editingAppointment.clientId
+      });
+      
+      if (response.success) {
+        setEditDiscountInfo(response.data);
+        setEditDiscountError(null);
+      }
+    } catch (error: any) {
+      setEditDiscountInfo(null);
+      setEditDiscountError(error.message || 'Invalid discount code');
+    } finally {
+      setEditValidatingDiscount(false);
     }
   };
 
@@ -623,6 +768,11 @@ export default function AppointmentsPage() {
     setDiscountCode('');
     setDiscountInfo(null);
     setDiscountError(null);
+    setDiscountAppliedTo({
+      basePackage: false,
+      additionalPackages: [],
+      customPackages: []
+    });
     setValidatingDiscount(false);
   };
 
@@ -700,6 +850,21 @@ export default function AppointmentsPage() {
 
     return filtered;
   }, [appointments, searchTerm, statusFilter]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedAppointments = filteredAppointments.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  // Reset page when search or filter changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   const getStatusCounts = () => {
     return {
@@ -1091,7 +1256,7 @@ export default function AppointmentsPage() {
             ) : isMobile ? (
               // Mobile Card Layout
               <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-                {filteredAppointments.map((appointment) => (
+                {paginatedAppointments.map((appointment, index) => (
                   <Grid item xs={12} key={appointment.id}>
                     <AppointmentCard
                       appointment={appointment}
@@ -1107,6 +1272,7 @@ export default function AppointmentsPage() {
                 <Table>
                   <TableHead>
                     <TableRow>
+                      <TableCell><strong>#</strong></TableCell>
                       <TableCell><strong>Client</strong></TableCell>
                       <TableCell><strong>Service</strong></TableCell>
                       <TableCell><strong>Barber</strong></TableCell>
@@ -1118,8 +1284,13 @@ export default function AppointmentsPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {filteredAppointments.map((appointment) => (
+                    {paginatedAppointments.map((appointment, index) => (
                       <TableRow key={appointment.id} hover>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={500}>
+                            {startIndex + index + 1}
+                          </Typography>
+                        </TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
@@ -1136,14 +1307,27 @@ export default function AppointmentsPage() {
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" fontWeight={500}>
-                            {appointment.package.name}
-                          </Typography>
-                          {appointment.package.barber && (
-                            <Typography variant="caption" color="text.secondary">
-                              by {appointment.package.barber}
-                            </Typography>
-                          )}
+                          <Box>
+                            {getAppointmentServices(appointment).map((service, index) => (
+                              <Typography 
+                                key={index}
+                                variant="body2" 
+                                fontWeight={index === 0 ? 500 : 400}
+                                color={index === 0 ? 'text.primary' : 'text.secondary'}
+                                sx={{ 
+                                  fontSize: index === 0 ? '0.875rem' : '0.75rem',
+                                  lineHeight: 1.2
+                                }}
+                              >
+                                {index === 0 ? service : `+ ${service}`}
+                              </Typography>
+                            ))}
+                            {appointment.package.barber && (
+                              <Typography variant="caption" color="text.secondary">
+                                by {appointment.package.barber}
+                              </Typography>
+                            )}
+                          </Box>
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
@@ -1187,6 +1371,30 @@ export default function AppointmentsPage() {
                   </TableBody>
                 </Table>
               </TableContainer>
+            )}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center',
+                mt: 3,
+                gap: 2
+              }}>
+                <Typography variant="body2" color="text.secondary">
+                  Showing {startIndex + 1}-{Math.min(endIndex, filteredAppointments.length)} of {filteredAppointments.length} appointments
+                </Typography>
+                <Pagination
+                  count={totalPages}
+                  page={currentPage}
+                  onChange={(event, page) => handlePageChange(page)}
+                  color="primary"
+                  size="medium"
+                  showFirstButton
+                  showLastButton
+                />
+              </Box>
             )}
             </CardContent>
           </Card>
@@ -1549,32 +1757,215 @@ export default function AppointmentsPage() {
                     
                     {discountInfo && (
                       <Box sx={{ 
-                        p: 1.5, 
-                        mt: 1,
-                        bgcolor: 'success.light', 
-                        borderRadius: 2,
-                        border: '1px solid',
-                        borderColor: 'success.main'
+                        mt: 2,
+                        borderRadius: 3,
+                        overflow: 'hidden',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
                       }}>
-                        <Typography variant="body2" fontWeight={600} color="success.dark" sx={{ mb: 0.5 }}>
-                          ✓ {discountInfo.code} ({discountInfo.discountPercent}% off)
-                        </Typography>
-                        <Typography variant="caption" color="success.dark">
-                          Saves RM{((calculateTotalPrice() * discountInfo.discountPercent) / 100).toFixed(2)}
-                        </Typography>
-                        <Button
-                          size="small"
-                          color="error"
-                          onClick={() => {
-                            setDiscountCode('');
-                            setDiscountInfo(null);
-                            setDiscountError(null);
-                            setFinalPrice(calculateTotalPrice());
-                          }}
-                          sx={{ ml: 1, fontSize: 10, minWidth: 'auto', px: 1 }}
-                        >
-                          Remove
-                        </Button>
+                        {/* Header */}
+                        <Box sx={{ 
+                          background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
+                          p: 2,
+                          color: 'white'
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ 
+                                width: 24, 
+                                height: 24, 
+                                borderRadius: '50%', 
+                                bgcolor: 'rgba(255,255,255,0.2)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}>
+                                ✓
+                              </Box>
+                              <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1.1rem' }}>
+                                {discountInfo.code}
+                              </Typography>
+                              <Box sx={{ 
+                                bgcolor: 'rgba(255,255,255,0.2)', 
+                                px: 1.5, 
+                                py: 0.5, 
+                                borderRadius: 2,
+                                fontSize: '0.75rem',
+                                fontWeight: 600
+                              }}>
+                                {discountInfo.discountPercent}% OFF
+                              </Box>
+                            </Box>
+                            <Button
+                              size="small"
+                              onClick={() => {
+                                setDiscountCode('');
+                                setDiscountInfo(null);
+                                setDiscountError(null);
+                                setDiscountAppliedTo({
+                                  basePackage: false,
+                                  additionalPackages: [],
+                                  customPackages: []
+                                });
+                                setFinalPrice(calculateTotalPrice());
+                              }}
+                              sx={{ 
+                                color: 'white',
+                                bgcolor: 'rgba(255,255,255,0.1)',
+                                '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' },
+                                fontSize: '0.75rem',
+                                minWidth: 'auto',
+                                px: 1.5,
+                                py: 0.5,
+                                borderRadius: 1.5
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          </Box>
+                        </Box>
+                        
+                        {/* Content */}
+                        <Box sx={{ p: 2.5, bgcolor: 'white' }}>
+                          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2, color: 'text.primary' }}>
+                            Select packages to apply discount:
+                          </Typography>
+                          
+                          <Stack spacing={2}>
+                            {/* Base Package Selection */}
+                            {selectedAppointment && (
+                              <Box>
+                                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 500 }}>
+                                  Main Service
+                                </Typography>
+                                <Chip
+                                  label={`${selectedAppointment.package.name} - RM${selectedAppointment.package.price}`}
+                                  variant={discountAppliedTo.basePackage ? "filled" : "outlined"}
+                                  color={discountAppliedTo.basePackage ? "success" : "default"}
+                                  onClick={() => {
+                                    setDiscountAppliedTo(prev => ({
+                                      ...prev,
+                                      basePackage: !prev.basePackage
+                                    }));
+                                  }}
+                                  sx={{ 
+                                    cursor: 'pointer',
+                                    height: 36,
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    transition: 'all 0.2s ease',
+                                    '&:hover': {
+                                      transform: 'translateY(-1px)',
+                                      boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                                    }
+                                  }}
+                                />
+                              </Box>
+                            )}
+                            
+                            {/* Additional Packages Selection */}
+                            {selectedAdditionalPackages.length > 0 && (
+                              <Box>
+                                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 500 }}>
+                                  Additional Services
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                  {selectedAdditionalPackages.map(packageId => {
+                                    const pkg = packages.find(p => p.id === packageId);
+                                    if (!pkg) return null;
+                                    
+                                    const isSelected = discountAppliedTo.additionalPackages.includes(packageId);
+                                    return (
+                                      <Chip
+                                        key={packageId}
+                                        label={`${pkg.name} - RM${pkg.price}`}
+                                        variant={isSelected ? "filled" : "outlined"}
+                                        color={isSelected ? "success" : "default"}
+                                        onClick={() => {
+                                          setDiscountAppliedTo(prev => ({
+                                            ...prev,
+                                            additionalPackages: isSelected 
+                                              ? prev.additionalPackages.filter(id => id !== packageId)
+                                              : [...prev.additionalPackages, packageId]
+                                          }));
+                                        }}
+                                        sx={{ 
+                                          cursor: 'pointer',
+                                          height: 36,
+                                          fontSize: '0.875rem',
+                                          fontWeight: 500,
+                                          transition: 'all 0.2s ease',
+                                          '&:hover': {
+                                            transform: 'translateY(-1px)',
+                                            boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                                          }
+                                        }}
+                                      />
+                                    );
+                                  })}
+                                </Box>
+                              </Box>
+                            )}
+                            
+                            {/* Custom Packages Selection */}
+                            {customPackages.length > 0 && (
+                              <Box>
+                                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 500 }}>
+                                  Custom Services
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                  {customPackages.map((pkg, index) => {
+                                    const isSelected = discountAppliedTo.customPackages.includes(index);
+                                    return (
+                                      <Chip
+                                        key={index}
+                                        label={`${pkg.name} - RM${pkg.price}`}
+                                        variant={isSelected ? "filled" : "outlined"}
+                                        color={isSelected ? "success" : "default"}
+                                        onClick={() => {
+                                          setDiscountAppliedTo(prev => ({
+                                            ...prev,
+                                            customPackages: isSelected 
+                                              ? prev.customPackages.filter(i => i !== index)
+                                              : [...prev.customPackages, index]
+                                          }));
+                                        }}
+                                        sx={{ 
+                                          cursor: 'pointer',
+                                          height: 36,
+                                          fontSize: '0.875rem',
+                                          fontWeight: 500,
+                                          transition: 'all 0.2s ease',
+                                          '&:hover': {
+                                            transform: 'translateY(-1px)',
+                                            boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                                          }
+                                        }}
+                                      />
+                                    );
+                                  })}
+                                </Box>
+                              </Box>
+                            )}
+                          </Stack>
+                          
+                          {/* Discount Summary */}
+                          <Box sx={{ 
+                            mt: 3,
+                            p: 2,
+                            bgcolor: '#f8f9fa',
+                            borderRadius: 2,
+                            border: '1px solid #e9ecef'
+                          }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="body2" fontWeight={600} color="success.main">
+                                💰 Total Discount
+                              </Typography>
+                              <Typography variant="h6" fontWeight={700} color="success.main">
+                                RM{(calculateTotalPrice() - calculateDiscountedPrice()).toFixed(2)}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </Box>
                       </Box>
                     )}
                   </Box>
@@ -1699,7 +2090,7 @@ export default function AppointmentsPage() {
                         Discount ({discountInfo.discountPercent}%):
                       </Typography>
                       <Typography variant="body2" color="success.main" fontWeight={600}>
-                        -RM{((calculateTotalPrice() * discountInfo.discountPercent) / 100).toFixed(2)}
+                        -RM{(calculateTotalPrice() - calculateDiscountedPrice()).toFixed(2)}
                       </Typography>
                     </Box>
                   )}
@@ -1851,58 +2242,51 @@ export default function AppointmentsPage() {
                 </Select>
               </FormControl>
 
-              {/* Appointment Date */}
-              <TextField
-                label="Appointment Date & Time"
-                type="datetime-local"
-                value={newAppointment.appointmentDate}
-                onChange={(e) => setNewAppointment({...newAppointment, appointmentDate: e.target.value})}
-                fullWidth
-                InputLabelProps={{
-                  shrink: true,
-                }}
-                helperText="Optional - leave empty for walk-in appointments"
-              />
-
-              {/* Notes */}
-              <TextField
-                label="Notes"
-                multiline
-                rows={3}
-                value={newAppointment.notes}
-                onChange={(e) => setNewAppointment({...newAppointment, notes: e.target.value})}
-                fullWidth
-                placeholder="Any special requirements or notes..."
-              />
-
-              {/* Discount Code */}
-              <FormControl fullWidth>
-                <InputLabel>Discount Code (Optional)</InputLabel>
-                <Select
-                  value={newAppointment.discountCode}
-                  onChange={(e) => setNewAppointment({...newAppointment, discountCode: e.target.value})}
-                  label="Discount Code (Optional)"
-                >
-                  <MenuItem value="">
-                    <em>No discount</em>
-                  </MenuItem>
-                  {discountCodes.map((discount) => (
-                    <MenuItem key={discount.id} value={discount.code}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                        <Box>
-                          <Typography>{discount.code}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {discount.description}
-                          </Typography>
-                        </Box>
-                        <Typography color="success.main" fontWeight={600}>
-                          {discount.discountPercent}% OFF
-                        </Typography>
-                      </Box>
-                    </MenuItem>
+              {/* Additional Packages */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                  Additional Packages (Optional)
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                  {packages.filter(pkg => pkg.id !== parseInt(newAppointment.packageId)).map((pkg) => (
+                    <Chip
+                      key={pkg.id}
+                      label={`${pkg.name} - RM${pkg.price}`}
+                      variant={newAdditionalPackages.includes(pkg.id) ? "filled" : "outlined"}
+                      color={newAdditionalPackages.includes(pkg.id) ? "primary" : "default"}
+                      onClick={() => {
+                        if (newAdditionalPackages.includes(pkg.id)) {
+                          setNewAdditionalPackages(newAdditionalPackages.filter(id => id !== pkg.id));
+                        } else {
+                          setNewAdditionalPackages([...newAdditionalPackages, pkg.id]);
+                        }
+                      }}
+                      sx={{ cursor: 'pointer' }}
+                    />
                   ))}
-                </Select>
-              </FormControl>
+                </Box>
+                {newAdditionalPackages.length > 0 && (
+                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                    <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                      Selected Additional Packages:
+                    </Typography>
+                    {newAdditionalPackages.map(packageId => {
+                      const pkg = packages.find(p => p.id === packageId);
+                      return pkg ? (
+                        <Typography key={packageId} variant="body2" color="text.secondary">
+                          • {pkg.name} - RM{pkg.price}
+                        </Typography>
+                      ) : null;
+                    })}
+                    <Typography variant="body2" fontWeight={600} sx={{ mt: 1 }}>
+                      Additional Total: RM{newAdditionalPackages.reduce((sum, id) => {
+                        const pkg = packages.find(p => p.id === id);
+                        return sum + (pkg?.price || 0);
+                      }, 0)}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
             </Stack>
           </DialogContent>
           <DialogActions sx={{ 
@@ -1913,7 +2297,10 @@ export default function AppointmentsPage() {
             <GradientButton
               variant="blue"
               animated
-              onClick={() => setCreateAppointmentOpen(false)}
+              onClick={() => {
+                setCreateAppointmentOpen(false);
+                setNewAdditionalPackages([]);
+              }}
               sx={{ 
                 flex: 1,
                 px: { xs: 2, sm: 3 }, 
@@ -2146,13 +2533,14 @@ export default function AppointmentsPage() {
         <Dialog 
           open={editAppointmentOpen} 
           onClose={() => setEditAppointmentOpen(false)} 
-          maxWidth="sm" 
+          maxWidth="md" 
           fullWidth
           sx={{
             '& .MuiDialog-paper': {
               margin: { xs: 1, sm: 2 },
               borderRadius: { xs: 2, sm: 2 },
-              maxHeight: { xs: '90vh', sm: 'none' }
+              maxHeight: { xs: '95vh', sm: '90vh' },
+              height: { xs: 'auto', sm: 'fit-content' }
             }
           }}
         >
@@ -2165,7 +2553,12 @@ export default function AppointmentsPage() {
               Edit Appointment
             </Typography>
           </DialogTitle>
-          <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
+          <DialogContent sx={{ 
+            px: { xs: 2, sm: 3 }, 
+            py: { xs: 1, sm: 2 },
+            overflow: 'auto',
+            maxHeight: { xs: '70vh', sm: '65vh' }
+          }}>
             {editingAppointment && (
               <Stack spacing={3} sx={{ mt: 1 }}>
                 {/* Client Selection */}
@@ -2239,34 +2632,272 @@ export default function AppointmentsPage() {
                   placeholder="Any special requirements or notes..."
                 />
 
+                {/* Additional Packages */}
+                <Box>
+                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                    Additional Packages (Optional)
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                    {packages.filter(pkg => pkg.id !== editingAppointment.packageId).map((pkg) => (
+                      <Chip
+                        key={pkg.id}
+                        label={`${pkg.name} - RM${pkg.price}`}
+                        variant={editAdditionalPackages.includes(pkg.id) ? "filled" : "outlined"}
+                        color={editAdditionalPackages.includes(pkg.id) ? "primary" : "default"}
+                        onClick={() => {
+                          if (editAdditionalPackages.includes(pkg.id)) {
+                            setEditAdditionalPackages(editAdditionalPackages.filter(id => id !== pkg.id));
+                          } else {
+                            setEditAdditionalPackages([...editAdditionalPackages, pkg.id]);
+                          }
+                        }}
+                        sx={{ cursor: 'pointer' }}
+                      />
+                    ))}
+                  </Box>
+                  {editAdditionalPackages.length > 0 && (
+                    <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                        Selected Additional Packages:
+                      </Typography>
+                      {editAdditionalPackages.map(packageId => {
+                        const pkg = packages.find(p => p.id === packageId);
+                        return pkg ? (
+                          <Typography key={packageId} variant="body2" color="text.secondary">
+                            • {pkg.name} - RM{pkg.price}
+                          </Typography>
+                        ) : null;
+                      })}
+                      <Typography variant="body2" fontWeight={600} sx={{ mt: 1 }}>
+                        Additional Total: RM{editAdditionalPackages.reduce((sum, id) => {
+                          const pkg = packages.find(p => p.id === id);
+                          return sum + (pkg?.price || 0);
+                        }, 0)}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+
                 {/* Discount Code */}
-                <FormControl fullWidth>
-                  <InputLabel>Discount Code (Optional)</InputLabel>
-                  <Select
-                    value={editingAppointment.discountCode}
-                    onChange={(e) => setEditingAppointment({...editingAppointment, discountCode: e.target.value})}
-                    label="Discount Code (Optional)"
-                  >
-                    <MenuItem value="">
-                      <em>No discount</em>
-                    </MenuItem>
-                    {discountCodes.map((discount) => (
-                      <MenuItem key={discount.id} value={discount.code}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                          <Box>
-                            <Typography>{discount.code}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {discount.description}
+                <Box>
+                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                    Discount Code (Optional)
+                  </Typography>
+                  <TextField
+                    label="Enter Discount Code"
+                    value={editDiscountCode}
+                    onChange={(e) => setEditDiscountCode(e.target.value.toUpperCase())}
+                    placeholder="e.g., SUMMER20"
+                    fullWidth
+                    size="small"
+                    error={!!editDiscountError}
+                    helperText={editDiscountError || 'Enter code and click Apply'}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <GradientButton
+                            variant="blue"
+                            onClick={() => validateEditDiscountCode(editDiscountCode)}
+                            disabled={!editDiscountCode.trim() || editValidatingDiscount}
+                            sx={{ px: 2, py: 0.5, fontSize: 12, minWidth: 'auto' }}
+                          >
+                            {editValidatingDiscount ? 'Checking...' : 'Apply'}
+                          </GradientButton>
+                        </InputAdornment>
+                      )
+                    }}
+                  />
+                  
+                  {editDiscountInfo && (
+                    <Box sx={{ 
+                      mt: 2,
+                      borderRadius: 3,
+                      overflow: 'hidden',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                    }}>
+                      {/* Header */}
+                      <Box sx={{ 
+                        background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
+                        p: 2,
+                        color: 'white'
+                      }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ 
+                              width: 24, 
+                              height: 24, 
+                              borderRadius: '50%', 
+                              bgcolor: 'rgba(255,255,255,0.2)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              ✓
+                            </Box>
+                            <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1.1rem' }}>
+                              {editDiscountInfo.code}
+                            </Typography>
+                            <Box sx={{ 
+                              bgcolor: 'rgba(255,255,255,0.2)', 
+                              px: 1.5, 
+                              py: 0.5, 
+                              borderRadius: 2,
+                              fontSize: '0.75rem',
+                              fontWeight: 600
+                            }}>
+                              {editDiscountInfo.discountPercent}% OFF
+                            </Box>
+                          </Box>
+                          <Button
+                            size="small"
+                            onClick={() => {
+                              setEditDiscountCode('');
+                              setEditDiscountInfo(null);
+                              setEditDiscountError(null);
+                              setEditDiscountAppliedTo({
+                                basePackage: false,
+                                additionalPackages: [],
+                                customPackages: []
+                              });
+                            }}
+                            sx={{ 
+                              color: 'white',
+                              bgcolor: 'rgba(255,255,255,0.1)',
+                              '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' },
+                              fontSize: '0.75rem',
+                              minWidth: 'auto',
+                              px: 1.5,
+                              py: 0.5,
+                              borderRadius: 1.5
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </Box>
+                      </Box>
+                      
+                      {/* Content */}
+                      <Box sx={{ p: 2.5, bgcolor: 'white' }}>
+                        <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2, color: 'text.primary' }}>
+                          Select packages to apply discount:
+                        </Typography>
+                        
+                        <Stack spacing={2}>
+                          {/* Base Package Selection */}
+                          {editingAppointment && (
+                            <Box>
+                              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 500 }}>
+                                Main Service
+                              </Typography>
+                              <Chip
+                                label={`${packages.find(p => p.id === editingAppointment.packageId)?.name || 'Package'} - RM${packages.find(p => p.id === editingAppointment.packageId)?.price || 0}`}
+                                variant={editDiscountAppliedTo.basePackage ? "filled" : "outlined"}
+                                color={editDiscountAppliedTo.basePackage ? "success" : "default"}
+                                onClick={() => {
+                                  setEditDiscountAppliedTo(prev => ({
+                                    ...prev,
+                                    basePackage: !prev.basePackage
+                                  }));
+                                }}
+                                sx={{ 
+                                  cursor: 'pointer',
+                                  height: 36,
+                                  fontSize: '0.875rem',
+                                  fontWeight: 500,
+                                  transition: 'all 0.2s ease',
+                                  '&:hover': {
+                                    transform: 'translateY(-1px)',
+                                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                                  }
+                                }}
+                              />
+                            </Box>
+                          )}
+                          
+                          {/* Additional Packages Selection */}
+                          {editAdditionalPackages.length > 0 && (
+                            <Box>
+                              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 500 }}>
+                                Additional Services
+                              </Typography>
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                {editAdditionalPackages.map(packageId => {
+                                  const pkg = packages.find(p => p.id === packageId);
+                                  if (!pkg) return null;
+                                  
+                                  const isSelected = editDiscountAppliedTo.additionalPackages.includes(packageId);
+                                  return (
+                                    <Chip
+                                      key={packageId}
+                                      label={`${pkg.name} - RM${pkg.price}`}
+                                      variant={isSelected ? "filled" : "outlined"}
+                                      color={isSelected ? "success" : "default"}
+                                      onClick={() => {
+                                        setEditDiscountAppliedTo(prev => ({
+                                          ...prev,
+                                          additionalPackages: isSelected 
+                                            ? prev.additionalPackages.filter(id => id !== packageId)
+                                            : [...prev.additionalPackages, packageId]
+                                        }));
+                                      }}
+                                      sx={{ 
+                                        cursor: 'pointer',
+                                        height: 36,
+                                        fontSize: '0.875rem',
+                                        fontWeight: 500,
+                                        transition: 'all 0.2s ease',
+                                        '&:hover': {
+                                          transform: 'translateY(-1px)',
+                                          boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                                        }
+                                      }}
+                                    />
+                                  );
+                                })}
+                              </Box>
+                            </Box>
+                          )}
+                        </Stack>
+                        
+                        {/* Discount Summary */}
+                        <Box sx={{ 
+                          mt: 3,
+                          p: 2,
+                          bgcolor: '#f8f9fa',
+                          borderRadius: 2,
+                          border: '1px solid #e9ecef'
+                        }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" fontWeight={600} color="success.main">
+                              💰 Total Discount
+                            </Typography>
+                            <Typography variant="h6" fontWeight={700} color="success.main">
+                              RM{(() => {
+                                if (!editDiscountInfo) return '0.00';
+                                let discountableAmount = 0;
+                                
+                                // Add base package if discount applied
+                                if (editDiscountAppliedTo.basePackage && editingAppointment) {
+                                  const pkg = packages.find(p => p.id === editingAppointment.packageId);
+                                  if (pkg) discountableAmount += pkg.price;
+                                }
+                                
+                                // Add selected additional packages
+                                editDiscountAppliedTo.additionalPackages.forEach(packageId => {
+                                  const pkg = packages.find(p => p.id === packageId);
+                                  if (pkg) discountableAmount += pkg.price;
+                                });
+                                
+                                const discountAmount = (discountableAmount * editDiscountInfo.discountPercent) / 100;
+                                return discountAmount.toFixed(2);
+                              })()}
                             </Typography>
                           </Box>
-                          <Typography color="success.main" fontWeight={600}>
-                            {discount.discountPercent}% OFF
-                          </Typography>
                         </Box>
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
               </Stack>
             )}
           </DialogContent>
@@ -2278,7 +2909,19 @@ export default function AppointmentsPage() {
             <GradientButton
               variant="blue"
               animated
-              onClick={() => setEditAppointmentOpen(false)}
+              onClick={() => {
+                setEditAppointmentOpen(false);
+                setEditAdditionalPackages([]);
+                // Reset edit discount states
+                setEditDiscountCode('');
+                setEditDiscountInfo(null);
+                setEditDiscountError(null);
+                setEditDiscountAppliedTo({
+                  basePackage: false,
+                  additionalPackages: [],
+                  customPackages: []
+                });
+              }}
               sx={{ 
                 flex: 1,
                 px: { xs: 2, sm: 3 }, 

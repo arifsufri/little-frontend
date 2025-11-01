@@ -33,6 +33,7 @@ import {
   DialogActions,
   useTheme,
   useMediaQuery,
+  Pagination,
 } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import PhoneIcon from '@mui/icons-material/Phone';
@@ -76,6 +77,10 @@ export default function ClientsPage() {
     fullName: '',
     phoneNumber: ''
   });
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [itemsPerPage] = React.useState(10);
 
   React.useEffect(() => {
     fetchClients();
@@ -197,6 +202,21 @@ export default function ClientsPage() {
     return filtered;
   }, [clients, searchTerm, statusFilter]);
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedClients = filteredClients.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  // Reset page when search or filter changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
   return (
     <DashboardLayout>
       <Box sx={{ mb: { xs: 3, sm: 4 } }}>
@@ -297,7 +317,10 @@ export default function ClientsPage() {
                 
                 <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography variant="body2" color="text.secondary">
-                    Showing {filteredClients.length} of {clients.length} clients
+                    {totalPages > 1 
+                      ? `Page ${currentPage} of ${totalPages} (${filteredClients.length} of ${clients.length} clients)`
+                      : `Showing ${filteredClients.length} of ${clients.length} clients`
+                    }
                   </Typography>
                 </Box>
               </Box>
@@ -313,7 +336,7 @@ export default function ClientsPage() {
             ) : isMobile ? (
               // Mobile Card Layout
               <Stack spacing={2}>
-                {filteredClients.map((client) => {
+                {paginatedClients.map((client, index) => {
                   const latestAppointment = client.appointments[0];
                   return (
                     <Card 
@@ -397,6 +420,7 @@ export default function ClientsPage() {
                 <Table>
                   <TableHead>
                     <TableRow>
+                      <TableCell><strong>#</strong></TableCell>
                       <TableCell><strong>Client ID</strong></TableCell>
                       <TableCell><strong>Name</strong></TableCell>
                       <TableCell><strong>Phone</strong></TableCell>
@@ -408,10 +432,15 @@ export default function ClientsPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {filteredClients.map((client) => {
+                    {paginatedClients.map((client, index) => {
                       const latestAppointment = client.appointments[0];
                       return (
                         <TableRow key={client.id} hover>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={500}>
+                              {startIndex + index + 1}
+                            </Typography>
+                          </TableCell>
                           <TableCell>
                             <Typography variant="body2" fontWeight={600} color="primary">
                               {client.clientId}
@@ -474,6 +503,30 @@ export default function ClientsPage() {
                   </TableBody>
                 </Table>
               </TableContainer>
+            )}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center',
+                mt: 3,
+                gap: 2
+              }}>
+                <Typography variant="body2" color="text.secondary">
+                  Showing {startIndex + 1}-{Math.min(endIndex, filteredClients.length)} of {filteredClients.length} clients
+                </Typography>
+                <Pagination
+                  count={totalPages}
+                  page={currentPage}
+                  onChange={(event, page) => handlePageChange(page)}
+                  color="primary"
+                  size="medium"
+                  showFirstButton
+                  showLastButton
+                />
+              </Box>
             )}
             </CardContent>
           </Card>
