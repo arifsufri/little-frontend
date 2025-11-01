@@ -884,7 +884,7 @@ export default function AppointmentsPage() {
     setMultipleDiscountCodes(prev => prev.filter(d => d.code !== codeToRemove));
   };
 
-  const calculateMultipleDiscountsTotal = () => {
+  const calculateMultipleDiscountsTotal = React.useCallback(() => {
     if (!selectedAppointment || multipleDiscountCodes.length === 0) return calculateTotalPrice();
 
     let totalPrice = calculateTotalPrice();
@@ -916,7 +916,7 @@ export default function AppointmentsPage() {
     });
 
     return Math.max(0, totalPrice - totalDiscount);
-  };
+  }, [selectedAppointment, multipleDiscountCodes, selectedAdditionalPackages, customPackages, packages, calculateTotalPrice]);
 
   const validateEditDiscountCode = async (code: string) => {
     if (!code.trim() || !editingAppointment) return;
@@ -2090,7 +2090,7 @@ export default function AppointmentsPage() {
                     {currentDiscountCode.trim() && (
                       <Box sx={{ mb: 2 }}>
                         <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                          Select packages for "{currentDiscountCode}":
+                          Select packages for &quot;{currentDiscountCode}&quot;:
                         </Typography>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                           {/* Base Package */}
@@ -3041,7 +3041,7 @@ export default function AppointmentsPage() {
                   {editCurrentDiscountCode.trim() && (
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                        Select packages for "{editCurrentDiscountCode}":
+                        Select packages for &quot;{editCurrentDiscountCode}&quot;:
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                         {/* Base Package */}

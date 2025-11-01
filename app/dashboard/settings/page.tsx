@@ -201,7 +201,7 @@ export default function SettingsPage() {
   };
 
   // Discount code functions
-  const loadDiscountCodes = async () => {
+  const loadDiscountCodes = React.useCallback(async () => {
     if (userRole !== 'Boss') return;
     
     try {
@@ -213,16 +213,16 @@ export default function SettingsPage() {
       console.error('Error loading discount codes:', error);
       setErrorMsg('Failed to load discount codes');
     }
-  };
+  }, [userRole]);
 
-  const fetchPackages = async () => {
+  const fetchPackages = React.useCallback(async () => {
     try {
       const response = await apiGet<{ success: boolean; data: Package[] }>('/packages');
       setPackages(response.data || []);
     } catch (error) {
       console.error('Error fetching packages:', error);
     }
-  };
+  }, []);
 
   const handleCreateDiscount = async (data: DiscountCodeForm) => {
     setLoading(true);
@@ -542,7 +542,7 @@ export default function SettingsPage() {
       loadDiscountCodes();
       fetchPackages();
     }
-  }, [userRole]);
+  }, [userRole, loadDiscountCodes, fetchPackages]);
 
   // Update form when userProfile changes
   React.useEffect(() => {
