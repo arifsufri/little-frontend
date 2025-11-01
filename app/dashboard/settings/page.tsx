@@ -25,7 +25,10 @@ import {
   Stack,
   Chip,
   FormControl,
-  FormLabel
+  FormLabel,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import PersonIcon from '@mui/icons-material/Person';
@@ -67,8 +70,19 @@ const PasswordSchema = z.object({
 const DiscountCodeSchema = z.object({
   code: z.string().min(1, 'Discount code is required').max(20, 'Code must be 20 characters or less'),
   description: z.string().optional(),
-  discountPercent: z.number().min(0.1, 'Discount must be at least 0.1%').max(100, 'Discount cannot exceed 100%'),
+  discountType: z.enum(['percentage', 'fixed_amount']),
+  discountPercent: z.number().min(0.1, 'Discount must be at least 0.1%').max(100, 'Discount cannot exceed 100%').optional(),
+  discountAmount: z.number().min(0.1, 'Discount amount must be at least RM0.10').optional(),
   applicablePackages: z.array(z.number()).optional()
+}).refine((data) => {
+  if (data.discountType === 'percentage') {
+    return data.discountPercent !== undefined && data.discountPercent > 0;
+  } else {
+    return data.discountAmount !== undefined && data.discountAmount > 0;
+  }
+}, {
+  message: 'Either discount percentage or discount amount is required based on the selected type',
+  path: ['discountPercent'] // This will show the error on the discountPercent field
 });
 
 type ProfileForm = z.infer<typeof ProfileSchema>;
@@ -88,7 +102,9 @@ interface DiscountCode {
   id: number;
   code: string;
   description?: string;
-  discountPercent: number;
+  discountType: 'percentage' | 'fixed_amount';
+  discountPercent?: number;
+  discountAmount?: number;
   applicablePackages: number[];
   isActive: boolean;
   createdAt: string;
@@ -232,7 +248,9 @@ export default function SettingsPage() {
       const response = await apiPost<{ success: boolean; data: DiscountCode }>('/discount-codes', {
         code: data.code.toUpperCase(),
         description: data.description || null,
-        discountPercent: data.discountPercent,
+        discountType: data.discountType,
+        discountPercent: data.discountType === 'percentage' ? data.discountPercent : null,
+        discountAmount: data.discountType === 'fixed_amount' ? data.discountAmount : null,
         applicablePackages: data.applicablePackages || []
       });
       
@@ -259,7 +277,9 @@ export default function SettingsPage() {
       const response = await apiPut<{ success: boolean; data: DiscountCode }>(`/discount-codes/${editingDiscount.id}`, {
         code: data.code.toUpperCase(),
         description: data.description || null,
-        discountPercent: data.discountPercent,
+        discountType: data.discountType,
+        discountPercent: data.discountType === 'percentage' ? data.discountPercent : null,
+        discountAmount: data.discountType === 'fixed_amount' ? data.discountAmount : null,
         applicablePackages: data.applicablePackages || []
       });
       
@@ -312,7 +332,9 @@ export default function SettingsPage() {
     discountForm.reset({
       code: '',
       description: '',
+      discountType: 'percentage',
       discountPercent: 10,
+      discountAmount: undefined,
       applicablePackages: []
     });
     setDiscountDialogOpen(true);
@@ -323,7 +345,9 @@ export default function SettingsPage() {
     discountForm.reset({
       code: discount.code,
       description: discount.description || '',
-      discountPercent: discount.discountPercent,
+      discountType: discount.discountType || 'percentage',
+      discountPercent: discount.discountPercent || undefined,
+      discountAmount: discount.discountAmount || undefined,
       applicablePackages: discount.applicablePackages || []
     });
     setDiscountDialogOpen(true);
@@ -1170,7 +1194,9 @@ export default function SettingsPage() {
                                   fontSize: { xs: '1.5rem', sm: '2rem' }
                                 }}
                               >
-                                {discount.discountPercent}%
+                                {discount.discountType === 'fixed_amount' 
+                                  ? `RM${discount.discountAmount}` 
+                                  : `${discount.discountPercent}%`}
                               </Typography>
                             </Box>
                             <IconButton
@@ -1639,21 +1665,66 @@ export default function SettingsPage() {
                   }
                 }}
               />
-              <TextField
-                label="Discount Percentage"
-                type="number"
-                fullWidth
-                variant="outlined"
-                inputProps={{ min: 0.1, max: 100, step: 0.1 }}
-                {...discountForm.register('discountPercent', { valueAsNumber: true })}
-                error={!!discountForm.formState.errors.discountPercent}
-                helperText={discountForm.formState.errors.discountPercent?.message || 'Enter percentage (e.g., 10 for 10% off)'}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: { xs: 1.5, sm: 2 }
-                  }
-                }}
-              />
+              {/* Discount Type Selection */}
+              <FormControl fullWidth>
+                <InputLabel>Discount Type</InputLabel>
+                <Select
+                  value={discountForm.watch('discountType') || 'percentage'}
+                  onChange={(e) => {
+                    discountForm.setValue('discountType', e.target.value as 'percentage' | 'fixed_amount');
+                    // Reset the other field when switching types
+                    if (e.target.value === 'percentage') {
+                      discountForm.setValue('discountAmount', undefined);
+                    } else {
+                      discountForm.setValue('discountPercent', undefined);
+                    }
+                  }}
+                  label="Discount Type"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: { xs: 1.5, sm: 2 }
+                    }
+                  }}
+                >
+                  <MenuItem value="percentage">Percentage Discount (%)</MenuItem>
+                  <MenuItem value="fixed_amount">Fixed Amount (RM)</MenuItem>
+                </Select>
+              </FormControl>
+
+              {/* Conditional Discount Fields */}
+              {discountForm.watch('discountType') === 'percentage' ? (
+                <TextField
+                  label="Discount Percentage"
+                  type="number"
+                  fullWidth
+                  variant="outlined"
+                  inputProps={{ min: 0.1, max: 100, step: 0.1 }}
+                  {...discountForm.register('discountPercent', { valueAsNumber: true })}
+                  error={!!discountForm.formState.errors.discountPercent}
+                  helperText={discountForm.formState.errors.discountPercent?.message || 'Enter percentage (e.g., 10 for 10% off)'}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: { xs: 1.5, sm: 2 }
+                    }
+                  }}
+                />
+              ) : (
+                <TextField
+                  label="Discount Amount (RM)"
+                  type="number"
+                  fullWidth
+                  variant="outlined"
+                  inputProps={{ min: 0.1, step: 0.1 }}
+                  {...discountForm.register('discountAmount', { valueAsNumber: true })}
+                  error={!!discountForm.formState.errors.discountAmount}
+                  helperText={discountForm.formState.errors.discountAmount?.message || 'Enter fixed amount (e.g., 5 for RM5 off)'}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: { xs: 1.5, sm: 2 }
+                    }
+                  }}
+                />
+              )}
               
               {/* Package Selection */}
               <FormControl>

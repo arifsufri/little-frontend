@@ -128,7 +128,9 @@ export default function AppointmentsPage() {
     id: number;
     code: string;
     description?: string;
-    discountPercent: number;
+    discountType: 'percentage' | 'fixed_amount';
+    discountPercent?: number;
+    discountAmount?: number;
   } | null>(null);
   const [discountError, setDiscountError] = React.useState<string | null>(null);
   const [discountAppliedTo, setDiscountAppliedTo] = React.useState<{
@@ -144,9 +146,10 @@ export default function AppointmentsPage() {
   // Multiple discount codes state
   const [multipleDiscountCodes, setMultipleDiscountCodes] = React.useState<Array<{
     code: string;
-    discountPercent: number;
-    appliedToPackages: number[];
+    discountType: 'percentage' | 'fixed_amount';
+    discountPercent?: number;
     discountAmount?: number;
+    appliedToPackages: number[];
   }>>([]);
   const [currentDiscountCode, setCurrentDiscountCode] = React.useState('');
   const [currentDiscountPackages, setCurrentDiscountPackages] = React.useState<number[]>([]);
@@ -175,7 +178,9 @@ export default function AppointmentsPage() {
     id: number;
     code: string;
     description?: string;
-    discountPercent: number;
+    discountType: 'percentage' | 'fixed_amount';
+    discountPercent?: number;
+    discountAmount?: number;
   } | null>(null);
   const [editDiscountError, setEditDiscountError] = React.useState<string | null>(null);
   const [editValidatingDiscount, setEditValidatingDiscount] = React.useState(false);
@@ -192,9 +197,10 @@ export default function AppointmentsPage() {
   // Edit modal multiple discount codes state
   const [editMultipleDiscountCodes, setEditMultipleDiscountCodes] = React.useState<Array<{
     code: string;
-    discountPercent: number;
-    appliedToPackages: number[];
+    discountType: 'percentage' | 'fixed_amount';
+    discountPercent?: number;
     discountAmount?: number;
+    appliedToPackages: number[];
   }>>([]);
   const [editCurrentDiscountCode, setEditCurrentDiscountCode] = React.useState('');
   const [editCurrentDiscountPackages, setEditCurrentDiscountPackages] = React.useState<number[]>([]);
@@ -417,7 +423,9 @@ export default function AppointmentsPage() {
       // Pre-populate multiple discount codes
       const existingDiscounts = appointment.appliedDiscounts.map((appliedDiscount: any) => ({
         code: appliedDiscount.discountCode.code,
+        discountType: appliedDiscount.discountCode.discountType || 'percentage',
         discountPercent: appliedDiscount.discountCode.discountPercent,
+        discountAmount: appliedDiscount.discountCode.discountAmount,
         appliedToPackages: Array.isArray(appliedDiscount.appliedToPackages) ? appliedDiscount.appliedToPackages : []
       }));
       setEditMultipleDiscountCodes(existingDiscounts);
@@ -440,7 +448,9 @@ export default function AppointmentsPage() {
           id: discountData.id,
           code: discountData.code,
           description: discountData.description,
-          discountPercent: discountData.discountPercent
+          discountType: discountData.discountType,
+          discountPercent: discountData.discountPercent,
+          discountAmount: discountData.discountAmount
         });
         // Set which packages have discount applied (for now, assume all packages)
         setEditDiscountAppliedTo({
@@ -754,7 +764,13 @@ export default function AppointmentsPage() {
       }
     });
     
-    const discountAmount = (discountableAmount * discountInfo.discountPercent) / 100;
+    // Calculate discount amount based on discount type
+    let discountAmount = 0;
+    if (discountInfo.discountType === 'fixed_amount') {
+      discountAmount = Math.min(discountInfo.discountAmount || 0, discountableAmount);
+    } else {
+      discountAmount = (discountableAmount * (discountInfo.discountPercent || 0)) / 100;
+    }
     return totalPrice - discountAmount;
   }, [calculateTotalPrice, discountInfo, discountAppliedTo, selectedAppointment, packages, customPackages]);
 
@@ -771,7 +787,9 @@ export default function AppointmentsPage() {
           id: number;
           code: string;
           description?: string;
-          discountPercent: number;
+          discountType: 'percentage' | 'fixed_amount';
+          discountPercent?: number;
+          discountAmount?: number;
         };
         message: string;
       }>('/discount-codes/validate', {
@@ -816,7 +834,9 @@ export default function AppointmentsPage() {
           id: number;
           code: string;
           description?: string;
-          discountPercent: number;
+          discountType: 'percentage' | 'fixed_amount';
+          discountPercent?: number;
+          discountAmount?: number;
         };
         message: string;
       }>('/discount-codes/validate', {
@@ -864,7 +884,9 @@ export default function AppointmentsPage() {
     if (discountData) {
       const newDiscount = {
         code: discountData.code,
+        discountType: discountData.discountType,
         discountPercent: discountData.discountPercent,
+        discountAmount: discountData.discountAmount,
         appliedToPackages: [...currentDiscountPackages]
       };
       
@@ -911,7 +933,15 @@ export default function AppointmentsPage() {
         }
       });
 
-      const discountAmount = (discountableAmount * discount.discountPercent) / 100;
+      // Calculate discount amount based on discount type
+      let discountAmount = 0;
+      if (discount.discountType === 'fixed_amount') {
+        // For fixed amount, apply the discount amount directly (but don't exceed the discountable amount)
+        discountAmount = Math.min(discount.discountAmount || 0, discountableAmount);
+      } else {
+        // For percentage discount (default)
+        discountAmount = (discountableAmount * (discount.discountPercent || 0)) / 100;
+      }
       totalDiscount += discountAmount;
     });
 
@@ -931,7 +961,9 @@ export default function AppointmentsPage() {
           id: number;
           code: string;
           description?: string;
-          discountPercent: number;
+          discountType: 'percentage' | 'fixed_amount';
+          discountPercent?: number;
+          discountAmount?: number;
         };
         message: string;
       }>('/discount-codes/validate', {
@@ -964,7 +996,9 @@ export default function AppointmentsPage() {
           id: number;
           code: string;
           description?: string;
-          discountPercent: number;
+          discountType: 'percentage' | 'fixed_amount';
+          discountPercent?: number;
+          discountAmount?: number;
         };
         message: string;
       }>('/discount-codes/validate', {
@@ -1012,7 +1046,9 @@ export default function AppointmentsPage() {
     if (discountData) {
       const newDiscount = {
         code: discountData.code,
+        discountType: discountData.discountType,
         discountPercent: discountData.discountPercent,
+        discountAmount: discountData.discountAmount,
         appliedToPackages: [...editCurrentDiscountPackages]
       };
       
@@ -1077,7 +1113,13 @@ export default function AppointmentsPage() {
         }
       });
 
-      const discountAmount = (discountableAmount * discount.discountPercent) / 100;
+      // Calculate discount amount based on discount type
+      let discountAmount = 0;
+      if (discount.discountType === 'fixed_amount') {
+        discountAmount = Math.min(discount.discountAmount || 0, discountableAmount);
+      } else {
+        discountAmount = (discountableAmount * (discount.discountPercent || 0)) / 100;
+      }
       totalDiscount += discountAmount;
     });
 
@@ -2372,7 +2414,9 @@ export default function AppointmentsPage() {
                       {multipleDiscountCodes.map((discount, index) => (
                         <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between' }}>
                           <Typography variant="body2" color="success.main" fontWeight={600}>
-                            {discount.code} ({discount.discountPercent}%):
+                            {discount.code} ({discount.discountType === 'fixed_amount' 
+                              ? `RM${discount.discountAmount}` 
+                              : `${discount.discountPercent}%`}):
                           </Typography>
                           <Typography variant="body2" color="success.main" fontWeight={600}>
                             -RM{(() => {
@@ -2391,7 +2435,12 @@ export default function AppointmentsPage() {
                                   }
                                 }
                               });
-                              return ((discountableAmount * discount.discountPercent) / 100).toFixed(2);
+                              // Calculate discount amount based on discount type
+                              if (discount.discountType === 'fixed_amount') {
+                                return Math.min(discount.discountAmount || 0, discountableAmount).toFixed(2);
+                              } else {
+                                return ((discountableAmount * (discount.discountPercent || 0)) / 100).toFixed(2);
+                              }
                             })()}
                           </Typography>
                         </Box>
