@@ -59,6 +59,8 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { apiGet, apiPost, apiDelete } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
 import { useFinancialData } from '../../../hooks/useFinancialData';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface FinancialOverview {
   totalRevenue: number;
@@ -637,6 +639,227 @@ export default function FinancialPage() {
     return getBossCurrentCustomers(today, uniqueCustomers);
   };
 
+  // PDF Generation Function for Daily Summary
+  const generateDailySummaryPDF = async () => {
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      // Get current date in Malaysia timezone
+      const currentDate = new Date().toLocaleDateString('en-MY', {
+        timeZone: 'Asia/Kuala_Lumpur',
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      
+      // Header
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Little Barbershop', pageWidth / 2, 20, { align: 'center' });
+      
+      pdf.setFontSize(16);
+      pdf.text('Daily Summary Report', pageWidth / 2, 30, { align: 'center' });
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(currentDate, pageWidth / 2, 40, { align: 'center' });
+      
+      // Line separator
+      pdf.setLineWidth(0.5);
+      pdf.line(20, 45, pageWidth - 20, 45);
+      
+      let yPosition = 55;
+      
+      // Today's Summary Section
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Today\'s Summary', 20, yPosition);
+      yPosition += 10;
+      
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'normal');
+      
+      // Summary metrics
+      const todaysRevenue = calculateTodaysRevenue();
+      const todaysCustomers = calculateTodaysCustomers();
+      const todaysExpenses = (() => {
+        const today = getTodayMalaysiaString();
+        const dailyExpenses = financialData?.expenses?.filter(expense => expense.date === today) || [];
+        const totalExpenses = dailyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+        return getBossCurrentExpenses(today, totalExpenses);
+      })();
+      
+      pdf.text(`• Today's Revenue: RM${todaysRevenue.toFixed(2)}`, 25, yPosition);
+      yPosition += 7;
+      pdf.text(`• Today's Customers: ${todaysCustomers}`, 25, yPosition);
+      yPosition += 7;
+      pdf.text(`• Today's Expenses: RM${todaysExpenses.toFixed(2)}`, 25, yPosition);
+      yPosition += 7;
+      pdf.text(`• Net Profit: RM${(todaysRevenue - todaysExpenses).toFixed(2)}`, 25, yPosition);
+      yPosition += 15;
+      
+      // Service Breakdown Section
+      if (financialData?.serviceBreakdown && financialData.serviceBreakdown.length > 0) {
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Service Breakdown', 20, yPosition);
+        yPosition += 10;
+        
+        pdf.setFontSize(11);
+        pdf.setFont('helvetica', 'normal');
+        
+        // Table headers
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Service', 25, yPosition);
+        pdf.text('Quantity', 80, yPosition);
+        pdf.text('Revenue', 120, yPosition);
+        pdf.text('Commission', 160, yPosition);
+        yPosition += 5;
+        
+        // Line under headers
+        pdf.setLineWidth(0.3);
+        pdf.line(25, yPosition, pageWidth - 20, yPosition);
+        yPosition += 7;
+        
+        pdf.setFont('helvetica', 'normal');
+        
+        financialData.serviceBreakdown.forEach((service) => {
+          if (yPosition > pageHeight - 30) {
+            pdf.addPage();
+            yPosition = 20;
+          }
+          
+          const commission = service.totalRevenue * 0.75; // Assuming 75% commission rate
+          
+          pdf.text(service.name, 25, yPosition);
+          pdf.text(service.count.toString(), 80, yPosition);
+          pdf.text(`RM${service.totalRevenue.toFixed(2)}`, 120, yPosition);
+          pdf.text(`RM${commission.toFixed(2)}`, 160, yPosition);
+          yPosition += 7;
+        });
+        
+        yPosition += 10;
+      }
+      
+      // Appointments Details Section
+      if (todaysAppointments.length > 0) {
+        if (yPosition > pageHeight - 50) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Today\'s Appointments', 20, yPosition);
+        yPosition += 10;
+        
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('#', 25, yPosition);
+        pdf.text('Client', 35, yPosition);
+        pdf.text('Service', 80, yPosition);
+        pdf.text('Barber', 120, yPosition);
+        pdf.text('Price', 150, yPosition);
+        pdf.text('Time', 175, yPosition);
+        yPosition += 5;
+        
+        pdf.setLineWidth(0.3);
+        pdf.line(25, yPosition, pageWidth - 20, yPosition);
+        yPosition += 7;
+        
+        pdf.setFont('helvetica', 'normal');
+        
+        todaysAppointments.forEach((appointment, index) => {
+          if (yPosition > pageHeight - 20) {
+            pdf.addPage();
+            yPosition = 20;
+          }
+          
+          const appointmentTime = new Date(appointment.appointmentDate).toLocaleTimeString('en-MY', {
+            timeZone: 'Asia/Kuala_Lumpur',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          
+          pdf.text((index + 1).toString(), 25, yPosition);
+          pdf.text(appointment.client?.fullName || 'N/A', 35, yPosition);
+          pdf.text(appointment.package?.name || 'N/A', 80, yPosition);
+          pdf.text(appointment.barber?.fullName || 'N/A', 120, yPosition);
+          pdf.text(`RM${(appointment.finalPrice || appointment.package?.price || 0).toFixed(2)}`, 150, yPosition);
+          pdf.text(appointmentTime, 175, yPosition);
+          yPosition += 6;
+        });
+        
+        yPosition += 10;
+      }
+      
+      // Expenses Section
+      if (todaysExpenses > 0) {
+        const todayExpensesList = financialData?.expenses?.filter(expense => expense.date === getTodayMalaysiaString()) || [];
+        
+        if (todayExpensesList.length > 0) {
+          if (yPosition > pageHeight - 40) {
+            pdf.addPage();
+            yPosition = 20;
+          }
+          
+          pdf.setFontSize(14);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('Today\'s Expenses', 20, yPosition);
+          yPosition += 10;
+          
+          pdf.setFontSize(10);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('Category', 25, yPosition);
+          pdf.text('Description', 80, yPosition);
+          pdf.text('Amount', 150, yPosition);
+          yPosition += 5;
+          
+          pdf.setLineWidth(0.3);
+          pdf.line(25, yPosition, pageWidth - 20, yPosition);
+          yPosition += 7;
+          
+          pdf.setFont('helvetica', 'normal');
+          
+          todayExpensesList.forEach((expense) => {
+            if (yPosition > pageHeight - 20) {
+              pdf.addPage();
+              yPosition = 20;
+            }
+            
+            pdf.text(expense.category, 25, yPosition);
+            pdf.text(expense.description, 80, yPosition);
+            pdf.text(`RM${expense.amount.toFixed(2)}`, 150, yPosition);
+            yPosition += 6;
+          });
+        }
+      }
+      
+      // Footer
+      const totalPages = pdf.internal.pages.length - 1;
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(`Generated on ${new Date().toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur' })}`, 20, pageHeight - 10);
+        pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 40, pageHeight - 10);
+      }
+      
+      // Save the PDF
+      const fileName = `Daily_Summary_${getTodayMalaysiaString()}.pdf`;
+      pdf.save(fileName);
+      
+      showNotification('Daily summary PDF generated successfully!', 'success');
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      showNotification('Failed to generate PDF. Please try again.', 'error');
+    }
+  };
+
   React.useEffect(() => {
     fetchFinancialData();
     fetchTodaysAppointments();
@@ -1107,27 +1330,62 @@ export default function FinancialPage() {
                   </Grid>
               </Grid>
 
-                {/* Close Daily Account Button */}
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => setBossCloseDailyOpen(true)}
-                  disabled={calculateTodaysRevenue() === 0}
-                  sx={{
-                    position: 'absolute',
-                    bottom: 8,
-                    right: 16,
-                    textTransform: 'none',
-                    borderColor: '#8B0000',
-                    color: '#8B0000',
-                  '&:hover': {
+                {/* Action Buttons */}
+                <Box sx={{
+                  position: 'absolute',
+                  bottom: 8,
+                  right: 16,
+                  display: 'flex',
+                  gap: 1
+                }}>
+                  {/* Print PDF Button */}
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={generateDailySummaryPDF}
+                    startIcon={<DownloadIcon />}
+                    sx={{
+                      textTransform: 'none',
+                      borderColor: '#1976d2',
+                      color: '#1976d2',
+                      fontSize: '0.8rem',
+                      px: 1.5,
+                      py: 0.5,
+                      '&:hover': {
+                        borderColor: '#1565c0',
+                        bgcolor: 'rgba(25, 118, 210, 0.04)'
+                      }
+                    }}
+                  >
+                    Print PDF
+                  </Button>
+                  
+                  {/* Close Daily Account Button */}
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => setBossCloseDailyOpen(true)}
+                    disabled={calculateTodaysRevenue() === 0}
+                    sx={{
+                      textTransform: 'none',
                       borderColor: '#8B0000',
-                      bgcolor: 'rgba(139,0,0,0.1)'
-                    }
-                  }}
-                >
-                  Close Daily Account
-                </Button>
+                      color: '#8B0000',
+                      fontSize: '0.8rem',
+                      px: 1.5,
+                      py: 0.5,
+                      '&:hover': {
+                        borderColor: '#8B0000',
+                        bgcolor: 'rgba(139,0,0,0.1)'
+                      },
+                      '&:disabled': {
+                        borderColor: '#ccc',
+                        color: '#999'
+                      }
+                    }}
+                  >
+                    Close Daily Account
+                  </Button>
+                </Box>
                       </Box>
 
               {/* Period Overview Cards */}
