@@ -1,11 +1,5 @@
 'use client';
 
-// 🔍 PRODUCTION DEBUGGING ENABLED
-// Look for console logs with these prefixes:
-// 📊 APPOINTMENTS PAGE - Raw appointment data and calculations
-// 📅 APPOINTMENTS PAGE - Date filtering analysis
-// Compare with Financial Reports page logs to identify discrepancies
-
 import * as React from 'react';
 import DashboardLayout from '../../../components/dashboard/Layout';
 import AppointmentCard from '../../../components/dashboard/AppointmentCard';
@@ -264,51 +258,6 @@ export default function AppointmentsPage() {
       const response = await apiGet<{ success: boolean; data: Appointment[] }>('/appointments');
       let appointmentsData = response.data || [];
       
-      // 🔍 PRODUCTION LOGGING - Appointments Page Data
-      console.log('📊 APPOINTMENTS PAGE - Raw Data Analysis:');
-      console.log('Total appointments fetched:', appointmentsData.length);
-      
-      const completedAppointments = appointmentsData.filter(apt => apt.status === 'completed');
-      console.log('Completed appointments:', completedAppointments.length);
-      
-      const completedWithFinalPrice = completedAppointments.filter(apt => apt.finalPrice !== null && apt.finalPrice !== undefined);
-      console.log('Completed with finalPrice:', completedWithFinalPrice.length);
-      
-      if (completedWithFinalPrice.length > 0) {
-        const totalRevenue = completedWithFinalPrice.reduce((sum, apt) => sum + (apt.finalPrice || 0), 0);
-        const totalCommission = completedWithFinalPrice.reduce((sum, apt) => {
-          const commission = apt.barber?.commissionRate || 0;
-          return sum + ((apt.finalPrice || 0) * commission / 100);
-        }, 0);
-        
-        console.log('📈 APPOINTMENTS PAGE - Calculated Totals:');
-        console.log('Total Revenue:', totalRevenue);
-        console.log('Total Commission:', totalCommission);
-        
-        console.log('📋 APPOINTMENTS PAGE - Sample Completed Appointments:');
-        completedWithFinalPrice.slice(0, 5).forEach((apt, index) => {
-          console.log(`${index + 1}. ID: ${apt.id}, Client: ${apt.client.fullName}, Package: ${apt.package.name}, Price: RM${apt.finalPrice}, Barber: ${apt.barber?.name || 'None'}, Commission Rate: ${apt.barber?.commissionRate || 0}%, Date: ${apt.appointmentDate || apt.createdAt}`);
-        });
-        
-        // 📅 Date Analysis for Production Debugging
-        console.log('📅 APPOINTMENTS PAGE - Date Analysis:');
-        const today = new Date();
-        const malaysiaToday = new Date(today.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"}));
-        const startOfMonth = new Date(malaysiaToday.getFullYear(), malaysiaToday.getMonth(), 1);
-        console.log('Current Malaysia Date:', malaysiaToday.toISOString());
-        console.log('Start of Current Month:', startOfMonth.toISOString());
-        
-        const thisMonthCompleted = completedWithFinalPrice.filter(apt => {
-          const aptDate = new Date(apt.appointmentDate || apt.createdAt);
-          return aptDate >= startOfMonth && aptDate <= malaysiaToday;
-        });
-        console.log('Completed appointments this month:', thisMonthCompleted.length);
-        
-        if (thisMonthCompleted.length > 0) {
-          const thisMonthRevenue = thisMonthCompleted.reduce((sum, apt) => sum + (apt.finalPrice || 0), 0);
-          console.log('This month revenue (from appointments page):', thisMonthRevenue);
-        }
-      }
       
       // Filter appointments based on user role
       if (userRole === 'Staff') {
