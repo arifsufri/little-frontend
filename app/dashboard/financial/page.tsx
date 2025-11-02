@@ -920,9 +920,15 @@ export default function FinancialPage() {
           }
           
           console.log('🛍️ FINANCIAL REPORTS PAGE - Service Breakdown:');
+          console.log('Service breakdown raw data:', data.serviceBreakdown);
           if (data.serviceBreakdown && data.serviceBreakdown.length > 0) {
             data.serviceBreakdown.forEach((service: any, index: number) => {
-              console.log(`${index + 1}. Service: ${service.packageName}, Count: ${service.count}, Revenue: RM${service.revenue}`);
+              console.log(`${index + 1}. Service Object:`, service);
+              console.log(`   - name: ${service.name}`);
+              console.log(`   - packageName: ${service.packageName}`);
+              console.log(`   - count: ${service.count}`);
+              console.log(`   - revenue: ${service.revenue}`);
+              console.log(`   - totalRevenue: ${service.totalRevenue}`);
             });
           }
           
