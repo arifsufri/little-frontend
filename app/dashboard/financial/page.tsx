@@ -879,9 +879,18 @@ export default function FinancialPage() {
       setLoading(true);
       
       if (userRole === 'Boss') {
+        console.log('User is Boss, fetching financial data for date range:', dateRange);
+        console.log('API URL:', `/financial/overview?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`);
         const response = await apiGet(`/financial/overview?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`) as any;
+        console.log('Financial data response:', response);
         if (response.success) {
           setFinancialData(response.data);
+          console.log('Financial data set:', response.data);
+          console.log('Barber performance data:', response.data?.barberPerformance);
+        } else {
+          console.error('Failed to fetch financial data:', response.message || response.error);
+          console.error('Full response:', response);
+          showNotification(response.message || response.error || 'Failed to fetch financial data', 'error');
         }
       } else if (userRole === 'Staff') {
         // Use hook data if available, otherwise fetch manually
@@ -894,8 +903,15 @@ export default function FinancialPage() {
           }
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching financial data:', error);
+      console.error('Error details:', error?.response?.data || error?.message);
+      
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        showNotification('Authentication failed. Please log in again.', 'error');
+      } else {
+        showNotification('Failed to fetch financial data. Please try again.', 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -950,7 +966,20 @@ export default function FinancialPage() {
     return new Date(dateString).toLocaleDateString('en-MY', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: 'Asia/Kuala_Lumpur'
+    });
+  };
+
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-MY', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Kuala_Lumpur'
     });
   };
 
@@ -1267,11 +1296,12 @@ export default function FinancialPage() {
                     Today&apos;s Business Summary
                         </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {new Date().toLocaleDateString('en-US', { 
+                    {new Date().toLocaleDateString('en-MY', { 
                       weekday: 'long', 
                       year: 'numeric', 
                       month: 'long', 
-                      day: 'numeric' 
+                      day: 'numeric',
+                      timeZone: 'Asia/Kuala_Lumpur'
                     })}
                         </Typography>
                       </Box>
@@ -1647,7 +1677,7 @@ export default function FinancialPage() {
             </Card>
           )}
 
-          {tabValue === 3 && financialData && (
+          {tabValue === 2 && financialData && (
             // Expenses Tab
             <Card sx={{ 
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
@@ -1768,17 +1798,37 @@ export default function FinancialPage() {
             </Card>
           )}
 
-          {tabValue === 4 && financialData && (
+          {tabValue === 3 && (
             // Monthly Summary Tab
             <Box>
-              {/* Monthly Payroll Summary */}
-              <Card sx={{ 
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-                border: 'none', 
-                borderRadius: { xs: 4, sm: 5 }, 
-                backgroundColor: '#fff',
-                mb: 3
-              }}>
+
+              {!financialData ? (
+                <Card sx={{ 
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+                  border: 'none', 
+                  borderRadius: { xs: 4, sm: 5 }, 
+                  backgroundColor: '#fff',
+                  mb: 3
+                }}>
+                  <CardContent sx={{ p: { xs: 2, sm: 3 }, textAlign: 'center' }}>
+                    <Typography variant="h6" color="text.secondary" gutterBottom>
+                      No Data Available
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {loading ? 'Loading financial data...' : 'No financial data found for the selected period. Try adjusting your date range or ensure there are completed appointments.'}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {/* Monthly Payroll Summary */}
+                  <Card sx={{ 
+                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+                    border: 'none', 
+                    borderRadius: { xs: 4, sm: 5 }, 
+                    backgroundColor: '#fff',
+                    mb: 3
+                  }}>
                 <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
                   <Box sx={{ 
                     display: 'flex', 
@@ -1809,6 +1859,19 @@ export default function FinancialPage() {
                       Reset Monthly
                     </GradientButton>
                     </Box>
+
+                  {/* Date Range Display */}
+                  <Box sx={{ mb: 3, p: 2, bgcolor: '#f8f9fa', borderRadius: 2 }}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Report Period
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {formatDate(dateRange.startDate)} - {formatDate(dateRange.endDate)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Last updated: {formatDateTime(new Date().toISOString())}
+                    </Typography>
+                  </Box>
 
                   {/* Summary Cards */}
                   <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -1897,87 +1960,99 @@ export default function FinancialPage() {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {financialData.barberPerformance.map((barber) => (
-                          <TableRow key={barber.id} hover>
-                            <TableCell>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                                  {barber.name.charAt(0)}
-                    </Avatar>
+                        {financialData.barberPerformance && financialData.barberPerformance.length > 0 ? (
+                          financialData.barberPerformance.map((barber) => (
+                            <TableRow key={barber.id} hover>
+                              <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                  <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+                                    {barber.name.charAt(0)}
+                                  </Avatar>
+                                  <Typography variant="body2" fontWeight={500}>
+                                    {barber.name}
+                                  </Typography>
+                                </Box>
+                              </TableCell>
+                              <TableCell>
+                                <Chip 
+                                  label={`${barber.commissionRate || 0}%`}
+                                  color="primary"
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              </TableCell>
+                              <TableCell>
                                 <Typography variant="body2" fontWeight={500}>
-                                  {barber.name}
+                                  {formatCurrency(barber.totalSales)}
                                 </Typography>
-                              </Box>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" fontWeight={600} color="success.main">
+                                  {formatCurrency(barber.commissionPaid)}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>{barber.customerCount}</TableCell>
+                              <TableCell>{barber.appointmentCount}</TableCell>
+                              <TableCell>
+                                <Typography variant="body2" color="text.secondary">
+                                  {barber.appointmentCount > 0 
+                                    ? formatCurrency(barber.commissionPaid / barber.appointmentCount)
+                                    : formatCurrency(0)
+                                  }
+                                </Typography>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
+                              <Typography variant="body2" color="text.secondary">
+                                No staff data available for the selected period
+                              </Typography>
                             </TableCell>
-                            <TableCell>
-                              <Chip 
-                                label={`${barber.commissionRate || 0}%`}
-                                color="primary"
-                                size="small"
-                                variant="outlined"
-                              />
+                          </TableRow>
+                        )}
+                        {/* Total Row */}
+                        {financialData.barberPerformance && financialData.barberPerformance.length > 0 && (
+                          <TableRow sx={{ bgcolor: '#f8f9fa', fontWeight: 600 }}>
+                            <TableCell sx={{ fontWeight: 600 }}>
+                              <Typography variant="body2" fontWeight={600}>
+                                TOTAL
+                              </Typography>
                             </TableCell>
+                            <TableCell>-</TableCell>
                             <TableCell>
-                              <Typography variant="body2" fontWeight={500}>
-                                {formatCurrency(barber.totalSales)}
+                              <Typography variant="body2" fontWeight={600}>
+                                {formatCurrency(financialData.barberPerformance.reduce((sum, b) => sum + b.totalSales, 0))}
                               </Typography>
                             </TableCell>
                             <TableCell>
                               <Typography variant="body2" fontWeight={600} color="success.main">
-                                {formatCurrency(barber.commissionPaid)}
+                                {formatCurrency(financialData.overview.totalCommissionPaid)}
                               </Typography>
                             </TableCell>
-                            <TableCell>{barber.customerCount}</TableCell>
-                            <TableCell>{barber.appointmentCount}</TableCell>
                             <TableCell>
-                              <Typography variant="body2" color="text.secondary">
-                                {barber.appointmentCount > 0 
-                                  ? formatCurrency(barber.commissionPaid / barber.appointmentCount)
-                                  : formatCurrency(0)
-                                }
+                              <Typography variant="body2" fontWeight={600}>
+                                {financialData.barberPerformance.reduce((sum, b) => sum + b.customerCount, 0)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={600}>
+                                {financialData.barberPerformance.reduce((sum, b) => sum + b.appointmentCount, 0)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={600} color="text.secondary">
+                                {(() => {
+                                  const totalServices = financialData.barberPerformance.reduce((sum, b) => sum + b.appointmentCount, 0);
+                                  return totalServices > 0 
+                                    ? formatCurrency(financialData.overview.totalCommissionPaid / totalServices)
+                                    : formatCurrency(0);
+                                })()}
                               </Typography>
                             </TableCell>
                           </TableRow>
-                        ))}
-                        {/* Total Row */}
-                        <TableRow sx={{ bgcolor: '#f8f9fa', fontWeight: 600 }}>
-                          <TableCell sx={{ fontWeight: 600 }}>
-                            <Typography variant="body2" fontWeight={600}>
-                              TOTAL
-                            </Typography>
-                          </TableCell>
-                          <TableCell>-</TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600}>
-                              {formatCurrency(financialData.barberPerformance.reduce((sum, b) => sum + b.totalSales, 0))}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600} color="success.main">
-                              {formatCurrency(financialData.overview.totalCommissionPaid)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600}>
-                              {financialData.barberPerformance.reduce((sum, b) => sum + b.customerCount, 0)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600}>
-                              {financialData.barberPerformance.reduce((sum, b) => sum + b.appointmentCount, 0)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600} color="text.secondary">
-                              {(() => {
-                                const totalServices = financialData.barberPerformance.reduce((sum, b) => sum + b.appointmentCount, 0);
-                                return totalServices > 0 
-                                  ? formatCurrency(financialData.overview.totalCommissionPaid / totalServices)
-                                  : formatCurrency(0);
-                              })()}
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
+                        )}
                       </TableBody>
                     </Table>
                   </TableContainer>
@@ -2100,8 +2175,10 @@ export default function FinancialPage() {
                       </Box>
                     </Grid>
                   </Grid>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                  </Card>
+                </>
+              )}
             </Box>
           )}
         </Box>
@@ -2301,11 +2378,12 @@ export default function FinancialPage() {
                         Today&apos;s Account Summary
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {new Date().toLocaleDateString('en-US', { 
+                        {new Date().toLocaleDateString('en-MY', { 
                           weekday: 'long', 
                           year: 'numeric', 
                           month: 'long', 
-                          day: 'numeric' 
+                          day: 'numeric',
+                          timeZone: 'Asia/Kuala_Lumpur'
                         })}
                       </Typography>
                     </Box>
