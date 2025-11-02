@@ -1,5 +1,11 @@
 'use client';
 
+// 🔍 PRODUCTION DEBUGGING ENABLED
+// Look for console logs with these prefixes:
+// 💰 FINANCIAL REPORTS PAGE - Processed/aggregated data from backend
+// 📊 FINANCIAL REPORTS PAGE - Overview, barber performance, expenses
+// 🔄 DATA COMPARISON SUMMARY - Key metrics to compare with appointments page
+
 import * as React from 'react';
 import DashboardLayout from '../../../components/dashboard/Layout';
 import { useUserRole } from '../../../hooks/useUserRole';
@@ -885,8 +891,62 @@ export default function FinancialPage() {
         console.log('Financial data response:', response);
         if (response.success) {
           setFinancialData(response.data);
-          console.log('Financial data set:', response.data);
-          console.log('Barber performance data:', response.data?.barberPerformance);
+          
+          // 🔍 PRODUCTION LOGGING - Financial Reports Page Data
+          console.log('💰 FINANCIAL REPORTS PAGE - Complete Data Analysis:');
+          console.log('Date Range:', `${dateRange.startDate} to ${dateRange.endDate}`);
+          console.log('Raw API Response:', JSON.stringify(response.data, null, 2));
+          
+          const data = response.data;
+          console.log('📊 FINANCIAL REPORTS PAGE - Overview Data:');
+          console.log('Total Revenue:', data.overview?.totalRevenue);
+          console.log('Total Commission Paid:', data.overview?.totalCommissionPaid);
+          console.log('Total Expenses:', data.overview?.totalExpenses);
+          console.log('Net Profit:', data.overview?.netProfit);
+          console.log('Total Customers:', data.overview?.totalCustomers);
+          
+          console.log('👥 FINANCIAL REPORTS PAGE - Barber Performance:');
+          console.log('Barber Performance Array Length:', data.barberPerformance?.length || 0);
+          if (data.barberPerformance && data.barberPerformance.length > 0) {
+            data.barberPerformance.forEach((barber: any, index: number) => {
+              console.log(`${index + 1}. Barber: ${barber.name}, ID: ${barber.id}, Sales: RM${barber.totalSales}, Commission: RM${barber.commissionPaid}, Rate: ${barber.commissionRate}%, Customers: ${barber.customerCount}, Appointments: ${barber.appointmentCount}`);
+            });
+            
+            const totalSalesFromBarbers = data.barberPerformance.reduce((sum: number, b: any) => sum + b.totalSales, 0);
+            const totalCommissionFromBarbers = data.barberPerformance.reduce((sum: number, b: any) => sum + b.commissionPaid, 0);
+            console.log('📈 FINANCIAL REPORTS PAGE - Calculated from Barber Data:');
+            console.log('Total Sales (from barbers):', totalSalesFromBarbers);
+            console.log('Total Commission (from barbers):', totalCommissionFromBarbers);
+          }
+          
+          console.log('🛍️ FINANCIAL REPORTS PAGE - Service Breakdown:');
+          if (data.serviceBreakdown && data.serviceBreakdown.length > 0) {
+            data.serviceBreakdown.forEach((service: any, index: number) => {
+              console.log(`${index + 1}. Service: ${service.packageName}, Count: ${service.count}, Revenue: RM${service.revenue}`);
+            });
+          }
+          
+          console.log('💸 FINANCIAL REPORTS PAGE - Expenses:');
+          console.log('Expenses Array Length:', data.expenses?.length || 0);
+          if (data.expenses && data.expenses.length > 0) {
+            const totalExpensesCalculated = data.expenses.reduce((sum: number, exp: any) => sum + exp.amount, 0);
+            console.log('Total Expenses (calculated):', totalExpensesCalculated);
+            data.expenses.forEach((expense: any, index: number) => {
+              console.log(`${index + 1}. Category: ${expense.category}, Amount: RM${expense.amount}, Description: ${expense.description}, Date: ${expense.date}`);
+            });
+          }
+          
+          // 🔍 PRODUCTION LOGGING - Data Comparison Summary
+          console.log('🔄 DATA COMPARISON SUMMARY:');
+          console.log('='.repeat(50));
+          console.log('📊 APPOINTMENTS PAGE should show raw appointment data');
+          console.log('💰 FINANCIAL PAGE shows processed/aggregated data');
+          console.log('🎯 Key metrics to compare:');
+          console.log('   - Total Revenue (should match)');
+          console.log('   - Total Commission (should match)');
+          console.log('   - Number of completed appointments');
+          console.log('   - Individual barber performance');
+          console.log('='.repeat(50));
         } else {
           console.error('Failed to fetch financial data:', response.message || response.error);
           console.error('Full response:', response);
