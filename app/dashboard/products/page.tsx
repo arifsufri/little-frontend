@@ -4,6 +4,7 @@ import * as React from 'react';
 import DashboardLayout from '../../../components/dashboard/Layout';
 import { Grid, Typography, Box, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, FormControlLabel, Checkbox, MenuItem, Select, InputLabel, FormControl, IconButton, Container, Divider, Alert, Snackbar } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import ContentCutIcon from '@mui/icons-material/ContentCut';
 import ProductCard from '../../../components/dashboard/ProductCard';
 import GradientButton from '../../../components/GradientButton';
 import { apiGet, uploadFile, apiPut, apiDelete } from '../../../src/utils/axios';
@@ -23,8 +24,8 @@ interface Package {
 }
 
 // Helper function to get full image URL
-const getImageUrl = (imageUrl?: string | null) => {
-  if (!imageUrl) return '/images/packages/default.jpg';
+const getImageUrl = (imageUrl?: string | null): string | undefined => {
+  if (!imageUrl) return undefined;
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
   return `${baseUrl}${imageUrl}`;
 };
@@ -380,10 +381,10 @@ export default function ProductsPage() {
         <Box sx={{ 
           position: 'relative',
           height: 200,
-          backgroundImage: `url(${getImageUrl(selectedPackage?.imageUrl)})`,
+          backgroundImage: getImageUrl(selectedPackage?.imageUrl) ? `url(${getImageUrl(selectedPackage?.imageUrl)})` : 'none',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          backgroundColor: '#f3f4f6',
+          backgroundColor: getImageUrl(selectedPackage?.imageUrl) ? 'transparent' : '#1a1a1a',
           display: 'flex',
           alignItems: 'flex-end',
           '&::before': {
@@ -393,7 +394,16 @@ export default function ProductsPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.7) 100%)',
+            background: getImageUrl(selectedPackage?.imageUrl) 
+              ? 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.7) 100%)'
+              : 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%)',
+            backgroundSize: getImageUrl(selectedPackage?.imageUrl) ? 'auto' : '200% 200%',
+            animation: getImageUrl(selectedPackage?.imageUrl) ? 'none' : 'gradientShift 3s ease infinite',
+            '@keyframes gradientShift': {
+              '0%': { backgroundPosition: '0% 50%' },
+              '50%': { backgroundPosition: '100% 50%' },
+              '100%': { backgroundPosition: '0% 50%' }
+            },
             zIndex: 1
           }
         }}>
@@ -423,15 +433,35 @@ export default function ProductsPage() {
             zIndex: 2, 
             p: 3, 
             width: '100%',
-            color: 'white'
+            color: 'white',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 2
           }}>
+            {!getImageUrl(selectedPackage?.imageUrl) && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                <ContentCutIcon sx={{ fontSize: 48, opacity: 0.9, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
+                <Typography 
+                  variant="h5" 
+                  fontWeight={700} 
+                  sx={{ 
+                    fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
+                    textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                    lineHeight: 1.2
+                  }}
+                >
+                  {selectedPackage?.name}
+                </Typography>
+              </Box>
+            )}
             <Typography 
               variant="h4" 
               fontWeight={800} 
               sx={{ 
                 fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
                 textShadow: '0 2px 4px rgba(0,0,0,0.5)',
-                mb: 1
+                mb: getImageUrl(selectedPackage?.imageUrl) ? 1 : 0
               }}
             >
               {selectedPackage?.name}
