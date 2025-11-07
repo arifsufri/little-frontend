@@ -532,7 +532,7 @@ export default function ProductsPage() {
               ) : (
                 <Grid item xs={12}>
                   <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
-                    No retail products available yet. Click "New Product" to add one.
+                    No retail products available yet. Click &quot;New Product&quot; to add one.
                   </Typography>
                 </Grid>
               )
