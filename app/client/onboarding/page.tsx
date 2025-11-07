@@ -75,7 +75,7 @@ export default function ClientOnboardingPage() {
     } catch (e: any) {
       if (e?.response?.data?.clientExists) {
         setShowLoginPrompt(true);
-        setErrorMsg('A client with this phone number already exists.');
+        setErrorMsg('A client with this phone number already exists. Please Login instead.');
       } else {
         const msg = e?.response?.data?.message || e?.message || 'Registration failed';
         setErrorMsg(msg);
@@ -175,7 +175,12 @@ export default function ClientOnboardingPage() {
                     ) : undefined
                   }
                 >
-                  {errorMsg}
+                  {errorMsg.split('Login').map((part, index, array) => (
+                    <React.Fragment key={index}>
+                      {part}
+                      {index < array.length - 1 && <strong>Login</strong>}
+                    </React.Fragment>
+                  ))}
                   {showLoginPrompt && (
                     <Box sx={{ mt: 1 }}>
                       <MUILink 

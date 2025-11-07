@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import DashboardLayout from '../../../components/dashboard/Layout';
-import { Grid, Typography, Box, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, FormControlLabel, Checkbox, MenuItem, Select, InputLabel, FormControl, IconButton, Container, Divider, Alert, Snackbar } from '@mui/material';
+import { Grid, Typography, Box, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, FormControlLabel, Checkbox, MenuItem, Select, InputLabel, FormControl, IconButton, Container, Divider, Alert, Snackbar, Tabs, Tab } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCutIcon from '@mui/icons-material/ContentCut';
 import ProductCard from '../../../components/dashboard/ProductCard';
@@ -54,10 +54,27 @@ export default function ProductsPage() {
   const [deleting, setDeleting] = React.useState(false);
   const [snackbar, setSnackbar] = React.useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
+  // Retail Products state
+  const [activeTab, setActiveTab] = React.useState(0); // 0 = Packages, 1 = Retail Products
+  const [retailProducts, setRetailProducts] = React.useState<any[]>([]);
+  const [retailLoading, setRetailLoading] = React.useState(false);
+  const [retailProductOpen, setRetailProductOpen] = React.useState(false);
+  const [retailProductEditOpen, setRetailProductEditOpen] = React.useState(false);
+  const [editingRetailProduct, setEditingRetailProduct] = React.useState<any>(null);
+  const [retailProductName, setRetailProductName] = React.useState('');
+  const [retailProductDesc, setRetailProductDesc] = React.useState('');
+  const [retailProductPrice, setRetailProductPrice] = React.useState('');
+  const [retailProductStock, setRetailProductStock] = React.useState('0');
+  const [retailProductImage, setRetailProductImage] = React.useState<File | null>(null);
+  const [creatingRetail, setCreatingRetail] = React.useState(false);
+
   // Fetch packages on component mount
   React.useEffect(() => {
     fetchPackages();
-  }, []);
+    if (userRole === 'Boss') {
+      fetchRetailProducts();
+    }
+  }, [userRole]);
 
   const fetchPackages = async () => {
     try {
@@ -69,6 +86,128 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchRetailProducts = async () => {
+    try {
+      setRetailLoading(true);
+      const response = await apiGet<{ success: boolean; data: any[] }>('/products');
+      setRetailProducts(response.data || []);
+    } catch (error) {
+      console.error('Error fetching retail products:', error);
+      setRetailProducts([]);
+    } finally {
+      setRetailLoading(false);
+    }
+  };
+
+  const handleCreateRetailProduct = async () => {
+    if (!retailProductName || !retailProductPrice) {
+      setSnackbar({ open: true, message: 'Please fill in all required fields', severity: 'error' });
+      return;
+    }
+
+    setCreatingRetail(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', retailProductName);
+      formData.append('description', retailProductDesc);
+      formData.append('price', retailProductPrice);
+      formData.append('stock', retailProductStock);
+      if (retailProductImage) {
+        formData.append('image', retailProductImage);
+      }
+
+      await uploadFile('/products', formData);
+      setSnackbar({ open: true, message: 'Product created successfully!', severity: 'success' });
+      resetRetailModal();
+      fetchRetailProducts();
+    } catch (error: any) {
+      console.error('Error creating product:', error);
+      setSnackbar({ 
+        open: true, 
+        message: error?.message || 'Failed to create product', 
+        severity: 'error' 
+      });
+    } finally {
+      setCreatingRetail(false);
+    }
+  };
+
+  const handleEditRetailProduct = (product: any) => {
+    setEditingRetailProduct(product);
+    setRetailProductName(product.name);
+    setRetailProductDesc(product.description || '');
+    setRetailProductPrice(product.price.toString());
+    setRetailProductStock(product.stock?.toString() || '0');
+    setRetailProductEditOpen(true);
+  };
+
+  const handleUpdateRetailProduct = async () => {
+    if (!retailProductName || !retailProductPrice || !editingRetailProduct) {
+      setSnackbar({ open: true, message: 'Please fill in all required fields', severity: 'error' });
+      return;
+    }
+
+    setCreatingRetail(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', retailProductName);
+      formData.append('description', retailProductDesc);
+      formData.append('price', retailProductPrice);
+      formData.append('stock', retailProductStock);
+      if (retailProductImage) {
+        formData.append('image', retailProductImage);
+      }
+
+      await uploadFile(`/products/${editingRetailProduct.id}`, formData, 'PUT');
+      setSnackbar({ open: true, message: 'Product updated successfully!', severity: 'success' });
+      resetRetailModal();
+      fetchRetailProducts();
+    } catch (error: any) {
+      console.error('Error updating product:', error);
+      setSnackbar({ 
+        open: true, 
+        message: error?.message || 'Failed to update product', 
+        severity: 'error' 
+      });
+    } finally {
+      setCreatingRetail(false);
+    }
+  };
+
+  const handleDeleteRetailProduct = async (product: any) => {
+    if (!window.confirm(`Are you sure you want to delete "${product.name}"?`)) {
+      return;
+    }
+
+    try {
+      await apiDelete(`/products/${product.id}`);
+      setSnackbar({ open: true, message: 'Product deleted successfully!', severity: 'success' });
+      fetchRetailProducts();
+    } catch (error: any) {
+      console.error('Error deleting product:', error);
+      setSnackbar({ 
+        open: true, 
+        message: error?.message || 'Failed to delete product', 
+        severity: 'error' 
+      });
+    }
+  };
+
+  const resetRetailModal = () => {
+    setRetailProductOpen(false);
+    setRetailProductEditOpen(false);
+    setEditingRetailProduct(null);
+    setRetailProductName('');
+    setRetailProductDesc('');
+    setRetailProductPrice('');
+    setRetailProductStock('0');
+    setRetailProductImage(null);
+  };
+
+  const showNotification = (message: string, severity: 'success' | 'error' = 'success') => {
+    setSnackbar({ open: true, message, severity });
   };
 
   const handleCreate = async () => {
@@ -309,7 +448,7 @@ export default function ProductsPage() {
                 lineHeight: 1.2
               }}
             >
-              Packages
+              Products
             </Typography>
             {userRole === 'Boss' && (
               <GradientButton
@@ -322,44 +461,84 @@ export default function ProductsPage() {
                   width: { xs: '100%', sm: 'auto' },
                   borderRadius: { xs: 3, sm: 4 }
                 }}
-                onClick={() => setOpen(true)}
+                onClick={() => activeTab === 0 ? setOpen(true) : setRetailProductOpen(true)}
               >
-                New Package
+                {activeTab === 0 ? 'New Package' : 'New Product'}
               </GradientButton>
             )}
           </Box>
         </Box>
 
-        <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ m: 0, width: '100%' }}>
-          {packages && packages.length > 0 ? packages.map((pkg) => (
-            <Grid item xs={6} sm={6} md={4} lg={4} xl={4} key={pkg.id}>
-              <ProductCard 
-                title={pkg.name} 
-                price={`RM${pkg.price}`} 
-                imageSrc={getImageUrl(pkg.imageUrl)}
-                isActive={pkg.isActive}
-                onClick={() => handleCardClick(pkg)}
-                onEdit={userRole === 'Boss' ? () => handleEdit(pkg) : undefined}
-                onDelete={userRole === 'Boss' ? () => handleDelete(pkg) : undefined}
-                onToggleStatus={userRole === 'Boss' ? () => handleToggleStatus(pkg) : undefined}
-              />
-            </Grid>
-          )) : (
-            loading ? (
-              <Grid item xs={12}>
-                <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
-                  Loading packages...
-                </Typography>
+        {/* Tabs */}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+          <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+            <Tab label="Service Packages" />
+            {userRole === 'Boss' && <Tab label="Retail Products" />}
+          </Tabs>
+        </Box>
+
+        {activeTab === 0 ? (
+          <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ m: 0, width: '100%' }}>
+            {packages && packages.length > 0 ? packages.map((pkg) => (
+              <Grid item xs={6} sm={6} md={4} lg={4} xl={4} key={pkg.id}>
+                <ProductCard 
+                  title={pkg.name} 
+                  price={`RM${pkg.price}`} 
+                  imageSrc={getImageUrl(pkg.imageUrl)}
+                  isActive={pkg.isActive}
+                  onClick={() => handleCardClick(pkg)}
+                  onEdit={userRole === 'Boss' ? () => handleEdit(pkg) : undefined}
+                  onDelete={userRole === 'Boss' ? () => handleDelete(pkg) : undefined}
+                  onToggleStatus={userRole === 'Boss' ? () => handleToggleStatus(pkg) : undefined}
+                />
               </Grid>
-            ) : (
-              <Grid item xs={12}>
-                <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
-                  No packages available yet.
-                </Typography>
+            )) : (
+              loading ? (
+                <Grid item xs={12}>
+                  <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
+                    Loading packages...
+                  </Typography>
+                </Grid>
+              ) : (
+                <Grid item xs={12}>
+                  <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
+                    No packages available yet.
+                  </Typography>
+                </Grid>
+              )
+            )}
+          </Grid>
+        ) : (
+          <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ m: 0, width: '100%' }}>
+            {retailProducts && retailProducts.length > 0 ? retailProducts.map((product) => (
+              <Grid item xs={6} sm={6} md={4} lg={4} xl={4} key={product.id}>
+                <ProductCard 
+                  title={product.name} 
+                  price={`RM${product.price}`} 
+                  imageSrc={getImageUrl(product.imageUrl)}
+                  isActive={product.isActive}
+                  onClick={() => {}}
+                  onEdit={userRole === 'Boss' ? () => handleEditRetailProduct(product) : undefined}
+                  onDelete={userRole === 'Boss' ? () => handleDeleteRetailProduct(product) : undefined}
+                />
               </Grid>
-            )
-          )}
-        </Grid>
+            )) : (
+              retailLoading ? (
+                <Grid item xs={12}>
+                  <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
+                    Loading products...
+                  </Typography>
+                </Grid>
+              ) : (
+                <Grid item xs={12}>
+                  <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
+                    No retail products available yet. Click "New Product" to add one.
+                  </Typography>
+                </Grid>
+              )
+            )}
+          </Grid>
+        )}
       </Container>
 
       {/* Package Details Modal */}
@@ -1059,6 +1238,160 @@ export default function ProductsPage() {
           >
             {deleting ? 'Deleting...' : 'Delete'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create Retail Product Modal */}
+      <Dialog open={retailProductOpen} onClose={resetRetailModal} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800, fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif', pr: 6 }}>
+          Create New Product
+          <IconButton onClick={resetRetailModal} sx={{ position: 'absolute', right: 12, top: 12 }} aria-label="close">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ display: 'grid', gap: 2, mt: 1 }}>
+            <TextField 
+              label="Product Name *" 
+              value={retailProductName} 
+              onChange={(e) => setRetailProductName(e.target.value)} 
+              fullWidth 
+              required 
+            />
+            <TextField 
+              label="Description" 
+              value={retailProductDesc} 
+              onChange={(e) => setRetailProductDesc(e.target.value)} 
+              fullWidth 
+              multiline 
+              minRows={3} 
+            />
+            <TextField 
+              label="Price (RM) *" 
+              type="number" 
+              value={retailProductPrice} 
+              onChange={(e) => setRetailProductPrice(e.target.value)} 
+              fullWidth 
+              inputProps={{ min: 0, step: 0.01 }} 
+              required
+            />
+            <TextField 
+              label="Stock Quantity" 
+              type="number" 
+              value={retailProductStock} 
+              onChange={(e) => setRetailProductStock(e.target.value)} 
+              fullWidth 
+              inputProps={{ min: 0 }} 
+            />
+            <Box>
+              <input
+                accept="image/*"
+                style={{ display: 'none' }}
+                id="retail-product-image-upload"
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) setRetailProductImage(file);
+                }}
+              />
+              <label htmlFor="retail-product-image-upload">
+                <Button variant="outlined" component="span" fullWidth sx={{ py: 1.5 }}>
+                  {retailProductImage ? retailProductImage.name : 'Upload Product Image (Optional)'}
+                </Button>
+              </label>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1.5 }}>
+          <Button onClick={resetRetailModal} sx={{ borderRadius: 9999, px: { xs: 2, sm: 3 }, py: { xs: 0.6, sm: 1.2 } }}>
+            Cancel
+          </Button>
+          <GradientButton 
+            variant="red" 
+            animated 
+            sx={{ px: { xs: 2, sm: 3 }, py: { xs: 0.6, sm: 1.2 }, fontSize: { xs: 12, sm: 14 } }} 
+            onClick={handleCreateRetailProduct}
+            disabled={creatingRetail}
+          >
+            {creatingRetail ? 'Creating...' : 'Create Product'}
+          </GradientButton>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Retail Product Modal */}
+      <Dialog open={retailProductEditOpen} onClose={resetRetailModal} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800, fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif', pr: 6 }}>
+          Edit Product
+          <IconButton onClick={resetRetailModal} sx={{ position: 'absolute', right: 12, top: 12 }} aria-label="close">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ display: 'grid', gap: 2, mt: 1 }}>
+            <TextField 
+              label="Product Name *" 
+              value={retailProductName} 
+              onChange={(e) => setRetailProductName(e.target.value)} 
+              fullWidth 
+              required 
+            />
+            <TextField 
+              label="Description" 
+              value={retailProductDesc} 
+              onChange={(e) => setRetailProductDesc(e.target.value)} 
+              fullWidth 
+              multiline 
+              minRows={3} 
+            />
+            <TextField 
+              label="Price (RM) *" 
+              type="number" 
+              value={retailProductPrice} 
+              onChange={(e) => setRetailProductPrice(e.target.value)} 
+              fullWidth 
+              inputProps={{ min: 0, step: 0.01 }} 
+              required
+            />
+            <TextField 
+              label="Stock Quantity" 
+              type="number" 
+              value={retailProductStock} 
+              onChange={(e) => setRetailProductStock(e.target.value)} 
+              fullWidth 
+              inputProps={{ min: 0 }} 
+            />
+            <Box>
+              <input
+                accept="image/*"
+                style={{ display: 'none' }}
+                id="retail-product-edit-image-upload"
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) setRetailProductImage(file);
+                }}
+              />
+              <label htmlFor="retail-product-edit-image-upload">
+                <Button variant="outlined" component="span" fullWidth sx={{ py: 1.5 }}>
+                  {retailProductImage ? retailProductImage.name : 'Change Product Image (Optional)'}
+                </Button>
+              </label>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1.5 }}>
+          <Button onClick={resetRetailModal} sx={{ borderRadius: 9999, px: { xs: 2, sm: 3 }, py: { xs: 0.6, sm: 1.2 } }}>
+            Cancel
+          </Button>
+          <GradientButton 
+            variant="red" 
+            animated 
+            sx={{ px: { xs: 2, sm: 3 }, py: { xs: 0.6, sm: 1.2 }, fontSize: { xs: 12, sm: 14 } }} 
+            onClick={handleUpdateRetailProduct}
+            disabled={creatingRetail}
+          >
+            {creatingRetail ? 'Updating...' : 'Update Product'}
+          </GradientButton>
         </DialogActions>
       </Dialog>
 

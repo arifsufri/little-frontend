@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Button, ButtonProps } from '@mui/material';
 
-type GradientVariant = 'pink' | 'blue' | 'teal' | 'red' | 'green';
+type GradientVariant = 'pink' | 'blue' | 'teal' | 'red' | 'green' | 'maroon';
 
 type GradientButtonProps = Omit<ButtonProps, 'variant'> & {
   variant?: GradientVariant;
@@ -31,6 +31,11 @@ const variants: Record<GradientVariant, { bg: string; hover: string; textColor?:
   green: {
     bg: 'linear-gradient(90deg,#006400,#008000,#228B22,#006400)',
     hover: 'linear-gradient(90deg,#004d00,#006600,#1e7d1e,#004d00)',
+    textColor: '#fff',
+  },
+  maroon: {
+    bg: 'linear-gradient(90deg,#800020,#a00028,#c00030,#800020)',
+    hover: 'linear-gradient(90deg,#6b001a,#8a0022,#a50028,#6b001a)',
     textColor: '#fff',
   },
 };

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Box, CircularProgress, Typography } from '@mui/material';
 
 export default function QRLandingPage() {
   const router = useRouter();
@@ -42,46 +43,44 @@ export default function QRLandingPage() {
         aria-hidden
       />
 
-      {/* Content */}
-      <div 
-        style={{ 
-          position: "absolute", 
+      {/* Loading UI */}
+      <Box
+        sx={{
+          position: "absolute",
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          display: "flex", 
-          alignItems: "center", 
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
           justifyContent: "center",
-          zIndex: 10
+          zIndex: 10,
+          gap: 3
         }}
       >
-        <img 
-          src="/images/LITTLE-BARBERSHOP-LOGO.svg" 
-          alt="Little Barbershop" 
-          style={{ 
-            width: "150px",
-            height: "auto",
-            filter: "brightness(0) invert(1)",
-            animation: "spin 2s linear infinite",
-            background: "transparent !important",
-            border: "none",
-            outline: "none",
-            mixBlendMode: "screen"
-          }} 
+        <CircularProgress 
+          size={60} 
+          thickness={4}
+          sx={{
+            color: '#fff',
+            filter: 'drop-shadow(0 0 10px rgba(255, 255, 255, 0.5))'
+          }}
         />
-      </div>
+        <Typography
+          variant="h6"
+          sx={{
+            color: '#fff',
+            fontWeight: 500,
+            textShadow: '0 2px 10px rgba(0, 0, 0, 0.5)',
+            letterSpacing: '0.5px'
+          }}
+        >
+          Loading...
+        </Typography>
+      </Box>
 
       <style jsx>{`
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-        
         @keyframes gradientShift {
           0%, 100% {
             background-position: 0% 50%;
@@ -94,14 +93,6 @@ export default function QRLandingPage() {
         .auth-page {
           min-height: 100vh;
           position: relative;
-        }
-        
-        img {
-          background: transparent !important;
-        }
-        
-        svg {
-          background: transparent !important;
         }
       `}</style>
     </main>

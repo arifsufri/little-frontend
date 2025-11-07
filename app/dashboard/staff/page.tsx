@@ -66,6 +66,7 @@ interface Staff {
   status: 'active' | 'inactive';
   joinDate: string;
   commissionRate: number;
+  productCommissionRate?: number;
   totalAppointments: number;
   totalRevenue: number;
 }
@@ -90,6 +91,7 @@ export default function StaffPage() {
   const [commissionDialogOpen, setCommissionDialogOpen] = React.useState(false);
   const [selectedStaff, setSelectedStaff] = React.useState<Staff | null>(null);
   const [commissionRate, setCommissionRate] = React.useState('');
+  const [productCommissionRate, setProductCommissionRate] = React.useState('');
   const [deletingStaff, setDeletingStaff] = React.useState<Staff | null>(null);
   const [menuAnchorEl, setMenuAnchorEl] = React.useState<null | HTMLElement>(null);
   const [menuStaff, setMenuStaff] = React.useState<Staff | null>(null);
@@ -163,21 +165,32 @@ export default function StaffPage() {
     if (!selectedStaff) return;
     
     try {
-      const response = await apiPatch(`/financial/commission/${selectedStaff.id}`, {
+      const updateData: any = {
         commissionRate: parseFloat(commissionRate)
-      }) as any;
+      };
+      
+      if (productCommissionRate) {
+        updateData.productCommissionRate = parseFloat(productCommissionRate);
+      }
+      
+      const response = await apiPatch(`/financial/commission/${selectedStaff.id}`, updateData) as any;
 
       if (response.success) {
-        // Update the staff list with new commission rate
+        // Update the staff list with new commission rates
         setStaff(staff.map(member => 
           member.id === selectedStaff.id 
-            ? { ...member, commissionRate: parseFloat(commissionRate) }
+            ? { 
+                ...member, 
+                commissionRate: parseFloat(commissionRate),
+                productCommissionRate: productCommissionRate ? parseFloat(productCommissionRate) : member.productCommissionRate
+              }
             : member
         ));
         setCommissionDialogOpen(false);
         setSelectedStaff(null);
         setCommissionRate('');
-        showNotification('Commission rate updated successfully!', 'success');
+        setProductCommissionRate('');
+        showNotification('Commission rates updated successfully!', 'success');
       } else {
         showNotification(response.message || 'Failed to update commission rate', 'error');
       }
@@ -191,6 +204,7 @@ export default function StaffPage() {
   const openCommissionDialog = (staffMember: Staff) => {
     setSelectedStaff(staffMember);
     setCommissionRate((staffMember.commissionRate || 0).toString());
+    setProductCommissionRate((staffMember.productCommissionRate || 5.0).toString());
     setCommissionDialogOpen(true);
   };
 
@@ -754,21 +768,31 @@ export default function StaffPage() {
                               <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
                                 {member.email} • {member.phone}
                               </Typography>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                                <Chip 
-                                  label={`${member.commissionRate || 0}% Commission`}
-                                  color="primary"
-                                  size="small"
-                                  variant="outlined"
-                                  icon={<PercentIcon />}
-                                  sx={{ fontSize: '0.7rem' }}
-                                />
-                                <IconButton 
-                                  size="small" 
-                                  onClick={() => openCommissionDialog(member)}
-                                >
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Chip 
+                                    label={`Service: ${member.commissionRate || 0}%`}
+                                    color="primary"
+                                    size="small"
+                                    variant="outlined"
+                                    icon={<PercentIcon />}
+                                    sx={{ fontSize: '0.7rem' }}
+                                  />
+                                  <Chip 
+                                    label={`Product: ${member.productCommissionRate || 5}%`}
+                                    color="secondary"
+                                    size="small"
+                                    variant="outlined"
+                                    icon={<PercentIcon />}
+                                    sx={{ fontSize: '0.7rem' }}
+                                  />
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => openCommissionDialog(member)}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </Box>
                             </Box>
                           </Box>
                             {userRole === 'Boss' && (
@@ -844,21 +868,29 @@ export default function StaffPage() {
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Chip 
-                                label={`${member.commissionRate || 0}%`}
-                                color="primary"
-                              size="small"
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Chip 
+                                  label={`Service: ${member.commissionRate || 0}%`}
+                                  color="primary"
+                                  size="small"
+                                  variant="outlined"
+                                  icon={<PercentIcon />}
+                                />
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => openCommissionDialog(member)}
+                                >
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+                              <Chip 
+                                label={`Product: ${member.productCommissionRate || 5}%`}
+                                color="secondary"
+                                size="small"
                                 variant="outlined"
                                 icon={<PercentIcon />}
                               />
-                              <IconButton 
-                                size="small" 
-                                onClick={() => openCommissionDialog(member)}
-                                sx={{ ml: 1 }}
-                              >
-                                <EditIcon fontSize="small" />
-                              </IconButton>
                             </Box>
                           </TableCell>
                           <TableCell>
@@ -1015,7 +1047,7 @@ export default function StaffPage() {
             fontWeight={600}
             sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
           >
-            Update Commission Rate
+            Update Commission Rates
           </Typography>
           {selectedStaff && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -1026,7 +1058,7 @@ export default function StaffPage() {
         <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
           <Stack spacing={3} sx={{ mt: 1 }}>
             <TextField
-              label="Commission Rate (%)"
+              label="Appointment Commission Rate (%)"
               type="number"
               value={commissionRate}
               onChange={(e) => setCommissionRate(e.target.value)}
@@ -1036,7 +1068,21 @@ export default function StaffPage() {
               InputProps={{
                 endAdornment: <InputAdornment position="end">%</InputAdornment>,
               }}
-              helperText="Enter commission percentage (0-100%)"
+              helperText="Commission rate for service appointments (0-100%)"
+            />
+            
+            <TextField
+              label="Product Commission Rate (%)"
+              type="number"
+              value={productCommissionRate}
+              onChange={(e) => setProductCommissionRate(e.target.value)}
+              fullWidth
+              required
+              inputProps={{ min: 0, max: 100, step: 0.1 }}
+              InputProps={{
+                endAdornment: <InputAdornment position="end">%</InputAdornment>,
+              }}
+              helperText="Commission rate for product sales (0-100%). Default: 5%"
             />
             
             <Box sx={{ 
@@ -1047,13 +1093,19 @@ export default function StaffPage() {
               borderColor: 'grey.200'
             }}>
               <Typography variant="body2" fontWeight={500} gutterBottom>
-                Commission Calculation Example:
+                Commission Calculation Examples:
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                If a service costs RM30 and commission rate is {commissionRate || 0}%:
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                <strong>Service:</strong> If a service costs RM30 and commission rate is {commissionRate || 0}%:
               </Typography>
               <Typography variant="body2" color="success.main" fontWeight={500}>
                 Staff earnings = RM30 × {commissionRate || 0}% = RM{((30 * (parseFloat(commissionRate) || 0)) / 100).toFixed(2)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+                <strong>Product:</strong> If a product costs RM18 and product commission rate is {productCommissionRate || 5}%:
+              </Typography>
+              <Typography variant="body2" color="success.main" fontWeight={500}>
+                Staff earnings = RM18 × {productCommissionRate || 5}% = RM{((18 * (parseFloat(productCommissionRate) || 5)) / 100).toFixed(2)}
               </Typography>
             </Box>
           </Stack>
@@ -1081,7 +1133,8 @@ export default function StaffPage() {
             variant="red"
             animated
             onClick={handleUpdateCommission}
-            disabled={!commissionRate || parseFloat(commissionRate) < 0 || parseFloat(commissionRate) > 100}
+            disabled={!commissionRate || parseFloat(commissionRate) < 0 || parseFloat(commissionRate) > 100 || 
+                     !productCommissionRate || parseFloat(productCommissionRate) < 0 || parseFloat(productCommissionRate) > 100}
             sx={{ 
               flex: 1,
               px: { xs: 2, sm: 3 }, 

@@ -33,6 +33,7 @@ const defaultItems: NavItem[] = [
   { label: 'Clients', href: '/dashboard/clients', icon: <PeopleIcon /> },
   { label: 'Staff', href: '/dashboard/staff', icon: <GroupIcon /> },
   { label: 'Products', href: '/dashboard/products', icon: <ShoppingBagIcon /> },
+  { label: 'Sales', href: '/dashboard/sales', icon: <ShoppingBagIcon /> },
   { label: 'Financial Reports', href: '/dashboard/financial', icon: <AssessmentIcon /> },
   { label: 'Settings', href: '/dashboard/settings', icon: <SettingsIcon /> },
 ];

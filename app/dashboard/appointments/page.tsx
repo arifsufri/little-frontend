@@ -53,6 +53,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CloseIcon from '@mui/icons-material/Close';
 import { apiGet, apiPost, apiPut, apiDelete } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
 
@@ -82,6 +83,16 @@ interface Appointment {
   additionalPackages?: number[];
   customPackages?: CustomPackage[];
   finalPrice?: number;
+  productSales?: Array<{
+    id: number;
+    product: {
+      id: number;
+      name: string;
+      price: number;
+    };
+    quantity: number;
+    totalPrice: number;
+  }>;
   client: {
     clientId: string;
     fullName: string;
@@ -100,6 +111,7 @@ interface Appointment {
     name: string;
     role: string;
     commissionRate: number;
+    productCommissionRate?: number;
   } | null;
 }
 
@@ -121,6 +133,8 @@ export default function AppointmentsPage() {
   const [selectedAdditionalPackages, setSelectedAdditionalPackages] = React.useState<number[]>([]);
   const [customPackages, setCustomPackages] = React.useState<CustomPackage[]>([]);
   const [finalPrice, setFinalPrice] = React.useState<number>(0);
+  const [retailProducts, setRetailProducts] = React.useState<any[]>([]);
+  const [selectedProducts, setSelectedProducts] = React.useState<{productId: number, quantity: number}[]>([]);
   const [customPackageName, setCustomPackageName] = React.useState('');
   const [customPackagePrice, setCustomPackagePrice] = React.useState<number>(0);
   
@@ -174,6 +188,7 @@ export default function AppointmentsPage() {
   const [editAppointmentOpen, setEditAppointmentOpen] = React.useState(false);
   const [editingAppointment, setEditingAppointment] = React.useState<any>(null);
   const [editAdditionalPackages, setEditAdditionalPackages] = React.useState<number[]>([]);
+  const [editSelectedProducts, setEditSelectedProducts] = React.useState<{productId: number, quantity: number}[]>([]);
   
   // Edit modal discount states
   const [editDiscountCode, setEditDiscountCode] = React.useState('');
@@ -246,6 +261,18 @@ export default function AppointmentsPage() {
       });
     }
     
+    // Add products
+    if (appointment.productSales && Array.isArray(appointment.productSales)) {
+      appointment.productSales.forEach((sale: any) => {
+        if (sale.product) {
+          const productName = sale.quantity > 1 
+            ? `${sale.product.name} (x${sale.quantity})`
+            : sale.product.name;
+          services.push(`🛍️ ${productName}`);
+        }
+      });
+    }
+    
     return services;
   };
 
@@ -307,6 +334,16 @@ export default function AppointmentsPage() {
     } catch (error) {
       console.error('Error fetching packages:', error);
       setPackages([]);
+    }
+  };
+
+  const fetchRetailProducts = async () => {
+    try {
+      const response = await apiGet<{ success: boolean; data: any[] }>('/products?activeOnly=true');
+      setRetailProducts(response.data || []);
+    } catch (error) {
+      console.error('Error fetching retail products:', error);
+      setRetailProducts([]);
     }
   };
 
@@ -434,11 +471,11 @@ export default function AppointmentsPage() {
       // Refresh appointments
       fetchAppointments();
       
-      alert('Appointment created successfully!');
+      showNotification('Appointment created successfully!', 'success');
     } catch (error: any) {
       console.error('Error creating appointment:', error);
       const errorMessage = error?.message || error?.error || 'Failed to create appointment. Please try again.';
-      alert(errorMessage);
+      showNotification(errorMessage, 'error');
     }
   };
 
@@ -452,6 +489,10 @@ export default function AppointmentsPage() {
     // Set additional packages from the appointment
     const additionalPkgs = appointment.additionalPackages || [];
     setEditAdditionalPackages(additionalPkgs);
+    
+    // Reset products and fetch retail products
+    setEditSelectedProducts([]);
+    fetchRetailProducts();
     
     // Handle multiple discount codes if they exist
     if (appointment.appliedDiscounts && Array.isArray(appointment.appliedDiscounts) && appointment.appliedDiscounts.length > 0) {
@@ -526,6 +567,11 @@ export default function AppointmentsPage() {
     if (!editingAppointment) return;
 
     try {
+      // Calculate total price including products
+      const basePriceWithProducts = calculateEditBasePrice(); // Includes products
+      const discountAmount = calculateEditDiscountAmount();
+      const finalPriceWithProducts = Math.max(0, basePriceWithProducts - discountAmount);
+      
       const updateData = {
         clientId: typeof editingAppointment.clientId === 'string' ? parseInt(editingAppointment.clientId) : editingAppointment.clientId,
         packageId: typeof editingAppointment.packageId === 'string' ? parseInt(editingAppointment.packageId) : editingAppointment.packageId,
@@ -533,6 +579,7 @@ export default function AppointmentsPage() {
           new Date(editingAppointment.appointmentDate).toISOString() : null,
         notes: editingAppointment.notes || null,
         additionalPackages: editAdditionalPackages,
+        finalPrice: finalPriceWithProducts, // Include product prices in finalPrice
         ...(editDiscountCode && {
           discountCode: editDiscountCode,
           discountAppliedTo: {
@@ -573,10 +620,57 @@ export default function AppointmentsPage() {
       const result = await response.json();
       console.log('Update successful:', result);
       
+      if (editSelectedProducts.length > 0 && editingAppointment) {
+        // Try multiple ways to get barber ID: result data, editingAppointment barber object, or barberId field
+        let barberId = result.data?.barber?.id || 
+                      result.data?.barberId || 
+                      (editingAppointment as any).barberId ||
+                      editingAppointment.barber?.id ||
+                      null;
+        
+        if (!barberId) {
+          try {
+            const appointmentResponse = await apiGet(`/appointments/${editingAppointment.id}`) as any;
+            if (appointmentResponse.success && appointmentResponse.data) {
+              barberId = appointmentResponse.data.barber?.id || 
+                         appointmentResponse.data.barberId || 
+                         null;
+            }
+          } catch (error) {
+            console.error('Error fetching appointment for barber ID:', error);
+          }
+        }
+        
+        if (!barberId) {
+          console.warn('No barber ID found for appointment, commission will go to logged-in user');
+        }
+        
+        for (const sp of editSelectedProducts) {
+          try {
+            const sellData: any = {
+              productId: sp.productId,
+              clientId: editingAppointment.clientId,
+              quantity: sp.quantity
+            };
+            
+            // Always include staffId if we have it
+            if (barberId) {
+              sellData.staffId = barberId;
+            }
+            
+            await apiPost('/products/sell', sellData);
+          } catch (error) {
+            console.error('Error selling product:', error);
+            // Continue with other products even if one fails
+          }
+        }
+      }
+      
       // Reset form and close modal
       setEditAppointmentOpen(false);
       setEditingAppointment(null);
       setEditAdditionalPackages([]);
+      setEditSelectedProducts([]);
       // Reset edit discount states
       setEditDiscountCode('');
       setEditDiscountInfo(null);
@@ -632,6 +726,10 @@ export default function AppointmentsPage() {
         setCustomPackages([]);
       }
       
+      // Reset products and fetch retail products
+      setSelectedProducts([]);
+      fetchRetailProducts();
+      
       // Open confirmation modal for completion
       setConfirmationOpen(true);
       // Don't call handleMenuClose() here to preserve selectedAppointment
@@ -664,7 +762,7 @@ export default function AppointmentsPage() {
     const token = localStorage.getItem('token');
     console.log('Token exists:', !!token);
     if (!token) {
-      alert('You are not logged in. Please log in first.');
+      showNotification('You are not logged in. Please log in first.', 'error');
       window.location.href = '/login';
       return;
     }
@@ -698,6 +796,55 @@ export default function AppointmentsPage() {
       const response = await apiPut(`/appointments/${selectedAppointment.id}`, updateData) as any;
       console.log('Update response:', response);
       
+      // Sell products if any selected
+      // Use the appointment's barber ID for commission, not the logged-in user
+      if (selectedProducts.length > 0 && selectedAppointment) {
+        // Try multiple ways to get barber ID: response data, selectedAppointment barber object, or barberId field
+        // Priority: response barber.id > response barberId > selectedAppointment barberId > selectedAppointment barber.id
+        let barberId = response.data?.barber?.id || 
+                        response.data?.barberId || 
+                        (selectedAppointment as any).barberId ||
+                        selectedAppointment.barber?.id ||
+                        null;
+        
+        // If still no barber ID, try fetching the appointment again
+        if (!barberId) {
+          try {
+            const appointmentResponse = await apiGet(`/appointments/${selectedAppointment.id}`) as any;
+            if (appointmentResponse.success && appointmentResponse.data) {
+              barberId = appointmentResponse.data.barber?.id || 
+                         appointmentResponse.data.barberId || 
+                         null;
+            }
+          } catch (error) {
+            console.error('Error fetching appointment for barber ID:', error);
+          }
+        }
+        
+        if (!barberId) {
+          console.warn('No barber ID found for appointment, commission will go to logged-in user');
+        }
+        for (const sp of selectedProducts) {
+          try {
+            const sellData: any = {
+              productId: sp.productId,
+              clientId: selectedAppointment.clientId,
+              quantity: sp.quantity
+            };
+            
+            // Always include staffId if we have it
+            if (barberId) {
+              sellData.staffId = barberId;
+            }
+            
+            await apiPost('/products/sell', sellData);
+          } catch (error) {
+            console.error('Error selling product:', error);
+            // Continue with other products even if one fails
+          }
+        }
+      }
+      
       // Reset modal state
       resetConfirmationModal();
       
@@ -706,7 +853,24 @@ export default function AppointmentsPage() {
       
       // Fetch updated financial data and show comprehensive notification
       if (response.data && response.data.barber) {
-        const earnings = finalPrice * (response.data.barber.commissionRate / 100);
+        // Calculate appointment commission (based on originalPrice if available, otherwise finalPrice)
+        const appointmentPrice = response.data.originalPrice || finalPrice || 0;
+        const appointmentEarnings = appointmentPrice * (response.data.barber.commissionRate / 100);
+        
+        // Calculate product commission (using barber's productCommissionRate)
+        let productCommission = 0;
+        if (selectedProducts.length > 0) {
+          const productTotal = selectedProducts.reduce((sum, sp) => {
+            const product = retailProducts.find(p => p.id === sp.productId);
+            return sum + (product ? product.price * sp.quantity : 0);
+          }, 0);
+          // Use barber's productCommissionRate if available, otherwise default to 5%
+          const commissionRate = (response.data?.barber as any)?.productCommissionRate ?? 5.0;
+          productCommission = productTotal * (commissionRate / 100);
+        }
+        
+        // Total earnings (appointment + products)
+        const totalEarnings = appointmentEarnings + productCommission;
         
         // Fetch updated financial summary for today
         try {
@@ -722,18 +886,18 @@ export default function AppointmentsPage() {
             const serviceCount = currentService ? currentService.count : 1;
             
             showNotification(
-              `🎉 Appointment completed! +RM${earnings.toFixed(2)} | Today: RM${summary.totalEarnings.toFixed(2)} (${summary.totalCustomers} customers, ${summary.totalServices} services) | ${response.data.package.name}: ${serviceCount}x`,
+              `🎉 Appointment completed! +RM${totalEarnings.toFixed(2)} (Appointment: RM${appointmentEarnings.toFixed(2)}${productCommission > 0 ? ` + Products: RM${productCommission.toFixed(2)}` : ''}) | Today: RM${summary.totalEarnings.toFixed(2)} (${summary.totalCustomers} customers, ${summary.totalServices} services) | ${response.data.package.name}: ${serviceCount}x`,
               'success'
             );
           } else {
             showNotification(
-              `Appointment completed! You earned RM${earnings.toFixed(2)} (${response.data.barber.commissionRate}% commission)`,
+              `Appointment completed! You earned RM${totalEarnings.toFixed(2)} (Appointment: RM${appointmentEarnings.toFixed(2)}${productCommission > 0 ? ` + Products: RM${productCommission.toFixed(2)}` : ''})`,
               'success'
             );
           }
         } catch (error) {
           showNotification(
-            `Appointment completed! You earned RM${earnings.toFixed(2)} (${response.data.barber.commissionRate}% commission)`,
+            `Appointment completed! You earned RM${totalEarnings.toFixed(2)} (Appointment: RM${appointmentEarnings.toFixed(2)}${productCommission > 0 ? ` + Products: RM${productCommission.toFixed(2)}` : ''})`,
             'success'
           );
         }
@@ -747,7 +911,7 @@ export default function AppointmentsPage() {
       
       // Handle specific error cases
       if (error?.error === 'Access token required' || error?.error === 'Invalid or expired token') {
-        alert('Your session has expired. Please refresh the page and log in again.');
+        showNotification('Your session has expired. Please refresh the page and log in again.', 'error');
         // Optionally redirect to login
         window.location.href = '/login';
         return;
@@ -789,8 +953,16 @@ export default function AppointmentsPage() {
       total += pkg.price;
     });
     
+    // Add products
+    selectedProducts.forEach(sp => {
+      const product = retailProducts.find(p => p.id === sp.productId);
+      if (product) {
+        total += product.price * sp.quantity;
+      }
+    });
+    
     return total;
-  }, [selectedAppointment, selectedAdditionalPackages, packages, customPackages]);
+  }, [selectedAppointment, selectedAdditionalPackages, packages, customPackages, selectedProducts, retailProducts]);
 
   const calculateDiscountedPrice = React.useCallback(() => {
     const totalPrice = calculateTotalPrice();
@@ -1136,6 +1308,15 @@ export default function AppointmentsPage() {
       const pkg = packages.find(p => p.id === packageId);
       if (pkg) basePrice += pkg.price;
     });
+    
+    // Add products
+    editSelectedProducts.forEach(sp => {
+      const product = retailProducts.find(p => p.id === sp.productId);
+      if (product) {
+        basePrice += product.price * sp.quantity;
+      }
+    });
+    
     return basePrice;
   };
 
@@ -1180,6 +1361,7 @@ export default function AppointmentsPage() {
     setSelectedAppointment(null);
     setSelectedAdditionalPackages([]);
     setCustomPackages([]);
+    setSelectedProducts([]);
     setFinalPrice(0);
     setCustomPackageName('');
     setCustomPackagePrice(0);
@@ -2100,59 +2282,156 @@ export default function AppointmentsPage() {
           </DialogTitle>
           <DialogContent sx={{ 
             px: { xs: 2, sm: 3 }, 
-            py: { xs: 1, sm: 2 },
+            py: { xs: 1, sm: 3 },
             overflow: 'auto',
             maxHeight: { xs: '70vh', sm: '65vh' }
           }}>
             <Stack spacing={3.5} sx={{ mt: 0.5 }}>
-              {/* Services Section - Side by Side Layout */}
-              <Grid container spacing={0}>
+              {/* Services Section - 3 Columns Layout */}
+              <Box sx={{ ml: { xs: 0, md: -1 } }}>
+                <Grid container spacing={2} sx={{ justifyContent: 'flex-start' }}>
                 {/* Additional Packages */}
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ pr: 1 }}>
-                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-                  Additional Packages
-                </Typography>
+                <Grid item xs={12} md={4}>
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+                      Additional Packages
+                    </Typography>
                     <FormControl fullWidth size="small">
-                  <InputLabel>Select Additional Packages</InputLabel>
-                  <Select
-                    multiple
-                    value={selectedAdditionalPackages}
-                    onChange={(e) => setSelectedAdditionalPackages(e.target.value as number[])}
-                    label="Select Additional Packages"
-                    renderValue={(selected) => (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {selected.map((value) => {
-                          const pkg = packages.find(p => p.id === value);
+                      <InputLabel>Select Additional Packages</InputLabel>
+                      <Select
+                        multiple
+                        value={selectedAdditionalPackages}
+                        onChange={(e) => setSelectedAdditionalPackages(e.target.value as number[])}
+                        label="Select Additional Packages"
+                        renderValue={(selected) => (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {selected.map((value) => {
+                              const pkg = packages.find(p => p.id === value);
+                              return (
+                                <Chip 
+                                  key={value} 
+                                  label={pkg ? `${pkg.name} (RM${pkg.price})` : value}
+                                  size="small"
+                                />
+                              );
+                            })}
+                          </Box>
+                        )}
+                      >
+                        {packages.map((pkg) => (
+                          <MenuItem key={pkg.id} value={pkg.id}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                              <Typography>{pkg.name}</Typography>
+                              <Typography color="success.main" fontWeight={600}>
+                                RM{pkg.price}
+                              </Typography>
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </Grid>
+
+                {/* Products */}
+                <Grid item xs={12} md={4}>
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+                      Products (Optional)
+                    </Typography>
+                    <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                      <InputLabel>Select Product</InputLabel>
+                      <Select
+                        value=""
+                        onChange={(e) => {
+                          const productId = parseInt(e.target.value as string);
+                          if (!isNaN(productId)) {
+                            const product = retailProducts.find(p => p.id === productId);
+                            if (product && !selectedProducts.find(sp => sp.productId === productId)) {
+                              setSelectedProducts([...selectedProducts, { productId, quantity: 1 }]);
+                            }
+                          }
+                        }}
+                        label="Select Product"
+                      >
+                        {retailProducts.filter(p => !selectedProducts.find(sp => sp.productId === p.id)).map((product) => (
+                          <MenuItem key={product.id} value={product.id.toString()}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                              <Box>
+                                <Typography>{product.name}</Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Stock: {product.stock !== null ? product.stock : '∞'}
+                                </Typography>
+                              </Box>
+                              <Typography color="success.main" fontWeight={600}>
+                                RM{product.price}
+                              </Typography>
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    
+                    {/* Selected Products */}
+                    {selectedProducts.length > 0 && (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {selectedProducts.map((sp, index) => {
+                          const product = retailProducts.find(p => p.id === sp.productId);
+                          if (!product) return null;
                           return (
-                            <Chip 
-                              key={value} 
-                              label={pkg ? `${pkg.name} (RM${pkg.price})` : value}
-                              size="small"
-                            />
+                            <Box key={sp.productId} sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 1, 
+                              p: 1, 
+                              border: '1px solid', 
+                              borderColor: 'divider', 
+                              borderRadius: 1 
+                            }}>
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="body2" fontWeight={600}>
+                                  {product.name}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  RM{product.price} each • Stock: {product.stock !== null ? product.stock : '∞'}
+                                </Typography>
+                              </Box>
+                              <TextField
+                                type="number"
+                                size="small"
+                                value={sp.quantity}
+                                onChange={(e) => {
+                                  const qty = parseInt(e.target.value) || 1;
+                                  const updated = [...selectedProducts];
+                                  updated[index].quantity = Math.max(1, qty);
+                                  setSelectedProducts(updated);
+                                }}
+                                inputProps={{ min: 1, style: { width: '60px', textAlign: 'center' } }}
+                                sx={{ width: '80px' }}
+                              />
+                              <Typography variant="body2" fontWeight={600} sx={{ minWidth: '60px', textAlign: 'right' }}>
+                                RM{(product.price * sp.quantity).toFixed(2)}
+                              </Typography>
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  setSelectedProducts(selectedProducts.filter((_, i) => i !== index));
+                                }}
+                                sx={{ color: 'error.main' }}
+                              >
+                                <CloseIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
                           );
                         })}
                       </Box>
                     )}
-                  >
-                    {packages.map((pkg) => (
-                      <MenuItem key={pkg.id} value={pkg.id}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                          <Typography>{pkg.name}</Typography>
-                          <Typography color="success.main" fontWeight={600}>
-                            RM{pkg.price}
-                          </Typography>
-                        </Box>
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
+                  </Box>
                 </Grid>
 
                 {/* Multiple Discount Codes */}
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ pl: { xs: 0, md: 1 } }}>
+                <Grid item xs={12} md={4}>
+                  <Box>
                     <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
                       Discount Codes (Optional)
                     </Typography>
@@ -2345,9 +2624,10 @@ export default function AppointmentsPage() {
                   </Box>
                 </Grid>
               </Grid>
+              </Box>
 
               {/* Custom Packages - Compact Layout */}
-              <Box>
+              <Box sx={{ ml: { xs: 0, md: -1 } }}>
                 <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
                   Custom Packages
                 </Typography>
@@ -2443,6 +2723,22 @@ export default function AppointmentsPage() {
                     </Box>
                   ))}
                   
+                  {selectedProducts.map((sp, index) => {
+                    const product = retailProducts.find(p => p.id === sp.productId);
+                    if (!product) return null;
+                    const productTotal = product.price * sp.quantity;
+                    return (
+                      <Box key={sp.productId} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          + {product.name} (x{sp.quantity})
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          RM{productTotal.toFixed(2)}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                  
                   <Box sx={{ 
                     display: 'flex', 
                     justifyContent: 'space-between', 
@@ -2454,9 +2750,30 @@ export default function AppointmentsPage() {
                       Subtotal:
                     </Typography>
                     <Typography variant="body1" fontWeight={600}>
-                      RM{calculateTotalPrice()}
+                      RM{calculateTotalPrice().toFixed(2)}
                     </Typography>
                   </Box>
+                  
+                  {/* Product Commission - Staff Earnings */}
+                  {selectedProducts.length > 0 && (() => {
+                    const productTotal = selectedProducts.reduce((sum, sp) => {
+                      const product = retailProducts.find(p => p.id === sp.productId);
+                      return sum + (product ? product.price * sp.quantity : 0);
+                    }, 0);
+                    // Use barber's productCommissionRate if available, otherwise default to 5%
+                    const commissionRate = (selectedAppointment?.barber as any)?.productCommissionRate ?? 5.0;
+                    const commission = productTotal * (commissionRate / 100);
+                    return (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Staff Commission ({commissionRate}% of products):
+                        </Typography>
+                        <Typography variant="body2" color="info.main" fontWeight={600}>
+                          RM{commission.toFixed(2)}
+                        </Typography>
+                      </Box>
+                    );
+                  })()}
                   
                   {/* Multiple Discount Codes Display */}
                   {multipleDiscountCodes.length > 0 && (
@@ -3166,6 +3483,100 @@ export default function AppointmentsPage() {
                   )}
                 </Box>
 
+                {/* Products */}
+                <Box>
+                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                    Products (Optional)
+                  </Typography>
+                  <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                    <InputLabel>Select Product</InputLabel>
+                    <Select
+                      value=""
+                      onChange={(e) => {
+                        const productId = parseInt(e.target.value as string);
+                        if (!isNaN(productId)) {
+                          const product = retailProducts.find(p => p.id === productId);
+                          if (product && !editSelectedProducts.find(sp => sp.productId === productId)) {
+                            setEditSelectedProducts([...editSelectedProducts, { productId, quantity: 1 }]);
+                          }
+                        }
+                      }}
+                      label="Select Product"
+                    >
+                      {retailProducts.filter(p => !editSelectedProducts.find(sp => sp.productId === p.id)).map((product) => (
+                        <MenuItem key={product.id} value={product.id.toString()}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                            <Box>
+                              <Typography>{product.name}</Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Stock: {product.stock !== null ? product.stock : '∞'}
+                              </Typography>
+                            </Box>
+                            <Typography color="success.main" fontWeight={600}>
+                              RM{product.price}
+                            </Typography>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  
+                  {/* Selected Products */}
+                  {editSelectedProducts.length > 0 && (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {editSelectedProducts.map((sp, index) => {
+                        const product = retailProducts.find(p => p.id === sp.productId);
+                        if (!product) return null;
+                        return (
+                          <Box key={sp.productId} sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1, 
+                            p: 1, 
+                            border: '1px solid', 
+                            borderColor: 'divider', 
+                            borderRadius: 1 
+                          }}>
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="body2" fontWeight={600}>
+                                {product.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                RM{product.price} each • Stock: {product.stock !== null ? product.stock : '∞'}
+                              </Typography>
+                            </Box>
+                            <TextField
+                              type="number"
+                              size="small"
+                              value={sp.quantity}
+                              onChange={(e) => {
+                                const qty = parseInt(e.target.value) || 1;
+                                const updated = [...editSelectedProducts];
+                                updated[index].quantity = Math.max(1, qty);
+                                setEditSelectedProducts(updated);
+                              }}
+                              inputProps={{ min: 1, style: { width: '60px', textAlign: 'center' } }}
+                              sx={{ width: '80px' }}
+                            />
+                            <Typography variant="body2" fontWeight={600} sx={{ minWidth: '60px', textAlign: 'right' }}>
+                              RM{(product.price * sp.quantity).toFixed(2)}
+                            </Typography>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setEditSelectedProducts(editSelectedProducts.filter((_, i) => i !== index));
+                              }}
+                              sx={{ color: 'error.main' }}
+                            >
+                              <CloseIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  )}
+                </Box>
+
                 {/* Multiple Discount Codes */}
                 <Box>
                   <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
@@ -3364,6 +3775,54 @@ export default function AppointmentsPage() {
                       })}
                     </Box>
                   )}
+                  
+                  {editSelectedProducts.map((sp, index) => {
+                    const product = retailProducts.find(p => p.id === sp.productId);
+                    if (!product) return null;
+                    const productTotal = product.price * sp.quantity;
+                    return (
+                      <Box key={sp.productId} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          + {product.name} (x{sp.quantity})
+                        </Typography>
+                        <Typography variant="body2" fontWeight={500}>
+                          RM{productTotal.toFixed(2)}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                  
+                  <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #e0e0e0' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2" fontWeight={600}>
+                        Subtotal:
+                      </Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        RM{calculateEditBasePrice().toFixed(2)}
+                      </Typography>
+                    </Box>
+                    
+                    {/* Product Commission - Staff Earnings */}
+                    {editSelectedProducts.length > 0 && (() => {
+                      const productTotal = editSelectedProducts.reduce((sum, sp) => {
+                        const product = retailProducts.find(p => p.id === sp.productId);
+                        return sum + (product ? product.price * sp.quantity : 0);
+                      }, 0);
+                      // Use barber's productCommissionRate if available, otherwise default to 5%
+                      const commissionRate = (editingAppointment?.barber as any)?.productCommissionRate ?? 5.0;
+                      const commission = productTotal * (commissionRate / 100);
+                      return (
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Staff Commission ({commissionRate}% of products):
+                          </Typography>
+                          <Typography variant="body2" color="info.main" fontWeight={600}>
+                            RM{commission.toFixed(2)}
+                          </Typography>
+                        </Box>
+                      );
+                    })()}
+                  </Box>
                   
                   {editMultipleDiscountCodes.length > 0 && (
                     <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #e0e0e0' }}>
