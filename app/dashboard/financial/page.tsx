@@ -639,220 +639,425 @@ export default function FinancialPage() {
     return getBossCurrentCustomers(today, uniqueCustomers);
   };
 
-  // PDF Generation Function for Daily Summary
-  const generateDailySummaryPDF = async () => {
+  // PDF Generation Function with Date Range Support
+  const generateFinancialReportPDF = async () => {
     try {
+      // Fetch latest data before generating PDF
+      showNotification('Fetching latest financial data...', 'info');
+      
+      const response = await apiGet(`/financial/overview?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`) as any;
+      if (!response.success) {
+        showNotification('Failed to fetch latest financial data', 'error');
+        return;
+      }
+      
+      const latestData = response.data;
+      
+      // Determine report type based on date range
+      const startDate = new Date(dateRange.startDate);
+      const endDate = new Date(dateRange.endDate);
+      const isSingleDay = dateRange.startDate === dateRange.endDate;
+      const isFullMonth = startDate.getDate() === 1 && 
+                          endDate.getDate() === new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0).getDate();
+      
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 15;
+      const contentWidth = pageWidth - (margin * 2);
       
-      // Get current date in Malaysia timezone
-      const currentDate = new Date().toLocaleDateString('en-MY', {
-        timeZone: 'Asia/Kuala_Lumpur',
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+      // Define black and white color scheme
+      const colors = {
+        black: [0, 0, 0] as [number, number, number],             // Black
+        darkGray: [51, 51, 51] as [number, number, number],       // Dark gray
+        mediumGray: [102, 102, 102] as [number, number, number],  // Medium gray
+        lightGray: [240, 240, 240] as [number, number, number],   // Light gray
+        white: [255, 255, 255] as [number, number, number],       // White
+        border: [200, 200, 200] as [number, number, number]       // Border gray
+      };
       
-      // Header
-      pdf.setFontSize(20);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Little Barbershop', pageWidth / 2, 20, { align: 'center' });
+      let yPosition = margin;
       
-      pdf.setFontSize(16);
-      pdf.text('Daily Summary Report', pageWidth / 2, 30, { align: 'center' });
+      // ===== PAGE 1: HEADER & SUMMARY =====
       
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(currentDate, pageWidth / 2, 40, { align: 'center' });
-      
-      // Line separator
+      // Company Header - White background with black border
+      pdf.setFillColor(colors.white[0], colors.white[1], colors.white[2]);
+      pdf.setDrawColor(colors.black[0], colors.black[1], colors.black[2]);
       pdf.setLineWidth(0.5);
-      pdf.line(20, 45, pageWidth - 20, 45);
+      pdf.rect(0, 0, pageWidth, 40, 'FD');
       
-      let yPosition = 55;
-      
-      // Today's Summary Section
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Today\'s Summary', 20, yPosition);
-      yPosition += 10;
-      
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'normal');
-      
-      // Summary metrics
-      const todaysRevenue = calculateTodaysRevenue();
-      const todaysCustomers = calculateTodaysCustomers();
-      const todaysExpenses = (() => {
-        const today = getTodayMalaysiaString();
-        const dailyExpenses = financialData?.expenses?.filter(expense => expense.date === today) || [];
-        const totalExpenses = dailyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-        return getBossCurrentExpenses(today, totalExpenses);
-      })();
-      
-      pdf.text(`• Today's Revenue: RM${todaysRevenue.toFixed(2)}`, 25, yPosition);
-      yPosition += 7;
-      pdf.text(`• Today's Customers: ${todaysCustomers}`, 25, yPosition);
-      yPosition += 7;
-      pdf.text(`• Today's Expenses: RM${todaysExpenses.toFixed(2)}`, 25, yPosition);
-      yPosition += 7;
-      pdf.text(`• Net Profit: RM${(todaysRevenue - todaysExpenses).toFixed(2)}`, 25, yPosition);
-      yPosition += 15;
-      
-      // Service Breakdown Section
-      if (financialData?.serviceBreakdown && financialData.serviceBreakdown.length > 0) {
-        pdf.setFontSize(14);
+      // Add logo (if available)
+      try {
+        const logoPath = '/images/LITTLE-BARBERSHOP-LOGO.svg';
+        // For SVG in PDF, we'll use a placeholder with the company name
+        // SVG embedding in jsPDF requires additional libraries, so we'll use text instead
+        pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+        pdf.setFontSize(20);
         pdf.setFont('helvetica', 'bold');
-        pdf.text('Service Breakdown', 20, yPosition);
-        yPosition += 10;
-        
-        pdf.setFontSize(11);
-        pdf.setFont('helvetica', 'normal');
-        
-        // Table headers
+        pdf.text('LITTLE BARBERSHOP', margin + 5, 18);
+      } catch (e) {
+        pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+        pdf.setFontSize(20);
         pdf.setFont('helvetica', 'bold');
-        pdf.text('Service', 25, yPosition);
-        pdf.text('Quantity', 80, yPosition);
-        pdf.text('Revenue', 120, yPosition);
-        pdf.text('Commission', 160, yPosition);
-        yPosition += 5;
-        
-        // Line under headers
-        pdf.setLineWidth(0.3);
-        pdf.line(25, yPosition, pageWidth - 20, yPosition);
-        yPosition += 7;
-        
-        pdf.setFont('helvetica', 'normal');
-        
-        financialData.serviceBreakdown.forEach((service) => {
-          if (yPosition > pageHeight - 30) {
-            pdf.addPage();
-            yPosition = 20;
-          }
-          
-          const commission = service.totalRevenue * 0.75; // Assuming 75% commission rate
-          
-          pdf.text(service.name, 25, yPosition);
-          pdf.text(service.count.toString(), 80, yPosition);
-          pdf.text(`RM${service.totalRevenue.toFixed(2)}`, 120, yPosition);
-          pdf.text(`RM${commission.toFixed(2)}`, 160, yPosition);
-          yPosition += 7;
-        });
-        
-        yPosition += 10;
+        pdf.text('LITTLE BARBERSHOP', margin + 5, 18);
       }
       
-      // Appointments Details Section
-      if (todaysAppointments.length > 0) {
-        if (yPosition > pageHeight - 50) {
-          pdf.addPage();
-          yPosition = 20;
-        }
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(colors.mediumGray[0], colors.mediumGray[1], colors.mediumGray[2]);
+      pdf.text('Financial Report', margin + 5, 28);
+      
+      // Report date range
+      const startDateFormatted = new Date(dateRange.startDate).toLocaleDateString('en-MY', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'Asia/Kuala_Lumpur'
+      });
+      
+      const endDateFormatted = new Date(dateRange.endDate).toLocaleDateString('en-MY', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'Asia/Kuala_Lumpur'
+      });
+      
+      const reportTitle = isSingleDay 
+        ? `Daily Report - ${startDateFormatted}`
+        : isFullMonth
+        ? `Monthly Report - ${new Date(dateRange.startDate).toLocaleDateString('en-MY', { month: 'long', year: 'numeric', timeZone: 'Asia/Kuala_Lumpur' })}`
+        : `Period Report - ${startDateFormatted} to ${endDateFormatted}`;
+      
+      pdf.setTextColor(colors.darkGray[0], colors.darkGray[1], colors.darkGray[2]);
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(reportTitle, pageWidth - margin, 20, { align: 'right' });
+      
+      yPosition = 45;
+      
+      // ===== FINANCIAL SUMMARY SECTION =====
+      
+      // Section title
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+      pdf.text('Financial Summary', margin, yPosition);
+      yPosition += 8;
+      
+      // Summary boxes - Black and white design
+      const summaryItems = [
+        { label: 'Total Revenue', value: latestData.overview.totalRevenue },
+        { label: 'Commission Paid', value: latestData.overview.totalCommissionPaid },
+        { label: 'Total Expenses', value: latestData.overview.totalExpenses },
+        { label: 'Net Profit', value: latestData.overview.netProfit }
+      ];
+      
+      const boxWidth = (contentWidth - 9) / 4; // 3px gaps between boxes
+      let boxX = margin;
+      
+      summaryItems.forEach((item, index) => {
+        // Alternating light gray and white backgrounds
+        const isEvenBox = index % 2 === 0;
+        const bgColor = isEvenBox ? colors.lightGray : colors.white;
         
-        pdf.setFontSize(14);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Today\'s Appointments', 20, yPosition);
-        yPosition += 10;
-        
-        pdf.setFontSize(10);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('#', 25, yPosition);
-        pdf.text('Client', 35, yPosition);
-        pdf.text('Service', 80, yPosition);
-        pdf.text('Barber', 120, yPosition);
-        pdf.text('Price', 150, yPosition);
-        pdf.text('Time', 175, yPosition);
-        yPosition += 5;
-        
+        // Box background
+        pdf.setFillColor(bgColor[0], bgColor[1], bgColor[2]);
+        pdf.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
         pdf.setLineWidth(0.3);
-        pdf.line(25, yPosition, pageWidth - 20, yPosition);
-        yPosition += 7;
+        pdf.rect(boxX, yPosition, boxWidth, 22, 'FD');
         
+        // Label
+        pdf.setTextColor(colors.mediumGray[0], colors.mediumGray[1], colors.mediumGray[2]);
+        pdf.setFontSize(8);
         pdf.setFont('helvetica', 'normal');
+        pdf.text(item.label, boxX + 2, yPosition + 6);
         
-        todaysAppointments.forEach((appointment, index) => {
-          if (yPosition > pageHeight - 20) {
+        // Value
+        pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+        pdf.setFontSize(11);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(`RM${item.value.toFixed(2)}`, boxX + 2, yPosition + 16);
+        
+        boxX += boxWidth + 3;
+      });
+      
+      yPosition += 32;
+      
+      // ===== BARBER PERFORMANCE SECTION =====
+      
+      if (latestData.barberPerformance && latestData.barberPerformance.length > 0) {
+        pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Barber Performance', margin, yPosition);
+        yPosition += 8;
+        
+        // Table headers
+        pdf.setFillColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
+        pdf.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
+        pdf.setLineWidth(0.3);
+        pdf.rect(margin, yPosition - 5, contentWidth, 6, 'F');
+        
+        pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'bold');
+        
+        const colPositions = [margin + 2, margin + 50, margin + 90, margin + 130, margin + 170];
+        const headers = ['Barber', 'Customers', 'Sales', 'Commission', 'Rate'];
+        
+        headers.forEach((header, i) => {
+          pdf.text(header, colPositions[i], yPosition);
+        });
+        
+        yPosition += 8;
+        
+        // Table rows
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+        
+        latestData.barberPerformance.forEach((barber: any) => {
+          if (yPosition > pageHeight - 25) {
             pdf.addPage();
-            yPosition = 20;
+            yPosition = margin;
           }
           
-          const appointmentTime = new Date(appointment.appointmentDate).toLocaleTimeString('en-MY', {
-            timeZone: 'Asia/Kuala_Lumpur',
-            hour: '2-digit',
-            minute: '2-digit'
-          });
+          // Check if commissionRate is already a percentage (> 1) or decimal (< 1)
+          const commissionRatePercent = barber.commissionRate > 1 
+            ? barber.commissionRate 
+            : barber.commissionRate * 100;
           
-          pdf.text((index + 1).toString(), 25, yPosition);
-          pdf.text(appointment.client?.fullName || 'N/A', 35, yPosition);
-          pdf.text(appointment.package?.name || 'N/A', 80, yPosition);
-          pdf.text(appointment.barber?.fullName || 'N/A', 120, yPosition);
-          pdf.text(`RM${(appointment.finalPrice || appointment.package?.price || 0).toFixed(2)}`, 150, yPosition);
-          pdf.text(appointmentTime, 175, yPosition);
+          pdf.text(barber.name.substring(0, 20), colPositions[0], yPosition);
+          pdf.text(barber.customerCount.toString(), colPositions[1], yPosition);
+          pdf.text(`RM${barber.totalSales.toFixed(2)}`, colPositions[2], yPosition);
+          pdf.text(`RM${barber.commissionPaid.toFixed(2)}`, colPositions[3], yPosition);
+          pdf.text(`${commissionRatePercent.toFixed(0)}%`, colPositions[4], yPosition);
+          
           yPosition += 6;
         });
         
-        yPosition += 10;
+        yPosition += 8;
       }
       
-      // Expenses Section
-      if (todaysExpenses > 0) {
-        const todayExpensesList = financialData?.expenses?.filter(expense => expense.date === getTodayMalaysiaString()) || [];
+      // ===== SERVICE BREAKDOWN SECTION =====
+      
+      if (latestData.serviceBreakdown && latestData.serviceBreakdown.length > 0) {
+        if (yPosition > pageHeight - 50) {
+          pdf.addPage();
+          yPosition = margin;
+        }
         
-        if (todayExpensesList.length > 0) {
-          if (yPosition > pageHeight - 40) {
+        pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Service Breakdown', margin, yPosition);
+        yPosition += 8;
+        
+        // Table headers
+        pdf.setFillColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
+        pdf.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
+        pdf.setLineWidth(0.3);
+        pdf.rect(margin, yPosition - 5, contentWidth, 6, 'F');
+        
+        pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'bold');
+        
+        const serviceColPositions = [margin + 2, margin + 80, margin + 130, margin + 170];
+        const serviceHeaders = ['Service', 'Quantity', 'Revenue', 'Avg Price'];
+        
+        serviceHeaders.forEach((header, i) => {
+          pdf.text(header, serviceColPositions[i], yPosition);
+        });
+        
+        yPosition += 8;
+        
+        // Table rows
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+        
+        latestData.serviceBreakdown.forEach((service: any) => {
+          if (yPosition > pageHeight - 25) {
             pdf.addPage();
-            yPosition = 20;
+            yPosition = margin;
           }
           
-          pdf.setFontSize(14);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text('Today\'s Expenses', 20, yPosition);
-          yPosition += 10;
+          const avgPrice = service.count > 0 ? service.totalRevenue / service.count : 0;
           
-          pdf.setFontSize(10);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text('Category', 25, yPosition);
-          pdf.text('Description', 80, yPosition);
-          pdf.text('Amount', 150, yPosition);
-          yPosition += 5;
+          pdf.text(service.name.substring(0, 30), serviceColPositions[0], yPosition);
+          pdf.text(service.count.toString(), serviceColPositions[1], yPosition);
+          pdf.text(`RM${service.totalRevenue.toFixed(2)}`, serviceColPositions[2], yPosition);
+          pdf.text(`RM${avgPrice.toFixed(2)}`, serviceColPositions[3], yPosition);
           
-          pdf.setLineWidth(0.3);
-          pdf.line(25, yPosition, pageWidth - 20, yPosition);
-          yPosition += 7;
-          
-          pdf.setFont('helvetica', 'normal');
-          
-          todayExpensesList.forEach((expense) => {
-            if (yPosition > pageHeight - 20) {
-              pdf.addPage();
-              yPosition = 20;
-            }
-            
-            pdf.text(expense.category, 25, yPosition);
-            pdf.text(expense.description, 80, yPosition);
-            pdf.text(`RM${expense.amount.toFixed(2)}`, 150, yPosition);
-            yPosition += 6;
-          });
-        }
+          yPosition += 6;
+        });
+        
+        yPosition += 8;
       }
       
-      // Footer
+      // ===== PRODUCT SALES SECTION =====
+      
+      if (yPosition > pageHeight - 50) {
+        pdf.addPage();
+        yPosition = margin;
+      }
+      
+      pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Product Sales', margin, yPosition);
+      yPosition += 8;
+      
+      if (latestData.productSalesBreakdown && latestData.productSalesBreakdown.length > 0) {
+        // Table headers
+        pdf.setFillColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
+        pdf.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
+        pdf.setLineWidth(0.3);
+        pdf.rect(margin, yPosition - 5, contentWidth, 6, 'F');
+        
+        pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'bold');
+        
+        const productColPositions = [margin + 2, margin + 100, margin + 150, margin + 170];
+        const productHeaders = ['Product', 'Quantity', 'Revenue', 'Avg Price'];
+        
+        productHeaders.forEach((header, i) => {
+          pdf.text(header, productColPositions[i], yPosition);
+        });
+        
+        yPosition += 8;
+        
+        // Table rows
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+        
+        latestData.productSalesBreakdown.forEach((product: any) => {
+          if (yPosition > pageHeight - 25) {
+            pdf.addPage();
+            yPosition = margin;
+          }
+          
+          const avgPrice = product.quantity > 0 ? product.totalRevenue / product.quantity : 0;
+          
+          pdf.text(product.name.substring(0, 30), productColPositions[0], yPosition);
+          pdf.text(product.quantity.toString(), productColPositions[1], yPosition);
+          pdf.text(`RM${product.totalRevenue.toFixed(2)}`, productColPositions[2], yPosition);
+          pdf.text(`RM${avgPrice.toFixed(2)}`, productColPositions[3], yPosition);
+          
+          yPosition += 6;
+        });
+      } else {
+        // No product sales - show 0
+        pdf.setTextColor(colors.mediumGray[0], colors.mediumGray[1], colors.mediumGray[2]);
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text('No product sales for this period', margin + 2, yPosition);
+        yPosition += 8;
+      }
+      
+      yPosition += 8;
+      
+      // ===== EXPENSES SECTION =====
+      
+      if (latestData.expenses && latestData.expenses.length > 0) {
+        if (yPosition > pageHeight - 50) {
+          pdf.addPage();
+          yPosition = margin;
+        }
+        
+        pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Expenses', margin, yPosition);
+        yPosition += 8;
+        
+        // Table headers
+        pdf.setFillColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
+        pdf.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
+        pdf.setLineWidth(0.3);
+        pdf.rect(margin, yPosition - 5, contentWidth, 6, 'F');
+        
+        pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'bold');
+        
+        const expenseColPositions = [margin + 2, margin + 50, margin + 110, margin + 170];
+        const expenseHeaders = ['Date', 'Category', 'Description', 'Amount'];
+        
+        expenseHeaders.forEach((header, i) => {
+          pdf.text(header, expenseColPositions[i], yPosition);
+        });
+        
+        yPosition += 8;
+        
+        // Table rows
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+        
+        latestData.expenses.forEach((expense: any) => {
+          if (yPosition > pageHeight - 25) {
+            pdf.addPage();
+            yPosition = margin;
+          }
+          
+          const expenseDate = new Date(expense.date).toLocaleDateString('en-MY', {
+            day: 'numeric',
+            month: 'short',
+            timeZone: 'Asia/Kuala_Lumpur'
+          });
+          
+          pdf.text(expenseDate, expenseColPositions[0], yPosition);
+          pdf.text(expense.category.substring(0, 15), expenseColPositions[1], yPosition);
+          pdf.text(expense.description.substring(0, 30), expenseColPositions[2], yPosition);
+          pdf.text(`RM${expense.amount.toFixed(2)}`, expenseColPositions[3], yPosition);
+          
+          yPosition += 6;
+        });
+      }
+      
+      // ===== FOOTER ON ALL PAGES =====
+      
       const totalPages = pdf.internal.pages.length - 1;
       for (let i = 1; i <= totalPages; i++) {
         pdf.setPage(i);
-        pdf.setFontSize(8);
+        
+        // Footer line
+        pdf.setDrawColor(colors.mediumGray[0], colors.mediumGray[1], colors.mediumGray[2]);
+        pdf.setLineWidth(0.3);
+        pdf.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
+        
+        // Footer text
+        pdf.setTextColor(colors.mediumGray[0], colors.mediumGray[1], colors.mediumGray[2]);
+        pdf.setFontSize(7);
         pdf.setFont('helvetica', 'normal');
-        pdf.text(`Generated on ${new Date().toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur' })}`, 20, pageHeight - 10);
-        pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 40, pageHeight - 10);
+        
+        const generatedTime = new Date().toLocaleString('en-MY', { 
+          timeZone: 'Asia/Kuala_Lumpur',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        pdf.text(`Generated: ${generatedTime}`, margin, pageHeight - 7);
+        pdf.text(`Page ${i} of ${totalPages}`, pageWidth - margin - 20, pageHeight - 7, { align: 'right' });
       }
       
       // Save the PDF
-      const fileName = `Daily_Summary_${getTodayMalaysiaString()}.pdf`;
+      const fileName = isSingleDay 
+        ? `Financial_Report_${dateRange.startDate}.pdf`
+        : isFullMonth
+        ? `Financial_Report_${new Date(dateRange.startDate).getFullYear()}-${String(new Date(dateRange.startDate).getMonth() + 1).padStart(2, '0')}.pdf`
+        : `Financial_Report_${dateRange.startDate}_to_${dateRange.endDate}.pdf`;
+      
       pdf.save(fileName);
       
-      showNotification('Daily summary PDF generated successfully!', 'success');
+      showNotification('Financial report PDF generated successfully!', 'success');
       
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -1362,7 +1567,7 @@ export default function FinancialPage() {
                   <Button
                     variant="outlined"
                     size="small"
-                    onClick={generateDailySummaryPDF}
+                    onClick={generateFinancialReportPDF}
                     startIcon={<DownloadIcon />}
                     sx={{
                       textTransform: 'none',
