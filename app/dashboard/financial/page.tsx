@@ -78,6 +78,9 @@ interface BarberPerformance {
   commissionPaid: number;
   commissionRate: number;
   appointmentCount: number;
+  packageBreakdown?: Array<{ name: string; count: number }>;
+  productBreakdown?: Array<{ name: string; count: number }>;
+  totalProductsSold?: number;
 }
 
 interface ServiceBreakdown {
@@ -799,11 +802,11 @@ export default function FinancialPage() {
         pdf.rect(margin, yPosition - 5, contentWidth, 6, 'F');
         
         pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
-        pdf.setFontSize(9);
+        pdf.setFontSize(8);
         pdf.setFont('helvetica', 'bold');
         
-        const colPositions = [margin + 2, margin + 50, margin + 90, margin + 130, margin + 170];
-        const headers = ['Barber', 'Customers', 'Sales', 'Commission', 'Rate'];
+        const colPositions = [margin + 2, margin + 50, margin + 100, margin + 140, margin + 175];
+        const headers = ['Barber', 'Appointments', 'Services/Products', 'Sales', 'Commission'];
         
         headers.forEach((header, i) => {
           pdf.text(header, colPositions[i], yPosition);
@@ -822,16 +825,22 @@ export default function FinancialPage() {
             yPosition = margin;
           }
           
-          // Check if commissionRate is already a percentage (> 1) or decimal (< 1)
-          const commissionRatePercent = barber.commissionRate > 1 
-            ? barber.commissionRate 
-            : barber.commissionRate * 100;
+          // Build services and products summary
+          let servicesText = '';
+          if (barber.packageBreakdown && barber.packageBreakdown.length > 0) {
+            servicesText = barber.packageBreakdown.map((p: any) => `${p.name.substring(0, 6)}:${p.count}`).join(', ');
+          }
+          let productsText = '';
+          if (barber.productBreakdown && barber.productBreakdown.length > 0) {
+            productsText = barber.productBreakdown.map((p: any) => `${p.name.substring(0, 6)}:${p.count}`).join(', ');
+          }
+          const summaryText = [servicesText, productsText].filter(t => t).join(' | ');
           
           pdf.text(barber.name.substring(0, 20), colPositions[0], yPosition);
-          pdf.text(barber.customerCount.toString(), colPositions[1], yPosition);
-          pdf.text(`RM${barber.totalSales.toFixed(2)}`, colPositions[2], yPosition);
-          pdf.text(`RM${barber.commissionPaid.toFixed(2)}`, colPositions[3], yPosition);
-          pdf.text(`${commissionRatePercent.toFixed(0)}%`, colPositions[4], yPosition);
+          pdf.text(barber.appointmentCount.toString(), colPositions[1], yPosition);
+          pdf.text(summaryText.substring(0, 40), colPositions[2], yPosition);
+          pdf.text(`RM${barber.totalSales.toFixed(2)}`, colPositions[3], yPosition);
+          pdf.text(`RM${barber.commissionPaid.toFixed(2)}`, colPositions[4], yPosition);
           
           yPosition += 6;
         });
@@ -1746,6 +1755,46 @@ export default function FinancialPage() {
                                   {barber.appointmentCount}
                                 </Typography>
                               </Grid>
+                              <Grid item xs={12}>
+                                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                                  Services
+                                </Typography>
+                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                  {barber.packageBreakdown && barber.packageBreakdown.length > 0 ? (
+                                    barber.packageBreakdown.map((pkg, idx) => (
+                                      <Chip 
+                                        key={idx}
+                                        label={`${pkg.name}: ${pkg.count}`}
+                                        size="small"
+                                        variant="outlined"
+                                        color="primary"
+                                      />
+                                    ))
+                                  ) : (
+                                    <Typography variant="caption" color="text.secondary">No services</Typography>
+                                  )}
+                                </Box>
+                              </Grid>
+                              <Grid item xs={12}>
+                                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                                  Products Sold ({barber.totalProductsSold || 0})
+                                </Typography>
+                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                  {barber.productBreakdown && barber.productBreakdown.length > 0 ? (
+                                    barber.productBreakdown.map((prod, idx) => (
+                                      <Chip 
+                                        key={idx}
+                                        label={`${prod.name}: ${prod.count}`}
+                                        size="small"
+                                        variant="outlined"
+                                        color="default"
+                                      />
+                                    ))
+                                  ) : (
+                                    <Typography variant="caption" color="text.secondary">No products</Typography>
+                                  )}
+                                </Box>
+                              </Grid>
                               <Grid item xs={6}>
                                 <Typography variant="caption" color="text.secondary">
                                   Total Sales
@@ -1773,13 +1822,12 @@ export default function FinancialPage() {
                 <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
                   <Table>
                     <TableHead>
-                      <TableRow>
+                      <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
                         <TableCell><strong>Barber</strong></TableCell>
-                        <TableCell><strong>Customers</strong></TableCell>
-                        <TableCell><strong>Appointments</strong></TableCell>
-                        <TableCell><strong>Total Sales</strong></TableCell>
-                        <TableCell><strong>Commission Rate</strong></TableCell>
-                        <TableCell><strong>Commission Paid</strong></TableCell>
+                        <TableCell align="center"><strong>Appointments</strong></TableCell>
+                        <TableCell align="center"><strong>Services & Products</strong></TableCell>
+                        <TableCell align="right"><strong>Total Sales</strong></TableCell>
+                        <TableCell align="right"><strong>Commission Paid</strong></TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -1795,19 +1843,49 @@ export default function FinancialPage() {
                               </Typography>
                             </Box>
                           </TableCell>
-                          <TableCell>{barber.customerCount}</TableCell>
-                          <TableCell>{barber.appointmentCount}</TableCell>
-                          <TableCell>{formatCurrency(barber.totalSales)}</TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={`${barber.commissionRate}%`}
-                              color="primary"
-                              size="small"
-                              variant="outlined"
-                            />
+                          <TableCell align="center">
+                            <Typography variant="body2">
+                              {barber.appointmentCount}
+                            </Typography>
                           </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={500} color="success.main">
+                          <TableCell align="center">
+                            <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', flexWrap: 'wrap' }}>
+                              {barber.packageBreakdown && barber.packageBreakdown.length > 0 ? (
+                                barber.packageBreakdown.map((pkg, idx) => (
+                                  <Chip 
+                                    key={idx}
+                                    label={`${pkg.name.substring(0, 8)}: ${pkg.count}`}
+                                    size="small"
+                                    variant="outlined"
+                                    color="primary"
+                                  />
+                                ))
+                              ) : (
+                                <Typography variant="caption" color="text.secondary">-</Typography>
+                              )}
+                              {barber.productBreakdown && barber.productBreakdown.length > 0 && (
+                                <>
+                                  {barber.packageBreakdown && barber.packageBreakdown.length > 0 && <Box sx={{ width: '100%' }} />}
+                                  {barber.productBreakdown.map((prod, idx) => (
+                                    <Chip 
+                                      key={`prod-${idx}`}
+                                      label={`${prod.name.substring(0, 8)}: ${prod.count}`}
+                                      size="small"
+                                      variant="outlined"
+                                      color="default"
+                                    />
+                                  ))}
+                                </>
+                              )}
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight={500}>
+                              {formatCurrency(barber.totalSales)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight={600} color="success.main">
                               {formatCurrency(barber.commissionPaid)}
                             </Typography>
                           </TableCell>

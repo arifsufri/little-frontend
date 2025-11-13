@@ -490,8 +490,16 @@ export default function AppointmentsPage() {
     const additionalPkgs = appointment.additionalPackages || [];
     setEditAdditionalPackages(additionalPkgs);
     
-    // Reset products and fetch retail products
-    setEditSelectedProducts([]);
+    // Load existing products from the appointment
+    const existingProducts = appointment.productSales && Array.isArray(appointment.productSales) 
+      ? appointment.productSales.map((ps: any) => ({
+          productId: ps.product?.id || ps.productId,
+          quantity: ps.quantity || 1
+        }))
+      : [];
+    setEditSelectedProducts(existingProducts);
+    
+    // Fetch retail products
     fetchRetailProducts();
     
     // Handle multiple discount codes if they exist
@@ -572,11 +580,17 @@ export default function AppointmentsPage() {
       const discountAmount = calculateEditDiscountAmount();
       const finalPriceWithProducts = Math.max(0, basePriceWithProducts - discountAmount);
       
+      // Ensure appointmentDate is properly formatted
+      let appointmentDateToSend = null;
+      if (editingAppointment.appointmentDate) {
+        const dateObj = new Date(editingAppointment.appointmentDate);
+        appointmentDateToSend = dateObj.toISOString();
+      }
+      
       const updateData = {
         clientId: typeof editingAppointment.clientId === 'string' ? parseInt(editingAppointment.clientId) : editingAppointment.clientId,
         packageId: typeof editingAppointment.packageId === 'string' ? parseInt(editingAppointment.packageId) : editingAppointment.packageId,
-        appointmentDate: editingAppointment.appointmentDate ? 
-          new Date(editingAppointment.appointmentDate).toISOString() : null,
+        appointmentDate: appointmentDateToSend,
         notes: editingAppointment.notes || null,
         additionalPackages: editAdditionalPackages,
         finalPrice: finalPriceWithProducts, // Include product prices in finalPrice
@@ -620,48 +634,63 @@ export default function AppointmentsPage() {
       const result = await response.json();
       console.log('Update successful:', result);
       
-      if (editSelectedProducts.length > 0 && editingAppointment) {
-        // Try multiple ways to get barber ID: result data, editingAppointment barber object, or barberId field
-        let barberId = result.data?.barber?.id || 
-                      result.data?.barberId || 
-                      (editingAppointment as any).barberId ||
-                      editingAppointment.barber?.id ||
-                      null;
+      // Handle product sales - only add NEW products that weren't there before
+      if (editingAppointment && editingAppointment.productSales) {
+        // Get existing product IDs
+        const existingProductIds = new Set(
+          editingAppointment.productSales.map((ps: any) => ps.product?.id || ps.productId)
+        );
         
-        if (!barberId) {
-          try {
-            const appointmentResponse = await apiGet(`/appointments/${editingAppointment.id}`) as any;
-            if (appointmentResponse.success && appointmentResponse.data) {
-              barberId = appointmentResponse.data.barber?.id || 
-                         appointmentResponse.data.barberId || 
-                         null;
+        // Find NEW products to add (not in existing list)
+        const newProducts = editSelectedProducts.filter(
+          sp => !existingProductIds.has(sp.productId)
+        );
+        
+        if (newProducts.length > 0) {
+          // Get barber ID from the updated appointment response
+          let barberId = result.data?.barber?.id || 
+                        result.data?.barberId || 
+                        (editingAppointment as any).barberId ||
+                        editingAppointment.barber?.id ||
+                        null;
+          
+          if (!barberId) {
+            try {
+              const appointmentResponse = await apiGet(`/appointments/${editingAppointment.id}`) as any;
+              if (appointmentResponse.success && appointmentResponse.data) {
+                barberId = appointmentResponse.data.barber?.id || 
+                           appointmentResponse.data.barberId || 
+                           null;
+              }
+            } catch (error) {
+              console.error('Error fetching appointment for barber ID:', error);
             }
-          } catch (error) {
-            console.error('Error fetching appointment for barber ID:', error);
           }
-        }
-        
-        if (!barberId) {
-          console.warn('No barber ID found for appointment, commission will go to logged-in user');
-        }
-        
-        for (const sp of editSelectedProducts) {
-          try {
-            const sellData: any = {
-              productId: sp.productId,
-              clientId: editingAppointment.clientId,
-              quantity: sp.quantity
-            };
-            
-            // Always include staffId if we have it
-            if (barberId) {
-              sellData.staffId = barberId;
+          
+          if (!barberId) {
+            console.warn('No barber ID found for appointment, commission will go to logged-in user');
+          }
+          
+          // Add each NEW product sale
+          for (const sp of newProducts) {
+            try {
+              const sellData: any = {
+                productId: sp.productId,
+                clientId: typeof editingAppointment.clientId === 'string' ? parseInt(editingAppointment.clientId) : editingAppointment.clientId,
+                quantity: sp.quantity
+              };
+              
+              // Always include staffId if we have it
+              if (barberId) {
+                sellData.staffId = barberId;
+              }
+              
+              console.log('Creating NEW product sale:', sellData);
+              await apiPost('/products/sell', sellData);
+            } catch (error) {
+              console.error('Error selling product:', error);
+              showNotification('Error adding product sale. Please try again.', 'error');
             }
-            
-            await apiPost('/products/sell', sellData);
-          } catch (error) {
-            console.error('Error selling product:', error);
-            // Continue with other products even if one fails
           }
         }
       }
@@ -2150,7 +2179,7 @@ export default function AppointmentsPage() {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" color="text.secondary">
-                            {formatDate(appointment.createdAt)}
+                            {appointment.appointmentDate ? formatDate(appointment.appointmentDate) : formatDate(appointment.createdAt)}
                           </Typography>
                         </TableCell>
                         <TableCell>
