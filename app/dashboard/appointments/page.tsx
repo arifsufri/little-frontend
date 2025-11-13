@@ -684,8 +684,14 @@ export default function AppointmentsPage() {
               if (barberId) {
                 sellData.staffId = barberId;
               }
+
+              // Use appointment's date for the product sale (appointmentDate or createdAt as fallback)
+              const appointmentDate = editingAppointment.appointmentDate || editingAppointment.createdAt;
+              if (appointmentDate) {
+                sellData.saleDate = new Date(appointmentDate).toISOString();
+              }
               
-              console.log('Creating NEW product sale:', sellData);
+              console.log('Creating NEW product sale with date:', sellData);
               await apiPost('/products/sell', sellData);
             } catch (error) {
               console.error('Error selling product:', error);
