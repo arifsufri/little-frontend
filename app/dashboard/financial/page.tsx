@@ -283,6 +283,8 @@ export default function FinancialPage() {
       endDate: malaysiaToday.toISOString().split('T')[0]
     };
   });
+  // Temporary date state for custom date picker (not applied until user clicks Apply)
+  const [tempDateRange, setTempDateRange] = React.useState(dateRange);
   const [dateFilter, setDateFilter] = React.useState('current_month');
   
   // Expense management state
@@ -377,9 +379,6 @@ export default function FinancialPage() {
         startDate = new Date(today.getFullYear(), 0, 1);
         endDate = new Date(today);
         break;
-      case 'custom':
-        // Don't change dates for custom filter
-        return;
       default:
         startDate = new Date(today.getFullYear(), today.getMonth(), 1);
         endDate = new Date(today);
@@ -391,10 +390,12 @@ export default function FinancialPage() {
       return malaysiaDate.toISOString().split('T')[0];
     };
 
-    setDateRange({
+    const newDateRange = {
       startDate: formatMalaysiaDate(startDate),
       endDate: formatMalaysiaDate(endDate)
-    });
+    };
+    setDateRange(newDateRange);
+    setTempDateRange(newDateRange);
   };
 
   const handleCloseDailyAccount = async () => {
@@ -1078,15 +1079,13 @@ export default function FinancialPage() {
     fetchFinancialData();
     fetchTodaysAppointments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange, userRole]);
+  }, [userRole]);
 
-  // Auto-fetch when preset filter changes (but not for custom)
+  // Auto-fetch when dateRange changes
   React.useEffect(() => {
-    if (dateFilter !== 'custom') {
-      fetchFinancialData();
-    }
+    fetchFinancialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFilter]);
+  }, [dateRange]);
 
   const fetchFinancialData = async () => {
     try {
@@ -1321,11 +1320,11 @@ export default function FinancialPage() {
         }}>
           {/* Period Selector */}
           <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-            <InputLabel>Filter Period</InputLabel>
+            <InputLabel>Quick Filter</InputLabel>
             <Select
               value={dateFilter}
               onChange={(e) => handleDateFilterChange(e.target.value)}
-              label="Filter Period"
+              label="Quick Filter"
               sx={{ bgcolor: 'white' }}
             >
               <MenuItem value="today">Today</MenuItem>
@@ -1336,119 +1335,58 @@ export default function FinancialPage() {
               <MenuItem value="last_month">Last Month</MenuItem>
               <MenuItem value="last_3_months">Last 3 Months</MenuItem>
               <MenuItem value="this_year">This Year</MenuItem>
-              <MenuItem value="custom">Custom Range</MenuItem>
             </Select>
           </FormControl>
 
-          {/* Custom Date Fields */}
-          {dateFilter === 'custom' && (
-            <>
+          {/* Date Fields - Always Visible */}
           <TextField
             label="Start Date"
             type="date"
-            value={dateRange.startDate}
-            onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+            value={tempDateRange.startDate}
+            onChange={(e) => {
+              setTempDateRange(prev => ({ ...prev, startDate: e.target.value }));
+              setDateFilter('custom'); // Mark as custom when manually changed
+            }}
             InputLabelProps={{ shrink: true }}
             size="small"
-                sx={{ 
-                  minWidth: { xs: '100%', sm: 150 },
-                  bgcolor: 'white',
-                  '& .MuiOutlinedInput-root': { bgcolor: 'white' }
-                }}
+            sx={{ 
+              minWidth: { xs: '100%', sm: 150 },
+              bgcolor: 'white',
+              '& .MuiOutlinedInput-root': { bgcolor: 'white' }
+            }}
           />
           <TextField
             label="End Date"
             type="date"
-            value={dateRange.endDate}
-            onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+            value={tempDateRange.endDate}
+            onChange={(e) => {
+              setTempDateRange(prev => ({ ...prev, endDate: e.target.value }));
+              setDateFilter('custom'); // Mark as custom when manually changed
+            }}
             InputLabelProps={{ shrink: true }}
             size="small"
-                sx={{ 
-                  minWidth: { xs: '100%', sm: 150 },
-                  bgcolor: 'white',
-                  '& .MuiOutlinedInput-root': { bgcolor: 'white' }
-                }}
-              />
-            </>
-          )}
-
-          {/* Clickable Date Range Display */}
-          <Box 
-            onClick={() => {
-              if (dateFilter !== 'custom') {
-                setDateFilter('custom');
-              }
-            }}
             sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 1,
-              px: 1.5,
-              py: 0.5,
+              minWidth: { xs: '100%', sm: 150 },
               bgcolor: 'white',
-              borderRadius: 1,
-              border: '1px solid',
-              borderColor: dateFilter === 'custom' ? 'primary.main' : 'grey.300',
-              minWidth: 'fit-content',
-              flex: 1,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease-in-out',
-              '&:hover': {
-                borderColor: 'primary.main',
-                bgcolor: 'primary.50',
-                transform: 'translateY(-1px)',
-                boxShadow: '0 2px 8px rgba(25, 118, 210, 0.15)'
-              }
+              '& .MuiOutlinedInput-root': { bgcolor: 'white' }
             }}
-          >
-            <CalendarTodayIcon 
-              fontSize="small" 
-              color={dateFilter === 'custom' ? 'primary' : 'action'} 
-            />
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                fontSize: '0.8rem', 
-                color: dateFilter === 'custom' ? 'primary.main' : 'text.secondary',
-                fontWeight: dateFilter === 'custom' ? 600 : 400
-              }}
-            >
-              {new Date(dateRange.startDate + 'T00:00:00').toLocaleDateString('en-MY', { 
-                day: 'numeric', 
-                month: 'short', 
-                year: 'numeric',
-                timeZone: 'Asia/Kuala_Lumpur'
-              })} - {new Date(dateRange.endDate + 'T00:00:00').toLocaleDateString('en-MY', { 
-                day: 'numeric', 
-                month: 'short', 
-                year: 'numeric',
-                timeZone: 'Asia/Kuala_Lumpur'
-              })}
-            </Typography>
-            {dateFilter !== 'custom' && (
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: '0.7rem', 
-                  color: 'text.disabled',
-                  ml: 0.5,
-                  fontStyle: 'italic'
-                }}
-              >
-                (click to edit)
-              </Typography>
-            )}
-          </Box>
-
-          {/* Apply Filter Button */}
+          />
           <Button
             variant="contained"
-            onClick={fetchFinancialData}
             size="small"
-            sx={{ 
-              minWidth: { xs: '100%', sm: 100 },
+            onClick={() => {
+              setDateRange(tempDateRange);
+            }}
+            disabled={dateRange.startDate === tempDateRange.startDate && dateRange.endDate === tempDateRange.endDate}
+            sx={{
+              bgcolor: 'primary.main',
+              '&:hover': { bgcolor: 'primary.dark' },
               textTransform: 'none',
-              fontWeight: 600
+              fontWeight: 600,
+              '&.Mui-disabled': {
+                bgcolor: 'grey.300',
+                color: 'grey.500'
+              }
             }}
           >
             Apply
