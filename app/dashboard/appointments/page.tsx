@@ -247,6 +247,9 @@ export default function AppointmentsPage() {
   const getAppointmentServices = (appointment: any) => {
     const services = [appointment.package.name];
     
+    // Debug logging
+    console.log('[getAppointmentServices] Appointment:', appointment.id, 'ProductSales:', appointment.productSales);
+    
     // Add additional packages
     if (appointment.additionalPackages && Array.isArray(appointment.additionalPackages)) {
       appointment.additionalPackages.forEach((packageId: number) => {
@@ -268,6 +271,7 @@ export default function AppointmentsPage() {
     
     // Add products
     if (appointment.productSales && Array.isArray(appointment.productSales)) {
+      console.log('[getAppointmentServices] Found product sales:', appointment.productSales.length);
       appointment.productSales.forEach((sale: any) => {
         if (sale.product) {
           const productName = sale.quantity > 1 
@@ -276,6 +280,8 @@ export default function AppointmentsPage() {
           services.push(`🛍️ ${productName}`);
         }
       });
+    } else {
+      console.log('[getAppointmentServices] No product sales found');
     }
     
     return services;
