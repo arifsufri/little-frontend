@@ -642,8 +642,9 @@ export default function FinancialPage() {
       console.log('[Fetch Product Sales] Response:', response);
       
       if (response.success) {
-        console.log('[Fetch Product Sales] Setting product sales:', response.data);
-        setTodaysProductSales(response.data);
+        const standaloneProductSales = (response.data || []).filter((sale: any) => !sale.appointmentId);
+        console.log('[Fetch Product Sales] Setting standalone product sales:', standaloneProductSales);
+        setTodaysProductSales(standaloneProductSales);
       } else {
         console.log('[Fetch Product Sales] No success, setting empty array');
         setTodaysProductSales([]);

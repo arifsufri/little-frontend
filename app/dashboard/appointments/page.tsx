@@ -1157,7 +1157,8 @@ export default function AppointmentsPage() {
             const sellData: any = {
               productId: sp.productId,
               clientId: selectedAppointment.clientId,
-              quantity: sp.quantity
+              quantity: sp.quantity,
+              appointmentId: selectedAppointment.id  // Link product sale to appointment
             };
             
             // Always include staffId if we have it
