@@ -34,17 +34,20 @@ import {
   useTheme,
   useMediaQuery,
   Pagination,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import PhoneIcon from '@mui/icons-material/Phone';
 import EventIcon from '@mui/icons-material/Event';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import DeleteIcon from '@mui/icons-material/Delete';
 import GroupIcon from '@mui/icons-material/GroupOutlined';
 import PendingIcon from '@mui/icons-material/PendingActions';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import { apiGet, apiPost } from '../../../src/utils/axios';
+import { apiGet, apiPost, apiDelete } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
 
 interface Client {
@@ -74,6 +77,13 @@ export default function ClientsPage() {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('all');
   const [createClientOpen, setCreateClientOpen] = React.useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [clientToDelete, setClientToDelete] = React.useState<Client | null>(null);
+  const [snackbar, setSnackbar] = React.useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info'
+  });
   const [newClient, setNewClient] = React.useState({
     fullName: '',
     phoneNumber: ''
@@ -125,12 +135,54 @@ export default function ClientsPage() {
       // Refresh clients list
       fetchClients();
       
-      alert(`Client created successfully! Client ID: ${response.data.client.clientId}`);
+      setSnackbar({
+        open: true,
+        message: `Client created successfully! Client ID: ${response.data.client.clientId}`,
+        severity: 'success'
+      });
     } catch (error: any) {
       console.error('Error creating client:', error);
       const errorMessage = error?.message || error?.error || 'Failed to create client. Please try again.';
-      alert(errorMessage);
+      setSnackbar({
+        open: true,
+        message: errorMessage,
+        severity: 'error'
+      });
     }
+  };
+
+  const handleDeleteClick = (client: Client) => {
+    setClientToDelete(client);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!clientToDelete) return;
+
+    try {
+      await apiDelete(`/clients/${clientToDelete.id}`);
+      setDeleteDialogOpen(false);
+      setClientToDelete(null);
+      fetchClients();
+      setSnackbar({
+        open: true,
+        message: 'Client deleted successfully!',
+        severity: 'success'
+      });
+    } catch (error: any) {
+      console.error('Error deleting client:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to delete client.';
+      setSnackbar({
+        open: true,
+        message: errorMessage,
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setClientToDelete(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -409,11 +461,25 @@ export default function ClientsPage() {
                             </Box>
                           </Box>
                         </Box>
-                        <Tooltip title="View Details">
-                          <IconButton size="small" color="primary" sx={{ ml: 1 }}>
-                            <VisibilityIcon />
-                          </IconButton>
-                        </Tooltip>
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          <Tooltip title="View Details">
+                            <IconButton size="small" color="primary">
+                              <VisibilityIcon />
+                            </IconButton>
+                          </Tooltip>
+                          {(userRole === 'Boss' || userRole === 'Staff') && (
+                            <Tooltip title="Delete Client">
+                              <IconButton 
+                                size="small" 
+                                color="error"
+                                onClick={() => handleDeleteClick(client)}
+                                disabled={client.appointments.length > 0}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </Box>
                       </Box>
                     </Card>
                   );
@@ -496,11 +562,27 @@ export default function ClientsPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <Tooltip title="View Details">
-                              <IconButton size="small" color="primary">
-                                <VisibilityIcon />
-                              </IconButton>
-                            </Tooltip>
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                              <Tooltip title="View Details">
+                                <IconButton size="small" color="primary">
+                                  <VisibilityIcon />
+                                </IconButton>
+                              </Tooltip>
+                              {(userRole === 'Boss' || userRole === 'Staff') && (
+                                <Tooltip title={client.appointments.length > 0 ? "Cannot delete client with appointments" : "Delete Client"}>
+                                  <span>
+                                    <IconButton 
+                                      size="small" 
+                                      color="error"
+                                      onClick={() => handleDeleteClick(client)}
+                                      disabled={client.appointments.length > 0}
+                                    >
+                                      <DeleteIcon />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                              )}
+                            </Box>
                           </TableCell>
                         </TableRow>
                       );
@@ -644,6 +726,76 @@ export default function ClientsPage() {
           </GradientButton>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog 
+        open={deleteDialogOpen} 
+        onClose={handleDeleteCancel}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={600} color="error">
+            Delete Client?
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Are you sure you want to delete <strong>{clientToDelete?.fullName}</strong>?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Client ID: {clientToDelete?.clientId}<br/>
+            Phone: {clientToDelete?.phoneNumber}
+          </Typography>
+          <Box sx={{ 
+            mt: 2, 
+            p: 2, 
+            bgcolor: 'error.50', 
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: 'error.200'
+          }}>
+            <Typography variant="body2" color="error.dark">
+              ⚠️ This action cannot be undone. The client will be permanently removed from the system.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <GradientButton
+            variant="blue"
+            animated
+            onClick={handleDeleteCancel}
+            sx={{ flex: 1 }}
+          >
+            Cancel
+          </GradientButton>
+          <GradientButton
+            variant="red"
+            animated
+            onClick={handleDeleteConfirm}
+            sx={{ flex: 1 }}
+          >
+            Delete
+          </GradientButton>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </DashboardLayout>
   );
 }

@@ -365,7 +365,9 @@ export default function FinancialPage() {
         endDate = lastWeekEnd;
         break;
       case 'current_month':
+        // Set to 1st of current month at midnight Malaysia time
         startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        startDate.setHours(0, 0, 0, 0);
         endDate = new Date(today);
         break;
       case 'last_month':
@@ -387,8 +389,11 @@ export default function FinancialPage() {
 
     // Convert to Malaysia timezone and format as YYYY-MM-DD
     const formatMalaysiaDate = (date: Date) => {
-      const malaysiaDate = new Date(date.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"}));
-      return malaysiaDate.toISOString().split('T')[0];
+      // Get the date components in Malaysia timezone
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     };
 
     const newDateRange = {
