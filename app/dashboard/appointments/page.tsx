@@ -38,7 +38,8 @@ import {
   useMediaQuery,
   Snackbar,
   Alert,
-  Pagination
+  Pagination,
+  Autocomplete
 } from '@mui/material';
 import EventIcon from '@mui/icons-material/Event';
 import PendingIcon from '@mui/icons-material/Pending';
@@ -54,8 +55,10 @@ import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
+import ReceiptIcon from '@mui/icons-material/Receipt';
 import { apiGet, apiPost, apiPut, apiDelete } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
+import jsPDF from 'jspdf';
 
 interface Package {
   id: number;
@@ -232,6 +235,8 @@ export default function AppointmentsPage() {
     packageId: '',
     barberId: ''
   });
+  const [newClientPhoneNumber, setNewClientPhoneNumber] = React.useState<string>('');
+  const [editClientPhoneNumber, setEditClientPhoneNumber] = React.useState<string>('');
   const [newAdditionalPackages, setNewAdditionalPackages] = React.useState<number[]>([]);
 
   const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
@@ -360,7 +365,9 @@ export default function AppointmentsPage() {
   const fetchStaff = async () => {
     try {
       const response = await apiGet<{ success: boolean; data: any[] }>('/staff');
-      setStaff(response.data || []);
+      // Filter out Boss role from staff list
+      const staffOnly = (response.data || []).filter((member: any) => member.role !== 'Boss');
+      setStaff(staffOnly);
     } catch (error) {
       console.error('Error fetching staff:', error);
       setStaff([]);
@@ -427,6 +434,43 @@ export default function AppointmentsPage() {
 
   const handleCreateAppointment = async () => {
     try {
+      let clientId = newAppointment.clientId;
+      
+      // If no client selected but phone number typed, register new client first
+      if (!clientId && newClientPhoneNumber) {
+        const phoneNumber = newClientPhoneNumber.trim();
+        
+        // Validate Malaysian phone format
+        if (!/^01[0-9]{8,9}$/.test(phoneNumber)) {
+          showNotification('Please enter a valid Malaysian phone number (01XXXXXXXX)', 'error');
+          return;
+        }
+        
+        try {
+          const response = await apiPost<{ success: boolean; data: { client: any } }>('/clients/register', {
+            phoneNumber
+          });
+          
+          if (response.success) {
+            clientId = response.data.client.id;
+            showNotification('New client registered!', 'success');
+          }
+        } catch (error: any) {
+          if (error?.response?.data?.clientExists) {
+            showNotification('Client already exists. Please select from the list.', 'error');
+            return;
+          } else {
+            showNotification('Failed to register client', 'error');
+            return;
+          }
+        }
+      }
+      
+      if (!clientId) {
+        showNotification('Please select or enter a client', 'error');
+        return;
+      }
+      
       // Get current Malaysia time (Asia/Kuala_Lumpur timezone)
       const malaysiaTime = new Date().toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"});
       const appointmentDate = new Date(malaysiaTime).toISOString();
@@ -450,7 +494,7 @@ export default function AppointmentsPage() {
       }
       
       const appointmentData = {
-        clientId: parseInt(newAppointment.clientId),
+        clientId: parseInt(clientId),
         packageId: parseInt(newAppointment.packageId),
         appointmentDate: appointmentDate,
         additionalPackages: newAdditionalPackages,
@@ -466,10 +510,12 @@ export default function AppointmentsPage() {
         packageId: '',
         barberId: ''
       });
+      setNewClientPhoneNumber('');
       setNewAdditionalPackages([]);
       
-      // Refresh appointments
+      // Refresh appointments and clients
       fetchAppointments();
+      fetchClients();
       
       showNotification('Appointment created successfully!', 'success');
     } catch (error: any) {
@@ -575,6 +621,43 @@ export default function AppointmentsPage() {
     if (!editingAppointment) return;
 
     try {
+      let clientId = editingAppointment.clientId;
+      
+      // If no client selected but phone number typed, register new client first
+      if (!clientId && editClientPhoneNumber) {
+        const phoneNumber = editClientPhoneNumber.trim();
+        
+        // Validate Malaysian phone format
+        if (!/^01[0-9]{8,9}$/.test(phoneNumber)) {
+          showNotification('Please enter a valid Malaysian phone number (01XXXXXXXX)', 'error');
+          return;
+        }
+        
+        try {
+          const response = await apiPost<{ success: boolean; data: { client: any } }>('/clients/register', {
+            phoneNumber
+          });
+          
+          if (response.success) {
+            clientId = response.data.client.id;
+            showNotification('New client registered!', 'success');
+          }
+        } catch (error: any) {
+          if (error?.response?.data?.clientExists) {
+            showNotification('Client already exists. Please select from the list.', 'error');
+            return;
+          } else {
+            showNotification('Failed to register client', 'error');
+            return;
+          }
+        }
+      }
+      
+      if (!clientId) {
+        showNotification('Please select or enter a client', 'error');
+        return;
+      }
+      
       // Calculate total price including products
       const basePriceWithProducts = calculateEditBasePrice(); // Includes products
       const discountAmount = calculateEditDiscountAmount();
@@ -588,7 +671,7 @@ export default function AppointmentsPage() {
       }
       
       const updateData = {
-        clientId: typeof editingAppointment.clientId === 'string' ? parseInt(editingAppointment.clientId) : editingAppointment.clientId,
+        clientId: typeof clientId === 'string' ? parseInt(clientId) : clientId,
         packageId: typeof editingAppointment.packageId === 'string' ? parseInt(editingAppointment.packageId) : editingAppointment.packageId,
         appointmentDate: appointmentDateToSend,
         notes: editingAppointment.notes || null,
@@ -706,6 +789,7 @@ export default function AppointmentsPage() {
       setEditingAppointment(null);
       setEditAdditionalPackages([]);
       setEditSelectedProducts([]);
+      setEditClientPhoneNumber('');
       // Reset edit discount states
       setEditDiscountCode('');
       setEditDiscountInfo(null);
@@ -742,6 +826,215 @@ export default function AppointmentsPage() {
     setSelectedAppointment(null);
   };
 
+  const handleGenerateInvoice = () => {
+    if (!selectedAppointment) return;
+    
+    try {
+      const pdf = new jsPDF();
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const margin = 20;
+      let yPosition = margin;
+      
+      // Colors
+      const primaryColor: [number, number, number] = [139, 0, 0]; // Dark red
+      const secondaryColor: [number, number, number] = [100, 100, 100]; // Gray
+      const lightGray: [number, number, number] = [245, 245, 245];
+      
+      // Header - Company Name
+      pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      pdf.rect(0, 0, pageWidth, 40, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(24);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Little Barbershop', pageWidth / 2, 25, { align: 'center' });
+      
+      yPosition = 50;
+      
+      // Invoice Title
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(20);
+      pdf.text('INVOICE', margin, yPosition);
+      
+      yPosition += 15;
+      
+      // Invoice Details
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      
+      const invoiceDate = selectedAppointment.appointmentDate 
+        ? new Date(selectedAppointment.appointmentDate).toLocaleDateString('en-MY', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })
+        : new Date(selectedAppointment.createdAt).toLocaleDateString('en-MY', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+      
+      pdf.text(`Invoice #: ${selectedAppointment.id}`, margin, yPosition);
+      pdf.text(`Date: ${invoiceDate}`, pageWidth - margin - 50, yPosition, { align: 'right' });
+      
+      yPosition += 20;
+      
+      // Client Information
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('Bill To:', margin, yPosition);
+      
+      yPosition += 7;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      pdf.text(selectedAppointment.client.fullName, margin, yPosition);
+      yPosition += 5;
+      pdf.text(selectedAppointment.client.phoneNumber, margin, yPosition);
+      yPosition += 5;
+      pdf.text(`Client ID: ${selectedAppointment.client.clientId}`, margin, yPosition);
+      
+      yPosition += 15;
+      
+      // Barber Information
+      if (selectedAppointment.barber) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Served By:', margin, yPosition);
+        yPosition += 7;
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(selectedAppointment.barber.name, margin, yPosition);
+        yPosition += 15;
+      }
+      
+      // Services Table Header
+      pdf.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+      pdf.rect(margin, yPosition, pageWidth - 2 * margin, 10, 'F');
+      
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('Service', margin + 5, yPosition + 7);
+      pdf.text('Price', pageWidth - margin - 30, yPosition + 7, { align: 'right' });
+      
+      yPosition += 15;
+      
+      // Base Package
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(selectedAppointment.package.name, margin + 5, yPosition);
+      pdf.text(`RM${selectedAppointment.package.price.toFixed(2)}`, pageWidth - margin - 30, yPosition, { align: 'right' });
+      yPosition += 7;
+      
+      let subtotal = selectedAppointment.package.price;
+      
+      // Additional Packages
+      if (selectedAppointment.additionalPackages && selectedAppointment.additionalPackages.length > 0) {
+        for (const pkgId of selectedAppointment.additionalPackages) {
+          const pkg = packages.find(p => p.id === pkgId);
+          if (pkg) {
+            pdf.text(`  + ${pkg.name}`, margin + 5, yPosition);
+            pdf.text(`RM${pkg.price.toFixed(2)}`, pageWidth - margin - 30, yPosition, { align: 'right' });
+            yPosition += 7;
+            subtotal += pkg.price;
+          }
+        }
+      }
+      
+      // Custom Packages
+      if (selectedAppointment.customPackages && selectedAppointment.customPackages.length > 0) {
+        for (const customPkg of selectedAppointment.customPackages) {
+          pdf.text(`  + ${customPkg.name}`, margin + 5, yPosition);
+          pdf.text(`RM${customPkg.price.toFixed(2)}`, pageWidth - margin - 30, yPosition, { align: 'right' });
+          yPosition += 7;
+          subtotal += customPkg.price;
+        }
+      }
+      
+      // Products
+      if (selectedAppointment.productSales && selectedAppointment.productSales.length > 0) {
+        yPosition += 5;
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Products:', margin + 5, yPosition);
+        yPosition += 7;
+        pdf.setFont('helvetica', 'normal');
+        
+        for (const productSale of selectedAppointment.productSales) {
+          pdf.text(`  ${productSale.product.name} x${productSale.quantity}`, margin + 5, yPosition);
+          pdf.text(`RM${productSale.totalPrice.toFixed(2)}`, pageWidth - margin - 30, yPosition, { align: 'right' });
+          yPosition += 7;
+          subtotal += productSale.totalPrice;
+        }
+      }
+      
+      yPosition += 5;
+      
+      // Divider line
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 10;
+      
+      // Subtotal
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Subtotal:', margin + 5, yPosition);
+      pdf.text(`RM${subtotal.toFixed(2)}`, pageWidth - margin - 30, yPosition, { align: 'right' });
+      yPosition += 7;
+      
+      // Discount (if any)
+      const finalPrice = selectedAppointment.finalPrice || subtotal;
+      const discount = subtotal - finalPrice;
+      
+      if (discount > 0) {
+        pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        pdf.text('Discount:', margin + 5, yPosition);
+        pdf.text(`-RM${discount.toFixed(2)}`, pageWidth - margin - 30, yPosition, { align: 'right' });
+        yPosition += 10;
+      } else {
+        yPosition += 3;
+      }
+      
+      // Total
+      pdf.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+      pdf.rect(margin, yPosition - 5, pageWidth - 2 * margin, 12, 'F');
+      
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('TOTAL:', margin + 5, yPosition + 3);
+      pdf.text(`RM${finalPrice.toFixed(2)}`, pageWidth - margin - 30, yPosition + 3, { align: 'right' });
+      
+      yPosition += 20;
+      
+      // Status
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      const statusText = `Status: ${selectedAppointment.status.toUpperCase()}`;
+      const statusColor = selectedAppointment.status === 'completed' 
+        ? [76, 175, 80] 
+        : selectedAppointment.status === 'cancelled' 
+        ? [244, 67, 54] 
+        : [255, 152, 0];
+      pdf.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+      pdf.text(statusText, margin + 5, yPosition);
+      
+      yPosition += 20;
+      
+      // Footer
+      pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      pdf.setFontSize(9);
+      pdf.text('Thank you for your business!', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 5;
+      pdf.text('Little Barbershop - Your Style, Our Pride', pageWidth / 2, yPosition, { align: 'center' });
+      
+      // Save PDF
+      const fileName = `Invoice_${selectedAppointment.id}_${selectedAppointment.client.fullName.replace(/\s+/g, '_')}.pdf`;
+      pdf.save(fileName);
+      
+      showNotification('Invoice generated successfully!', 'success');
+      handleMenuClose();
+    } catch (error) {
+      console.error('Error generating invoice:', error);
+      showNotification('Failed to generate invoice', 'error');
+    }
+  };
 
   const handleStatusUpdate = async (newStatus: string) => {
     if (!selectedAppointment) return;
@@ -2241,6 +2534,13 @@ export default function AppointmentsPage() {
           open={Boolean(anchorEl)}
           onClose={handleMenuClose}
         >
+          {/* Generate Invoice - Available for completed appointments */}
+          {selectedAppointment?.status === 'completed' && (
+            <MenuItem onClick={handleGenerateInvoice}>
+              <ReceiptIcon sx={{ mr: 1, fontSize: '1rem' }} />
+              Generate Invoice
+            </MenuItem>
+          )}
           {/* Edit Appointment - Boss and Staff can edit, but not when status is pending */}
           {(userRole === 'Boss' || userRole === 'Staff') && selectedAppointment?.status !== 'pending' && (
             <MenuItem onClick={() => handleEditAppointment(selectedAppointment!)}>
@@ -2982,26 +3282,53 @@ export default function AppointmentsPage() {
           </DialogTitle>
           <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
             <Stack spacing={3} sx={{ mt: 1 }}>
-              {/* Client Selection */}
-              <FormControl fullWidth>
-                <InputLabel>Select Client</InputLabel>
-                <Select
-                  value={newAppointment.clientId}
-                  onChange={(e) => setNewAppointment({...newAppointment, clientId: e.target.value})}
-                  label="Select Client"
-                >
-                  {clients.map((client) => (
-                    <MenuItem key={client.id} value={client.id}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                        <Typography>{client.fullName}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {client.clientId} - {client.phoneNumber}
-                        </Typography>
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              {/* Client Selection with Search and Quick Add */}
+              <Autocomplete
+                fullWidth
+                freeSolo
+                options={clients}
+                getOptionLabel={(option) => {
+                  if (typeof option === 'string') return option;
+                  return `${option.fullName} - ${option.clientId} - ${option.phoneNumber}`;
+                }}
+                value={clients.find(c => c.id === newAppointment.clientId) || null}
+                inputValue={newClientPhoneNumber}
+                onInputChange={(event, newInputValue) => {
+                  setNewClientPhoneNumber(newInputValue);
+                }}
+                onChange={(event, newValue) => {
+                  if (typeof newValue === 'string') {
+                    // Store the phone number for later registration
+                    setNewClientPhoneNumber(newValue.trim());
+                    setNewAppointment({...newAppointment, clientId: ''});
+                  } else if (newValue) {
+                    // User selected existing client
+                    setNewAppointment({...newAppointment, clientId: newValue.id});
+                    setNewClientPhoneNumber('');
+                  } else {
+                    setNewAppointment({...newAppointment, clientId: ''});
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Select or Add Client"
+                    placeholder="Search or type phone number (01XXXXXXXX)..."
+                    helperText="Type a phone number to register a new client, or select existing"
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.id}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                      <Typography fontWeight={500}>{option.fullName}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        ID: {option.clientId} • Phone: {option.phoneNumber}
+                      </Typography>
+                    </Box>
+                  </li>
+                )}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+              />
 
               {/* Package Selection */}
               <FormControl fullWidth>
@@ -3154,7 +3481,7 @@ export default function AppointmentsPage() {
               variant="red"
               animated
               onClick={handleCreateAppointment}
-              disabled={!newAppointment.clientId || !newAppointment.packageId}
+              disabled={(!newAppointment.clientId && !newClientPhoneNumber) || !newAppointment.packageId}
               sx={{ 
                 flex: 1,
                 px: { xs: 2, sm: 3 }, 
@@ -3401,26 +3728,53 @@ export default function AppointmentsPage() {
           }}>
             {editingAppointment && (
               <Stack spacing={3} sx={{ mt: 1 }}>
-                {/* Client Selection */}
-                <FormControl fullWidth>
-                  <InputLabel>Select Client</InputLabel>
-                  <Select
-                    value={editingAppointment.clientId}
-                    onChange={(e) => setEditingAppointment({...editingAppointment, clientId: e.target.value})}
-                    label="Select Client"
-                  >
-                    {clients.map((client) => (
-                      <MenuItem key={client.id} value={client.id}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                          <Typography>{client.fullName}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {client.clientId} - {client.phoneNumber}
-                          </Typography>
-                        </Box>
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                {/* Client Selection with Search and Quick Add */}
+                <Autocomplete
+                  fullWidth
+                  freeSolo
+                  options={clients}
+                  getOptionLabel={(option) => {
+                    if (typeof option === 'string') return option;
+                    return `${option.fullName} - ${option.clientId} - ${option.phoneNumber}`;
+                  }}
+                  value={clients.find(c => c.id === editingAppointment.clientId) || null}
+                  inputValue={editClientPhoneNumber}
+                  onInputChange={(event, newInputValue) => {
+                    setEditClientPhoneNumber(newInputValue);
+                  }}
+                  onChange={(event, newValue) => {
+                    if (typeof newValue === 'string') {
+                      // Store the phone number for later registration
+                      setEditClientPhoneNumber(newValue.trim());
+                      setEditingAppointment({...editingAppointment, clientId: ''});
+                    } else if (newValue) {
+                      // User selected existing client
+                      setEditingAppointment({...editingAppointment, clientId: newValue.id});
+                      setEditClientPhoneNumber('');
+                    } else {
+                      setEditingAppointment({...editingAppointment, clientId: ''});
+                    }
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Select or Add Client"
+                      placeholder="Search or type phone number (01XXXXXXXX)..."
+                      helperText="Type a phone number to register a new client, or select existing"
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <li {...props} key={option.id}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                        <Typography fontWeight={500}>{option.fullName}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          ID: {option.clientId} • Phone: {option.phoneNumber}
+                        </Typography>
+                      </Box>
+                    </li>
+                  )}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                />
 
                 {/* Package Selection */}
                 <FormControl fullWidth>
@@ -3925,7 +4279,7 @@ export default function AppointmentsPage() {
               variant="red"
               animated
               onClick={handleUpdateAppointment}
-              disabled={!editingAppointment?.clientId || !editingAppointment?.packageId}
+              disabled={(!editingAppointment?.clientId && !editClientPhoneNumber) || !editingAppointment?.packageId}
               sx={{ 
                 flex: 1,
                 px: { xs: 2, sm: 3 }, 

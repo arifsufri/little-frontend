@@ -115,7 +115,10 @@ export default function ClientPackagesPage() {
       // Filter to only show active packages for clients
       const activePackages = (packagesResponse.data || []).filter(pkg => pkg.isActive);
       setPackages(activePackages);
-      setBarbers(barbersResponse.data || []);
+      
+      // Filter out Boss role from barber selection
+      const staffBarbers = (barbersResponse.data || []).filter((barber: any) => barber.role !== 'Boss');
+      setBarbers(staffBarbers);
     } catch (error) {
       console.error('Error fetching data:', error);
       setPackages([]);

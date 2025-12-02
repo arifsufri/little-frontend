@@ -271,6 +271,7 @@ export default function FinancialPage() {
   const [financialData, setFinancialData] = React.useState<FinancialData | null>(null);
   const [staffData, setStaffData] = React.useState<StaffFinancialData | null>(null);
   const [todaysAppointments, setTodaysAppointments] = React.useState<any[]>([]);
+  const [todaysProductSales, setTodaysProductSales] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [dateRange, setDateRange] = React.useState(() => {
     // Initialize with Malaysia timezone
@@ -629,10 +630,47 @@ export default function FinancialPage() {
     }
   };
 
-  // Calculate actual today's revenue from completed appointments
+  const fetchTodaysProductSales = async () => {
+    try {
+      // Use Malaysia timezone for today's date
+      const malaysiaToday = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"}));
+      const today = malaysiaToday.toISOString().split('T')[0];
+      
+      console.log('[Fetch Product Sales] Fetching for date:', today);
+      const response = await apiGet<{ success: boolean; data: any[] }>(`/products/sales/all?startDate=${today}&endDate=${today}`);
+      
+      console.log('[Fetch Product Sales] Response:', response);
+      
+      if (response.success) {
+        console.log('[Fetch Product Sales] Setting product sales:', response.data);
+        setTodaysProductSales(response.data);
+      } else {
+        console.log('[Fetch Product Sales] No success, setting empty array');
+        setTodaysProductSales([]);
+      }
+    } catch (error) {
+      console.error('Error fetching today\'s product sales:', error);
+      setTodaysProductSales([]);
+    }
+  };
+
+  // Calculate actual today's revenue from completed appointments and product sales
   const calculateTodaysRevenue = () => {
     const today = getTodayMalaysiaString();
-    const actualRevenue = todaysAppointments.reduce((sum, apt) => sum + (apt.finalPrice || apt.package?.price || 0), 0);
+    const appointmentRevenue = todaysAppointments.reduce((sum, apt) => sum + (apt.finalPrice || apt.package?.price || 0), 0);
+    const productSalesRevenue = todaysProductSales.reduce((sum, sale) => sum + (sale.totalPrice || 0), 0);
+    const actualRevenue = appointmentRevenue + productSalesRevenue;
+    
+    console.log('[Today Revenue Debug]', {
+      today,
+      todaysAppointmentsCount: todaysAppointments.length,
+      todaysProductSalesCount: todaysProductSales.length,
+      appointmentRevenue,
+      productSalesRevenue,
+      actualRevenue,
+      todaysProductSales
+    });
+    
     return getBossCurrentRevenue(today, actualRevenue);
   };
 
@@ -1078,6 +1116,7 @@ export default function FinancialPage() {
   React.useEffect(() => {
     fetchFinancialData();
     fetchTodaysAppointments();
+    fetchTodaysProductSales();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userRole]);
 
@@ -1136,6 +1175,8 @@ export default function FinancialPage() {
           date: new Date().toISOString().split('T')[0]
         });
         fetchFinancialData();
+        fetchTodaysAppointments();
+        fetchTodaysProductSales();
         showNotification('Expense added successfully!', 'success');
       } else {
         showNotification(response.message || 'Failed to add expense', 'error');
@@ -1152,6 +1193,8 @@ export default function FinancialPage() {
         const response = await apiDelete(`/financial/expenses/${expenseId}`) as any;
         if (response.success) {
           fetchFinancialData();
+          fetchTodaysAppointments();
+          fetchTodaysProductSales();
           showNotification('Expense deleted successfully!', 'success');
         }
       } catch (error) {
@@ -1477,9 +1520,14 @@ export default function FinancialPage() {
                       <Typography variant="h5" fontWeight={700} color="text.primary">
                         {(() => {
                           const today = new Date().toISOString().split('T')[0];
-                          // Use a portion of total expenses as today's estimate (for demo purposes)
-                          const estimatedDailyExpenses = Math.round(financialData.overview.totalExpenses * 0.08);
-                          return formatCurrency(getBossCurrentExpenses(today, estimatedDailyExpenses));
+                          // Calculate actual today's expenses from the expenses array
+                          const todayExpenses = financialData.expenses
+                            ?.filter((exp: any) => {
+                              const expenseDate = new Date(exp.date).toISOString().split('T')[0];
+                              return expenseDate === today;
+                            })
+                            .reduce((sum: number, exp: any) => sum + exp.amount, 0) || 0;
+                          return formatCurrency(getBossCurrentExpenses(today, todayExpenses));
                         })()}
                         </Typography>
                       </Box>

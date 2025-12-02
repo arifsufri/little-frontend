@@ -20,7 +20,6 @@ import { apiPost } from '../../../src/utils/axios';
 
 // Malaysian phone number validation schema
 const OnboardingSchema = z.object({
-  fullName: z.string().min(1, 'Full name is required'),
   phoneNumber: z
     .string()
     .regex(/^01[0-9]{8,9}$/, 'Phone number must be in Malaysian format (01XXXXXXXX)')
@@ -155,7 +154,7 @@ export default function ClientOnboardingPage() {
                 Welcome to Little Barbershop
               </Typography>
               <Typography variant="body2" color="text.secondary" textAlign="center" mt={0.5}>
-                Please fill in your details to get started
+                Enter your phone number to get started
               </Typography>
 
               {errorMsg && (
@@ -197,20 +196,10 @@ export default function ClientOnboardingPage() {
 
               <Box component="form" onSubmit={handleSubmit(onSubmit)} mt={{ xs: 2, sm: 3 }}>
                 <TextField
-                  label="Full Name"
-                  fullWidth
-                  size="small"
-                  {...register("fullName")}
-                  error={!!errors.fullName}
-                  helperText={errors.fullName?.message}
-                />
-                
-                <TextField
                   label="Phone Number"
                   placeholder="01XXXXXXXX"
                   fullWidth
                   size="small"
-                  sx={{ mt: 2 }}
                   {...register("phoneNumber")}
                   error={!!errors.phoneNumber}
                   helperText={errors.phoneNumber?.message || "Malaysian format: 01XXXXXXXX"}
