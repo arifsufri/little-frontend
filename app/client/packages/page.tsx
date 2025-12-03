@@ -24,7 +24,8 @@ import {
   FormControlLabel,
   FormGroup,
   Divider,
-  Chip
+  Chip,
+  ListItemText
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -327,7 +328,10 @@ export default function ClientPackagesPage() {
             }}>
               {/* Close Button */}
               <IconButton 
-                onClick={() => setSelectedPackage(null)} 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedPackage(null);
+                }} 
                 sx={{ 
                   position: 'absolute', 
                   right: 12, 
@@ -411,46 +415,68 @@ export default function ClientPackagesPage() {
                 </FormControl>
               </Box>
 
-              {/* Additional Services */}
+              {/* Additional Services - Dropdown with Checkboxes */}
               {getAvailableAdditionalServices().length > 0 && (
                 <Box sx={{ mb: 3 }}>
                   <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
                     Add More Services
                   </Typography>
-                  <FormGroup>
-                    {getAvailableAdditionalServices().map((service) => (
-                      <FormControlLabel
-                        key={service.id}
-                        control={
-                          <Checkbox
-                            checked={additionalServices.includes(service.id)}
-                            onChange={(e) => handleAdditionalServiceChange(service.id, e.target.checked)}
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Select Additional Services</InputLabel>
+                    <Select
+                      multiple
+                      value={additionalServices}
+                      onChange={(e) => setAdditionalServices(e.target.value as number[])}
+                      label="Select Additional Services"
+                      renderValue={(selected) => (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {selected.map((serviceId) => {
+                            const service = packages.find(pkg => pkg.id === serviceId);
+                            return service ? (
+                              <Chip 
+                                key={serviceId} 
+                                label={`${service.name} (+RM${service.price})`} 
+                                size="small"
+                                sx={{ height: 24 }}
+                              />
+                            ) : null;
+                          })}
+                        </Box>
+                      )}
+                    >
+                      {getAvailableAdditionalServices().map((service) => (
+                        <MenuItem key={service.id} value={service.id}>
+                          <Checkbox checked={additionalServices.includes(service.id)} />
+                          <ListItemText 
+                            primary={service.name}
+                            secondary={`${service.duration} mins • +RM${service.price}`}
                           />
-                        }
-                        label={
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                            <Typography variant="body2">
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  
+                  {/* Show selected services summary */}
+                  {additionalServices.length > 0 && (
+                    <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                        Selected Additional Services:
+                      </Typography>
+                      {additionalServices.map(serviceId => {
+                        const service = packages.find(pkg => pkg.id === serviceId);
+                        return service ? (
+                          <Box key={serviceId} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography variant="body2" color="text.secondary">
                               {service.name} ({service.duration} mins)
                             </Typography>
-                            <Chip 
-                              label={`+RM${service.price}`} 
-                              size="small" 
-                              color="primary" 
-                              variant="outlined"
-                            />
+                            <Typography variant="body2" fontWeight={600} color="primary">
+                              +RM{service.price}
+                            </Typography>
                           </Box>
-                        }
-                        sx={{ 
-                          mb: 1, 
-                          '& .MuiFormControlLabel-label': { width: '100%' },
-                          border: '1px solid #e0e0e0',
-                          borderRadius: 1,
-                          p: 1,
-                          m: 0
-                        }}
-                      />
-                    ))}
-                  </FormGroup>
+                        ) : null;
+                      })}
+                    </Box>
+                  )}
                 </Box>
               )}
 
@@ -497,39 +523,6 @@ export default function ClientPackagesPage() {
                 </Grid>
               </Grid>
 
-              {/* What's Included */}
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>
-                  Booking Summary
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  • {selectedPackage.name} ({selectedPackage.duration} mins)
-                </Typography>
-                {selectedBarber && (
-                  <Typography variant="body2" color="text.secondary">
-                    • Barber: {barbers.find(b => b.id === selectedBarber)?.name}
-                  </Typography>
-                )}
-                {!selectedBarber && (
-                  <Typography variant="body2" color="text.secondary">
-                    • Barber: Any available barber
-                  </Typography>
-                )}
-                {additionalServices.map(serviceId => {
-                  const service = packages.find(pkg => pkg.id === serviceId);
-                  return service ? (
-                    <Typography key={serviceId} variant="body2" color="text.secondary">
-                      • {service.name} ({service.duration} mins) - +RM{service.price}
-                    </Typography>
-                  ) : null;
-                })}
-                <Typography variant="body2" color="text.secondary">
-                  • Quality products and tools
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  • Relaxing barbershop atmosphere
-                </Typography>
-              </Box>
             </DialogContent>
 
             <DialogActions sx={{ p: 3, pt: 0 }}>

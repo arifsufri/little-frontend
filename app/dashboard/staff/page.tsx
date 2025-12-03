@@ -775,7 +775,6 @@ export default function StaffPage() {
                                     color="primary"
                                     size="small"
                                     variant="outlined"
-                                    icon={<PercentIcon />}
                                     sx={{ fontSize: '0.7rem' }}
                                   />
                                   <Chip 
@@ -783,15 +782,8 @@ export default function StaffPage() {
                                     color="secondary"
                                     size="small"
                                     variant="outlined"
-                                    icon={<PercentIcon />}
                                     sx={{ fontSize: '0.7rem' }}
                                   />
-                                  <IconButton 
-                                    size="small" 
-                                    onClick={() => openCommissionDialog(member)}
-                                  >
-                                    <EditIcon fontSize="small" />
-                                  </IconButton>
                                 </Box>
                             </Box>
                           </Box>
@@ -869,27 +861,17 @@ export default function StaffPage() {
                           </TableCell>
                           <TableCell>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Chip 
-                                  label={`Service: ${member.commissionRate || 0}%`}
-                                  color="primary"
-                                  size="small"
-                                  variant="outlined"
-                                  icon={<PercentIcon />}
-                                />
-                                <IconButton 
-                                  size="small" 
-                                  onClick={() => openCommissionDialog(member)}
-                                >
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
-                              </Box>
+                              <Chip 
+                                label={`Service: ${member.commissionRate || 0}%`}
+                                color="primary"
+                                size="small"
+                                variant="outlined"
+                              />
                               <Chip 
                                 label={`Product: ${member.productCommissionRate || 5}%`}
                                 color="secondary"
                                 size="small"
                                 variant="outlined"
-                                icon={<PercentIcon />}
                               />
                             </Box>
                           </TableCell>
@@ -1084,30 +1066,6 @@ export default function StaffPage() {
               }}
               helperText="Commission rate for product sales (0-100%). Default: 5%"
             />
-            
-            <Box sx={{ 
-              p: 2, 
-              bgcolor: 'grey.50', 
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'grey.200'
-            }}>
-              <Typography variant="body2" fontWeight={500} gutterBottom>
-                Commission Calculation Examples:
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                <strong>Service:</strong> If a service costs RM30 and commission rate is {commissionRate || 0}%:
-              </Typography>
-              <Typography variant="body2" color="success.main" fontWeight={500}>
-                Staff earnings = RM30 × {commissionRate || 0}% = RM{((30 * (parseFloat(commissionRate) || 0)) / 100).toFixed(2)}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-                <strong>Product:</strong> If a product costs RM18 and product commission rate is {productCommissionRate || 5}%:
-              </Typography>
-              <Typography variant="body2" color="success.main" fontWeight={500}>
-                Staff earnings = RM18 × {productCommissionRate || 5}% = RM{((18 * (parseFloat(productCommissionRate) || 5)) / 100).toFixed(2)}
-              </Typography>
-            </Box>
           </Stack>
         </DialogContent>
         <DialogActions sx={{ 

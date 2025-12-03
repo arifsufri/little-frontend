@@ -20,6 +20,8 @@ interface Package {
   discountCode?: string;
   imageUrl?: string;
   isActive: boolean;
+  hasVariablePricing?: boolean;
+  priceOptions?: Array<{ label: string; price: number }>;
   createdAt: string;
 }
 
@@ -53,6 +55,10 @@ export default function ProductsPage() {
   const [updating, setUpdating] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [snackbar, setSnackbar] = React.useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  
+  // Variable pricing state
+  const [hasVariablePricing, setHasVariablePricing] = React.useState(false);
+  const [priceOptions, setPriceOptions] = React.useState<Array<{ label: string; price: string }>>([{ label: '', price: '' }]);
 
   // Retail Products state
   const [activeTab, setActiveTab] = React.useState(0); // 0 = Packages, 1 = Retail Products
@@ -211,9 +217,23 @@ export default function ProductsPage() {
   };
 
   const handleCreate = async () => {
-    if (!name || !desc || !price) {
+    // Validate based on pricing type
+    if (!name || !desc) {
       alert('Please fill in all required fields');
       return;
+    }
+    
+    if (!hasVariablePricing && !price) {
+      alert('Please enter a price');
+      return;
+    }
+    
+    if (hasVariablePricing) {
+      const validOptions = priceOptions.filter(opt => opt.label && opt.price);
+      if (validOptions.length === 0) {
+        alert('Please add at least one price option with label and price');
+        return;
+      }
     }
 
     setCreating(true);
@@ -221,7 +241,20 @@ export default function ProductsPage() {
       const formData = new FormData();
       formData.append('name', name);
       formData.append('description', desc);
-      formData.append('price', price);
+      formData.append('hasVariablePricing', hasVariablePricing.toString());
+      
+      if (hasVariablePricing) {
+        const validOptions = priceOptions.filter(opt => opt.label && opt.price).map(opt => ({
+          label: opt.label,
+          price: parseFloat(opt.price)
+        }));
+        formData.append('priceOptions', JSON.stringify(validOptions));
+        // Set price to the first option's price as default
+        formData.append('price', validOptions[0].price.toString());
+      } else {
+        formData.append('price', price);
+      }
+      
       formData.append('barber', barber);
       formData.append('duration', duration.toString());
       if (hasDiscount && discountCode) {
@@ -234,7 +267,7 @@ export default function ProductsPage() {
       const result = await uploadFile<{ message: string; package: Package }>('/packages', formData);
       console.log('Package created:', result);
       resetModal();
-      fetchPackages(); // Refresh the packages list
+      fetchPackages();
     } catch (error) {
       console.error('Error creating package:', error);
       alert('Failed to create package');
@@ -244,11 +277,25 @@ export default function ProductsPage() {
   };
 
   const handleNext = () => {
-    if (name && desc && price) {
-      setModalStep(2);
-    } else {
-      alert('Please fill in all required fields');
+    if (!name || !desc) {
+      alert('Please fill in package name and description');
+      return;
     }
+    
+    if (!hasVariablePricing && !price) {
+      alert('Please enter a price');
+      return;
+    }
+    
+    if (hasVariablePricing) {
+      const validOptions = priceOptions.filter(opt => opt.label && opt.price);
+      if (validOptions.length === 0) {
+        alert('Please add at least one price option');
+        return;
+      }
+    }
+    
+    setModalStep(2);
   };
 
   const handleBack = () => {
@@ -277,6 +324,8 @@ export default function ProductsPage() {
     setHasDiscount(false);
     setDiscountCode('');
     setPackageImage(null);
+    setHasVariablePricing(false);
+    setPriceOptions([{ label: '', price: '' }]);
   };
 
   const resetEditModal = () => {
@@ -291,6 +340,8 @@ export default function ProductsPage() {
     setHasDiscount(false);
     setDiscountCode('');
     setPackageImage(null);
+    setHasVariablePricing(false);
+    setPriceOptions([{ label: '', price: '' }]);
   };
 
   const handleEdit = (pkg: Package) => {
@@ -303,6 +354,19 @@ export default function ProductsPage() {
     setDuration(pkg.duration);
     setHasDiscount(!!pkg.discountCode);
     setDiscountCode(pkg.discountCode || '');
+    
+    // Load variable pricing data
+    if (pkg.hasVariablePricing && pkg.priceOptions && pkg.priceOptions.length > 0) {
+      setHasVariablePricing(true);
+      setPriceOptions(pkg.priceOptions.map(opt => ({
+        label: opt.label,
+        price: opt.price.toString()
+      })));
+    } else {
+      setHasVariablePricing(false);
+      setPriceOptions([{ label: '', price: '' }]);
+    }
+    
     setEditOpen(true);
   };
 
@@ -312,9 +376,22 @@ export default function ProductsPage() {
   };
 
   const handleUpdate = async () => {
-    if (!editingPackage || !name || !desc || !price) {
+    if (!editingPackage || !name || !desc) {
       setSnackbar({ open: true, message: 'Please fill in all required fields', severity: 'error' });
       return;
+    }
+    
+    if (!hasVariablePricing && !price) {
+      setSnackbar({ open: true, message: 'Please enter a price', severity: 'error' });
+      return;
+    }
+    
+    if (hasVariablePricing) {
+      const validOptions = priceOptions.filter(opt => opt.label && opt.price);
+      if (validOptions.length === 0) {
+        setSnackbar({ open: true, message: 'Please add at least one price option', severity: 'error' });
+        return;
+      }
     }
 
     setUpdating(true);
@@ -322,34 +399,33 @@ export default function ProductsPage() {
       const formData = new FormData();
       formData.append('name', name);
       formData.append('description', desc);
-      formData.append('price', price);
+      formData.append('hasVariablePricing', hasVariablePricing.toString());
+      
+      if (hasVariablePricing) {
+        const validOptions = priceOptions.filter(opt => opt.label && opt.price).map(opt => ({
+          label: opt.label,
+          price: parseFloat(opt.price)
+        }));
+        formData.append('priceOptions', JSON.stringify(validOptions));
+        formData.append('price', validOptions[0].price.toString());
+      } else {
+        formData.append('price', price);
+      }
+      
       formData.append('barber', barber || '');
       formData.append('duration', duration.toString());
       
-      // Only append discount code if it has a value
       if (hasDiscount && discountCode.trim()) {
         formData.append('discountCode', discountCode.trim());
       } else if (!hasDiscount) {
-        formData.append('discountCode', ''); // Clear discount code if unchecked
+        formData.append('discountCode', '');
       }
       
       if (packageImage) {
         formData.append('image', packageImage);
       }
 
-      console.log('Updating package with data:', {
-        name,
-        description: desc,
-        price,
-        barber,
-        duration,
-        discountCode: hasDiscount ? discountCode : '',
-        hasImage: !!packageImage
-      });
-
       const result = await uploadFile<{ success: boolean; data: Package; message: string }>(`/packages/${editingPackage.id}`, formData, 'PUT');
-      
-      console.log('Update result:', result);
       
       if (result.success) {
         setSnackbar({ open: true, message: 'Package updated successfully', severity: 'success' });
@@ -951,16 +1027,76 @@ export default function ProductsPage() {
             <Box sx={{ display: 'grid', gap: 2, mt: 1 }}>
               <TextField label="Package Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth required />
               <TextField label="Description" value={desc} onChange={(e) => setDesc(e.target.value)} fullWidth multiline minRows={3} />
-              <TextField label="Price (RM)" type="number" value={price} onChange={(e) => setPrice(e.target.value)} fullWidth inputProps={{ min: 0 }} />
-              {/* <FormControl fullWidth>
-                <InputLabel id="barber-label">Barber</InputLabel>
-                <Select labelId="barber-label" label="Barber" value={barber} onChange={(e) => setBarber(String(e.target.value))}>
-                  <MenuItem value="">Unassigned</MenuItem>
-                  <MenuItem value="Ali">Ali</MenuItem>
-                  <MenuItem value="Budi">Budi</MenuItem>
-                  <MenuItem value="Chong">Chong</MenuItem>
-                </Select>
-              </FormControl> */}
+              
+              {/* Variable Pricing Toggle */}
+              <FormControlLabel
+                control={<Checkbox checked={hasVariablePricing} onChange={(e) => {
+                  setHasVariablePricing(e.target.checked);
+                  if (!e.target.checked) {
+                    setPriceOptions([{ label: '', price: '' }]);
+                  }
+                }} />}
+                label="Multiple Price Options (e.g., Basic, Standard, Premium)"
+              />
+              
+              {!hasVariablePricing ? (
+                <TextField label="Price (RM)" type="number" value={price} onChange={(e) => setPrice(e.target.value)} fullWidth inputProps={{ min: 0 }} />
+              ) : (
+                <Box>
+                  <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+                    Price Options (Staff will select when completing appointment)
+                  </Typography>
+                  {priceOptions.map((option, index) => (
+                    <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                      <TextField 
+                        label={`Option ${index + 1} Label`}
+                        placeholder="e.g., Basic, Standard"
+                        value={option.label}
+                        onChange={(e) => {
+                          const newOptions = [...priceOptions];
+                          newOptions[index].label = e.target.value;
+                          setPriceOptions(newOptions);
+                        }}
+                        size="small"
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField 
+                        label="Price (RM)"
+                        type="number"
+                        value={option.price}
+                        onChange={(e) => {
+                          const newOptions = [...priceOptions];
+                          newOptions[index].price = e.target.value;
+                          setPriceOptions(newOptions);
+                        }}
+                        size="small"
+                        sx={{ width: 120 }}
+                        inputProps={{ min: 0 }}
+                      />
+                      {priceOptions.length > 1 && (
+                        <IconButton 
+                          onClick={() => {
+                            setPriceOptions(priceOptions.filter((_, i) => i !== index));
+                          }}
+                          color="error"
+                          size="small"
+                        >
+                          <CloseIcon />
+                        </IconButton>
+                      )}
+                    </Box>
+                  ))}
+                  <Button 
+                    onClick={() => setPriceOptions([...priceOptions, { label: '', price: '' }])}
+                    variant="outlined"
+                    size="small"
+                    sx={{ mt: 1 }}
+                  >
+                    + Add Price Option
+                  </Button>
+                </Box>
+              )}
+              
               <FormControl fullWidth>
                 <InputLabel id="duration-label">Duration</InputLabel>
                 <Select labelId="duration-label" label="Duration" value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
@@ -1079,7 +1215,76 @@ export default function ProductsPage() {
             <Box sx={{ display: 'grid', gap: 2, mt: 1 }}>
               <TextField label="Package Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth required />
               <TextField label="Description" value={desc} onChange={(e) => setDesc(e.target.value)} fullWidth multiline minRows={3} />
-              <TextField label="Price (RM)" type="number" value={price} onChange={(e) => setPrice(e.target.value)} fullWidth inputProps={{ min: 0 }} />
+              
+              {/* Variable Pricing Toggle */}
+              <FormControlLabel
+                control={<Checkbox checked={hasVariablePricing} onChange={(e) => {
+                  setHasVariablePricing(e.target.checked);
+                  if (!e.target.checked) {
+                    setPriceOptions([{ label: '', price: '' }]);
+                  }
+                }} />}
+                label="Multiple Price Options (e.g., Basic, Standard, Premium)"
+              />
+              
+              {!hasVariablePricing ? (
+                <TextField label="Price (RM)" type="number" value={price} onChange={(e) => setPrice(e.target.value)} fullWidth inputProps={{ min: 0 }} />
+              ) : (
+                <Box>
+                  <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+                    Price Options (Staff will select when completing appointment)
+                  </Typography>
+                  {priceOptions.map((option, index) => (
+                    <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                      <TextField 
+                        label={`Option ${index + 1} Label`}
+                        placeholder="e.g., Basic, Standard"
+                        value={option.label}
+                        onChange={(e) => {
+                          const newOptions = [...priceOptions];
+                          newOptions[index].label = e.target.value;
+                          setPriceOptions(newOptions);
+                        }}
+                        size="small"
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField 
+                        label="Price (RM)"
+                        type="number"
+                        value={option.price}
+                        onChange={(e) => {
+                          const newOptions = [...priceOptions];
+                          newOptions[index].price = e.target.value;
+                          setPriceOptions(newOptions);
+                        }}
+                        size="small"
+                        sx={{ width: 120 }}
+                        inputProps={{ min: 0 }}
+                      />
+                      {priceOptions.length > 1 && (
+                        <IconButton 
+                          onClick={() => {
+                            setPriceOptions(priceOptions.filter((_, i) => i !== index));
+                          }}
+                          color="error"
+                          size="small"
+                        >
+                          <CloseIcon />
+                        </IconButton>
+                      )}
+                    </Box>
+                  ))}
+                  <Button 
+                    onClick={() => setPriceOptions([...priceOptions, { label: '', price: '' }])}
+                    variant="outlined"
+                    size="small"
+                    sx={{ mt: 1 }}
+                  >
+                    + Add Price Option
+                  </Button>
+                </Box>
+              )}
+              
               <FormControl fullWidth>
                 <InputLabel id="duration-label">Duration</InputLabel>
                 <Select labelId="duration-label" label="Duration" value={duration} onChange={(e) => setDuration(Number(e.target.value))}>

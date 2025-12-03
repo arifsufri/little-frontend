@@ -11,6 +11,10 @@ import {
   Stack, 
   Avatar, 
   CircularProgress, 
+  List, 
+  ListItem, 
+  ListItemText, 
+  ListItemAvatar, 
   Chip,
   LinearProgress,
   useTheme,
@@ -108,10 +112,10 @@ function HeroStatCard({
         borderRadius: { xs: 3, sm: 4 },
         overflow: 'hidden',
         position: 'relative',
-        height: { xs: 160, sm: 180 },
+        height: { xs: 160, sm: 180 }, // Fixed height for consistency
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         '&:hover': {
-          transform: { xs: 'none', sm: 'translateY(-8px)' },
+          transform: { xs: 'none', sm: 'translateY(-8px)' }, // Disable hover on mobile
           boxShadow: { xs: 'none', sm: '0 20px 40px rgba(139, 69, 19, 0.3)' },
         },
         '&::before': {
@@ -127,6 +131,7 @@ function HeroStatCard({
       }}
     >
       <CardContent sx={{ p: { xs: 2, sm: 3 }, height: '100%', position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column' }}>
+        {/* Header with icon */}
         <Stack direction="row" alignItems="flex-start" justifyContent="space-between" sx={{ mb: { xs: 1, sm: 1.5 } }}>
           <Typography 
             variant="subtitle2" 
@@ -157,6 +162,7 @@ function HeroStatCard({
           </Avatar>
         </Stack>
 
+        {/* Main content */}
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', mt: { xs: 0.5, sm: 1 } }}>
           {loading ? (
             <CircularProgress size={32} sx={{ color: 'white', alignSelf: 'flex-start' }} />
@@ -302,21 +308,29 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       
+      // Fetch clients
       const clientsResponse = await apiGet<{ success: boolean; data: any[] }>('/clients');
       const totalClients = clientsResponse.success ? clientsResponse.data.length : 0;
 
+      // Fetch appointments
       const appointmentsResponse = await apiGet<{ success: boolean; data: any[] }>('/appointments');
+      
+      // Fetch staff
       const staffResponse = await apiGet<{ success: boolean; data: any[] }>('/staff');
       
       if (appointmentsResponse.success) {
         const appointments = appointmentsResponse.data;
         const today = new Date().toDateString();
         
+        // Count all appointments (total count, not just today)
         const appointmentsToday = appointments.length;
+
+        // Count pending appointments today
         const pendingAppointmentsToday = appointments.filter(apt => 
           new Date(apt.createdAt).toDateString() === today && apt.status === 'pending'
         ).length;
 
+        // Calculate total revenue today (completed appointments)
         const totalRevenueToday = appointments
           .filter(apt => 
             apt.status === 'completed' &&
@@ -331,6 +345,7 @@ export default function DashboardPage() {
           totalRevenueToday
         });
 
+        // Generate recent activity
         const activity: RecentActivity[] = appointments
           .slice(0, 6)
           .map((apt, index) => ({
@@ -343,7 +358,7 @@ export default function DashboardPage() {
 
         setRecentActivity(activity);
 
-        // Revenue trend
+        // Calculate revenue trend (last 7 days)
         const last7Days = Array.from({ length: 7 }, (_, i) => {
           const date = new Date();
           date.setDate(date.getDate() - (6 - i));
@@ -366,7 +381,7 @@ export default function DashboardPage() {
         });
         setRevenueData(revenueTrend);
 
-        // Staff performance
+        // Calculate staff performance
         if (staffResponse.success) {
           const staffPerf = staffResponse.data
             .map(staff => {
@@ -389,7 +404,7 @@ export default function DashboardPage() {
           setStaffPerformance(staffPerf);
         }
 
-        // Service breakdown
+        // Calculate service breakdown
         const serviceMap = new Map<string, { count: number; revenue: number }>();
         appointments
           .filter(apt => apt.status === 'completed')
@@ -408,7 +423,7 @@ export default function DashboardPage() {
           .slice(0, 5);
         setServiceBreakdown(services);
 
-        // Peak hours
+        // Calculate peak hours
         const hourMap = new Map<number, number>();
         appointments.forEach(apt => {
           const hour = new Date(apt.appointmentDate || apt.createdAt).getHours();
@@ -416,7 +431,7 @@ export default function DashboardPage() {
         });
 
         const peakHoursData = Array.from({ length: 12 }, (_, i) => {
-          const hour = i + 9;
+          const hour = i + 9; // 9 AM to 8 PM
           return {
             hour: `${hour}:00`,
             appointments: hourMap.get(hour) || 0
@@ -493,7 +508,7 @@ export default function DashboardPage() {
           <HeroStatCard 
             label="Total Clients" 
             value={stats.totalClients} 
-            icon={<GroupIcon />} 
+            icon={<GroupIcon sx={{ fontSize: { xs: 24, sm: 28 } }} />} 
             loading={loading}
             gradient="linear-gradient(135deg, #8B4513 0%, #A0522D 100%)"
             subtitle="Active customers"
@@ -503,7 +518,7 @@ export default function DashboardPage() {
           <HeroStatCard 
             label="Total Appointments" 
             value={stats.appointmentsToday} 
-            icon={<CalendarMonthIcon />} 
+            icon={<CalendarMonthIcon sx={{ fontSize: { xs: 24, sm: 28 } }} />} 
             loading={loading}
             gradient="linear-gradient(135deg, #A52A2A 0%, #B22222 100%)"
             subtitle="All bookings"
@@ -513,7 +528,7 @@ export default function DashboardPage() {
           <HeroStatCard 
             label="Today's Pending" 
             value={stats.pendingAppointmentsToday} 
-            icon={<PendingIcon />} 
+            icon={<PendingIcon sx={{ fontSize: { xs: 24, sm: 28 } }} />} 
             loading={loading}
             gradient="linear-gradient(135deg, #CD853F 0%, #D2691E 100%)"
             subtitle={stats.pendingAppointmentsToday > 0 ? "Needs attention" : "All clear"}
@@ -523,7 +538,7 @@ export default function DashboardPage() {
           <HeroStatCard 
             label="Today's Revenue" 
             value={stats.totalRevenueToday} 
-            icon={<AttachMoneyIcon />} 
+            icon={<AttachMoneyIcon sx={{ fontSize: { xs: 24, sm: 28 } }} />} 
             loading={loading}
             prefix="RM"
             gradient="linear-gradient(135deg, #800000 0%, #8B0000 100%)"
@@ -531,8 +546,8 @@ export default function DashboardPage() {
           />
         </Grid>
 
-        {/* Revenue Trend Chart - MOST IMPORTANT */}
-        <Grid item xs={12} lg={8}>
+        {/* Revenue Trend Chart */}
+        <Grid item xs={12} lg={6}>
           <Card 
             sx={{ 
               borderRadius: { xs: 4, sm: 5 },
@@ -586,7 +601,7 @@ export default function DashboardPage() {
                   <CircularProgress sx={{ color: '#059669' }} />
                 </Box>
               ) : (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={revenueData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(139, 69, 19, 0.1)" />
                     <XAxis 
@@ -618,155 +633,6 @@ export default function DashboardPage() {
                   </LineChart>
                 </ResponsiveContainer>
               )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Performance Overview */}
-        <Grid item xs={12} lg={4}>
-          <Card 
-            sx={{ 
-              borderRadius: { xs: 4, sm: 5 },
-              background: '#ffffff',
-              border: 'none',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              minHeight: { xs: 320, sm: 400 },
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: { xs: 'none', sm: 'translateY(-8px)' },
-                boxShadow: { xs: '0 4px 20px rgba(0, 0, 0, 0.08)', sm: '0 12px 40px rgba(0, 0, 0, 0.15)' }
-              }
-            }}
-          >
-            <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
-              <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: { xs: 2, sm: 3 } }}>
-                <Avatar
-                  sx={{
-                    background: 'linear-gradient(135deg, #8B4513 0%, #A52A2A 100%)',
-                    width: { xs: 40, sm: 48 },
-                    height: { xs: 40, sm: 48 }
-                  }}
-                >
-                  <TrendingUpIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />
-                </Avatar>
-                <Box>
-                  <Typography 
-                    variant="h6" 
-                    fontWeight={700} 
-                    sx={{ 
-                      color: '#2d3748',
-                      fontSize: { xs: '1rem', sm: '1.25rem' }
-                    }}
-                  >
-                    Performance Metrics
-                  </Typography>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      color: '#718096',
-                      fontSize: { xs: '0.8rem', sm: '0.875rem' }
-                    }}
-                  >
-                    Today&apos;s key indicators
-                  </Typography>
-                </Box>
-              </Stack>
-
-              <Stack spacing={3}>
-                <Box>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                    <Typography variant="body2" fontWeight={600} sx={{ color: '#4a5568' }}>
-                      Completion Rate
-                    </Typography>
-                    <Typography variant="h6" fontWeight={700} sx={{ color: '#8B4513' }}>
-                      {completionRate}%
-                    </Typography>
-                  </Stack>
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={completionRate} 
-                    sx={{
-                      height: 8,
-                      borderRadius: 4,
-                      bgcolor: 'rgba(139, 69, 19, 0.1)',
-                      '& .MuiLinearProgress-bar': {
-                        background: 'linear-gradient(90deg, #8B4513 0%, #A52A2A 100%)',
-                        borderRadius: 4
-                      }
-                    }}
-                  />
-                </Box>
-
-                <Divider sx={{ borderColor: 'rgba(139, 69, 19, 0.1)' }} />
-
-                <Box>
-                  <Typography variant="body2" sx={{ color: '#718096', mb: 1 }}>
-                    Revenue Target Progress
-                  </Typography>
-                  <Stack direction="row" justifyContent="space-between" alignItems="baseline">
-                    <Typography variant="h5" fontWeight={700} sx={{ color: '#8B4513' }}>
-                      RM{stats.totalRevenueToday}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#718096' }}>
-                      / RM500 target
-                    </Typography>
-                  </Stack>
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={Math.min((stats.totalRevenueToday / 500) * 100, 100)} 
-                    sx={{
-                      height: 6,
-                      borderRadius: 3,
-                      bgcolor: 'rgba(165, 42, 42, 0.1)',
-                      mt: 1,
-                      '& .MuiLinearProgress-bar': {
-                        background: 'linear-gradient(90deg, #A52A2A 0%, #800000 100%)',
-                        borderRadius: 3
-                      }
-                    }}
-                  />
-                </Box>
-
-                <Divider sx={{ borderColor: 'rgba(139, 69, 19, 0.1)' }} />
-
-                <Box>
-                  <Typography variant="body2" sx={{ color: '#718096', mb: 2 }}>
-                    Quick Stats
-                  </Typography>
-                  <Stack spacing={2}>
-                    <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="body2" sx={{ color: '#4a5568' }}>
-                        Average Service Time
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600} sx={{ color: '#8B4513' }}>
-                        45 mins
-                      </Typography>
-                    </Stack>
-                    <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="body2" sx={{ color: '#4a5568' }}>
-                        Customer Satisfaction
-                      </Typography>
-                      <Stack direction="row" alignItems="center" spacing={0.5}>
-                        <StarIcon sx={{ fontSize: 16, color: '#FFD700' }} />
-                        <Typography variant="body2" fontWeight={600} sx={{ color: '#8B4513' }}>
-                          4.8/5
-                        </Typography>
-                      </Stack>
-                    </Stack>
-                    <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="body2" sx={{ color: '#4a5568' }}>
-                        Next Appointment
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600} sx={{ color: '#A52A2A' }}>
-                        {stats.pendingAppointmentsToday > 0 
-                          ? `${stats.pendingAppointmentsToday} pending`
-                          : 'All clear'
-                        }
-                      </Typography>
-                    </Stack>
-                  </Stack>
-                </Box>
-              </Stack>
             </CardContent>
           </Card>
         </Grid>
@@ -884,12 +750,12 @@ export default function DashboardPage() {
               <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: { xs: 2, sm: 3 } }}>
                 <Avatar
                   sx={{
-                    background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+                    background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)',
                     width: { xs: 40, sm: 48 },
                     height: { xs: 40, sm: 48 }
                   }}
                 >
-                  <AccessTimeIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />
+                  <BarChartIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />
                 </Avatar>
                 <Box>
                   <Typography 
@@ -900,7 +766,7 @@ export default function DashboardPage() {
                       fontSize: { xs: '1rem', sm: '1.25rem' }
                     }}
                   >
-                    Peak Hours
+                    Top Performing Barbers
                   </Typography>
                   <Typography 
                     variant="body2" 
@@ -909,21 +775,21 @@ export default function DashboardPage() {
                       fontSize: { xs: '0.8rem', sm: '0.875rem' }
                     }}
                   >
-                    Busiest times of the day
+                    By total revenue generated
                   </Typography>
                 </Box>
               </Stack>
 
               {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-                  <CircularProgress sx={{ color: '#dc2626' }} />
+                  <CircularProgress sx={{ color: '#2563eb' }} />
                 </Box>
-              ) : (
+              ) : staffPerformance.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={peakHours}>
+                  <BarChart data={staffPerformance}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(139, 69, 19, 0.1)" />
                     <XAxis 
-                      dataKey="hour" 
+                      dataKey="name" 
                       stroke="#718096"
                       style={{ fontSize: isMobile ? '10px' : '12px' }}
                     />
@@ -938,21 +804,26 @@ export default function DashboardPage() {
                         borderRadius: '8px',
                         fontSize: '12px'
                       }}
-                      formatter={(value: any) => [value, 'Appointments']}
+                      formatter={(value: any, name: string) => {
+                        if (name === 'revenue') return [`RM${value}`, 'Revenue'];
+                        return [value, 'Appointments'];
+                      }}
                     />
-                    <Bar 
-                      dataKey="appointments" 
-                      fill="#dc2626" 
-                      radius={[8, 8, 0, 0]}
-                    />
+                    <Bar dataKey="revenue" fill="#2563eb" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 6 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No staff performance data available
+                  </Typography>
+                </Box>
               )}
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Popular Services */}
+        {/* Service Breakdown */}
         <Grid item xs={12} lg={6}>
           <Card 
             sx={{ 
@@ -1091,7 +962,7 @@ export default function DashboardPage() {
           </Card>
         </Grid>
 
-        {/* Recent Activity */}
+        {/* Peak Hours Analysis */}
         <Grid item xs={12} lg={6}>
           <Card 
             sx={{ 
@@ -1111,7 +982,7 @@ export default function DashboardPage() {
               <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: { xs: 2, sm: 3 } }}>
                 <Avatar
                   sx={{
-                    background: 'linear-gradient(135deg, #A52A2A 0%, #800000 100%)',
+                    background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
                     width: { xs: 40, sm: 48 },
                     height: { xs: 40, sm: 48 }
                   }}
@@ -1127,7 +998,7 @@ export default function DashboardPage() {
                       fontSize: { xs: '1rem', sm: '1.25rem' }
                     }}
                   >
-                    Recent Activity
+                    Peak Hours
                   </Typography>
                   <Typography 
                     variant="body2" 
@@ -1136,54 +1007,44 @@ export default function DashboardPage() {
                       fontSize: { xs: '0.8rem', sm: '0.875rem' }
                     }}
                   >
-                    Latest appointments and bookings
+                    Busiest times of the day
                   </Typography>
                 </Box>
               </Stack>
 
               {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-                  <CircularProgress sx={{ color: '#8B4513' }} />
-                </Box>
-              ) : recentActivity.length > 0 ? (
-                <Box sx={{ 
-                  maxHeight: { xs: 240, sm: 320 }, 
-                  overflow: 'auto', 
-                  pr: { xs: 0.5, sm: 1 },
-                  '&::-webkit-scrollbar': {
-                    width: { xs: 4, sm: 6 }
-                  },
-                  '&::-webkit-scrollbar-track': {
-                    background: 'rgba(139, 69, 19, 0.1)',
-                    borderRadius: 3
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    background: 'linear-gradient(135deg, #8B4513 0%, #A52A2A 100%)',
-                    borderRadius: 3
-                  }
-                }}>
-                  {recentActivity.map((activity) => (
-                    <ActivityCard key={activity.id} activity={activity} />
-                  ))}
+                  <CircularProgress sx={{ color: '#dc2626' }} />
                 </Box>
               ) : (
-                <Box 
-                  sx={{ 
-                    textAlign: 'center', 
-                    py: 6,
-                    background: 'linear-gradient(135deg, rgba(139, 69, 19, 0.02) 0%, rgba(165, 42, 42, 0.02) 100%)',
-                    borderRadius: 3,
-                    border: '1px dashed rgba(139, 69, 19, 0.2)'
-                  }}
-                >
-                  <ContentCutIcon sx={{ fontSize: 48, color: 'rgba(139, 69, 19, 0.3)', mb: 2 }} />
-                  <Typography variant="h6" sx={{ color: '#4a5568', mb: 1 }}>
-                    No Recent Activity
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: '#718096' }}>
-                    Your recent appointments and bookings will appear here
-                  </Typography>
-                </Box>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={peakHours}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(139, 69, 19, 0.1)" />
+                    <XAxis 
+                      dataKey="hour" 
+                      stroke="#718096"
+                      style={{ fontSize: isMobile ? '10px' : '12px' }}
+                    />
+                    <YAxis 
+                      stroke="#718096"
+                      style={{ fontSize: isMobile ? '10px' : '12px' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        background: '#fff', 
+                        border: '1px solid rgba(139, 69, 19, 0.2)',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }}
+                      formatter={(value: any) => [value, 'Appointments']}
+                    />
+                    <Bar 
+                      dataKey="appointments" 
+                      fill="#dc2626" 
+                      radius={[8, 8, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               )}
             </CardContent>
           </Card>

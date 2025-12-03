@@ -68,6 +68,8 @@ interface Package {
   duration: number;
   barber: string | null;
   imageUrl: string | null;
+  hasVariablePricing?: boolean;
+  priceOptions?: Array<{ label: string; price: number }>;
 }
 
 interface CustomPackage {
@@ -108,6 +110,8 @@ interface Appointment {
     duration: number;
     barber: string | null;
     imageUrl: string | null;
+    hasVariablePricing?: boolean;
+    priceOptions?: Array<{ label: string; price: number }>;
   };
   barber?: {
     id: number;
@@ -138,6 +142,7 @@ export default function AppointmentsPage() {
   const [finalPrice, setFinalPrice] = React.useState<number>(0);
   const [retailProducts, setRetailProducts] = React.useState<any[]>([]);
   const [selectedProducts, setSelectedProducts] = React.useState<{productId: number, quantity: number}[]>([]);
+  const [selectedPriceOption, setSelectedPriceOption] = React.useState<number | null>(null);
   const [customPackageName, setCustomPackageName] = React.useState('');
   const [customPackagePrice, setCustomPackagePrice] = React.useState<number>(0);
   
@@ -1064,6 +1069,9 @@ export default function AppointmentsPage() {
       setSelectedProducts([]);
       fetchRetailProducts();
       
+      // Reset price option selection
+      setSelectedPriceOption(null);
+      
       // Open confirmation modal for completion
       setConfirmationOpen(true);
       // Don't call handleMenuClose() here to preserve selectedAppointment
@@ -1089,6 +1097,12 @@ export default function AppointmentsPage() {
 
     if (isCompleting) {
       console.log('Already completing appointment, ignoring click');
+      return;
+    }
+
+    // Check if price option is selected for variable pricing packages
+    if (selectedAppointment.package.hasVariablePricing && selectedPriceOption === null) {
+      showNotification('Please select a price option for ' + selectedAppointment.package.name, 'error');
       return;
     }
 
@@ -1275,7 +1289,10 @@ export default function AppointmentsPage() {
   const calculateTotalPrice = React.useCallback(() => {
     if (!selectedAppointment) return 0;
     
-    let total = selectedAppointment.package.price;
+    // Use selected price option if variable pricing is enabled, otherwise use base price
+    let total = selectedAppointment.package.hasVariablePricing && selectedPriceOption !== null
+      ? selectedPriceOption
+      : selectedAppointment.package.price;
     
     // Add additional packages
     selectedAdditionalPackages.forEach(packageId => {
@@ -1297,7 +1314,7 @@ export default function AppointmentsPage() {
     });
     
     return total;
-  }, [selectedAppointment, selectedAdditionalPackages, packages, customPackages, selectedProducts, retailProducts]);
+  }, [selectedAppointment, selectedPriceOption, selectedAdditionalPackages, packages, customPackages, selectedProducts, retailProducts]);
 
   const calculateDiscountedPrice = React.useCallback(() => {
     const totalPrice = calculateTotalPrice();
@@ -1306,7 +1323,11 @@ export default function AppointmentsPage() {
     let discountableAmount = 0;
     
     if (discountAppliedTo.basePackage && selectedAppointment) {
-      discountableAmount += selectedAppointment.package.price;
+      // Use selected price option if variable pricing is enabled
+      const basePrice = selectedAppointment.package.hasVariablePricing && selectedPriceOption !== null
+        ? selectedPriceOption
+        : selectedAppointment.package.price;
+      discountableAmount += basePrice;
     }
     
     discountAppliedTo.additionalPackages.forEach(packageId => {
@@ -1328,7 +1349,7 @@ export default function AppointmentsPage() {
       discountAmount = (discountableAmount * (discountInfo.discountPercent || 0)) / 100;
     }
     return totalPrice - discountAmount;
-  }, [calculateTotalPrice, discountInfo, discountAppliedTo, selectedAppointment, packages, customPackages]);
+  }, [calculateTotalPrice, discountInfo, discountAppliedTo, selectedAppointment, selectedPriceOption, packages, customPackages]);
 
   const validateDiscountCode = async (code: string) => {
     if (!code.trim() || !selectedAppointment) return;
@@ -2629,6 +2650,44 @@ export default function AppointmentsPage() {
             maxHeight: { xs: '70vh', sm: '65vh' }
           }}>
             <Stack spacing={3.5} sx={{ mt: 0.5 }}>
+              {/* Base Package Price Selection (if variable pricing) */}
+              {selectedAppointment && selectedAppointment.package.hasVariablePricing && selectedAppointment.package.priceOptions && selectedAppointment.package.priceOptions.length > 0 && (
+                <Box sx={{ 
+                  p: 2, 
+                  bgcolor: 'primary.50', 
+                  borderRadius: 2,
+                  border: '2px solid',
+                  borderColor: 'primary.main'
+                }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2, color: 'primary.main' }}>
+                    Select {selectedAppointment.package.name} Price
+                  </Typography>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Choose Price Option *</InputLabel>
+                    <Select
+                      value={selectedPriceOption || ''}
+                      onChange={(e) => setSelectedPriceOption(e.target.value as number)}
+                      label="Choose Price Option *"
+                      required
+                    >
+                      {selectedAppointment.package.priceOptions.map((option, index) => (
+                        <MenuItem key={index} value={option.price}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                            <Typography>{option.label}</Typography>
+                            <Typography color="success.main" fontWeight={600}>
+                              RM{option.price}
+                            </Typography>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    * Required: Select the appropriate price based on the service provided
+                  </Typography>
+                </Box>
+              )}
+              
               {/* Services Section - 3 Columns Layout */}
               <Box sx={{ ml: { xs: 0, md: -1 } }}>
                 <Grid container spacing={2} sx={{ justifyContent: 'flex-start' }}>
