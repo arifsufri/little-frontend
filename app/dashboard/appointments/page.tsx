@@ -71,7 +71,7 @@ interface Package {
   hasVariablePricing?: boolean;
   priceOptions?: Array<{ label: string; price: number }>;
 }
-//test
+//tests
 interface CustomPackage {
   name: string;
   price: number;
