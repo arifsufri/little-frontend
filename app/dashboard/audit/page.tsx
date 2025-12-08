@@ -100,17 +100,23 @@ export default function AuditPage() {
       // Add appointment transactions
       appointments.forEach((apt: any) => {
         const aptTime = new Date(apt.appointmentDate || apt.createdAt);
-        const servicePrice = apt.finalPrice || apt.package?.price || 0;
-        const productPrice = apt.productSales?.reduce((sum: number, sale: any) => sum + (sale.totalPrice || 0), 0) || 0;
         
-        // Service transaction
+        // Calculate service-only price (excluding products)
+        // If appointment has products linked, use originalPrice (service only)
+        // Otherwise use finalPrice
+        const hasLinkedProducts = apt.productSales && apt.productSales.length > 0;
+        const serviceOnlyPrice = hasLinkedProducts 
+          ? (apt.originalPrice || apt.finalPrice || apt.package?.price || 0)
+          : (apt.finalPrice || apt.package?.price || 0);
+        
+        // Service transaction (service only, no products)
         transactions.push({
           id: `apt-${apt.id}`,
           date: selectedDate,
           time: aptTime.toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' }),
           type: 'appointment',
           description: `${apt.package?.name || 'Service'} - ${apt.client?.fullName || 'Unknown'}`,
-          amount: servicePrice,
+          amount: serviceOnlyPrice,
           status: apt.status,
           clientName: apt.client?.fullName,
           barberName: apt.barber?.name,
@@ -119,12 +125,13 @@ export default function AuditPage() {
             appointmentId: apt.id,
             packageName: apt.package?.name,
             hasDiscount: apt.discountCodeId || apt.multipleDiscountCodes?.length > 0,
-            originalPrice: apt.originalPrice
+            originalPrice: apt.originalPrice,
+            hasProducts: hasLinkedProducts
           }
         });
 
         // Product transactions linked to appointment
-        if (apt.productSales && apt.productSales.length > 0) {
+        if (hasLinkedProducts) {
           apt.productSales.forEach((sale: any) => {
             transactions.push({
               id: `prod-${sale.id}`,
