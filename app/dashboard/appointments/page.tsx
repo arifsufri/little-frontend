@@ -771,7 +771,8 @@ export default function AppointmentsPage() {
               const sellData: any = {
                 productId: sp.productId,
                 clientId: typeof editingAppointment.clientId === 'string' ? parseInt(editingAppointment.clientId) : editingAppointment.clientId,
-                quantity: sp.quantity
+                quantity: sp.quantity,
+                appointmentId: editingAppointment.id // Link product sale to appointment
               };
               
               // Always include staffId if we have it
@@ -779,13 +780,14 @@ export default function AppointmentsPage() {
                 sellData.staffId = barberId;
               }
 
-              // Use appointment's date for the product sale (appointmentDate or createdAt as fallback)
+              // Use the UPDATED appointment's date for the product sale
+              // This ensures new products added get the correct date if appointment date was changed
               const appointmentDate = editingAppointment.appointmentDate || editingAppointment.createdAt;
               if (appointmentDate) {
                 sellData.saleDate = new Date(appointmentDate).toISOString();
               }
               
-              console.log('Creating NEW product sale with date:', sellData);
+              console.log('Creating NEW product sale with appointmentId and date:', sellData);
               await apiPost('/products/sell', sellData);
             } catch (error) {
               console.error('Error selling product:', error);
