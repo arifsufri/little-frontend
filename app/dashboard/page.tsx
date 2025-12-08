@@ -322,7 +322,18 @@ export default function DashboardPage() {
             apt.status === 'completed' &&
             new Date(apt.updatedAt || apt.createdAt).toDateString() === today
           )
-          .reduce((total, apt) => total + (apt.finalPrice || apt.package?.price || 0), 0);
+          .reduce((total, apt) => {
+            // Calculate appointment price
+            let appointmentPrice = apt.finalPrice || apt.package?.price || 0;
+            
+            // Add product sales if any
+            if (apt.productSales && Array.isArray(apt.productSales)) {
+              const productTotal = apt.productSales.reduce((sum: number, sale: any) => sum + (sale.totalPrice || 0), 0);
+              appointmentPrice += productTotal;
+            }
+            
+            return total + appointmentPrice;
+          }, 0);
 
         setStats({
           totalClients,

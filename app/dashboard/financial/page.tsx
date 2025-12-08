@@ -663,18 +663,34 @@ export default function FinancialPage() {
   // Calculate actual today's revenue from completed appointments and product sales
   const calculateTodaysRevenue = () => {
     const today = getTodayMalaysiaString();
-    const appointmentRevenue = todaysAppointments.reduce((sum, apt) => sum + (apt.finalPrice || apt.package?.price || 0), 0);
-    const productSalesRevenue = todaysProductSales.reduce((sum, sale) => sum + (sale.totalPrice || 0), 0);
-    const actualRevenue = appointmentRevenue + productSalesRevenue;
+    
+    // Calculate appointment revenue including products linked to appointments
+    const appointmentRevenue = todaysAppointments.reduce((sum, apt) => {
+      let total = apt.finalPrice || apt.package?.price || 0;
+      
+      // Add product sales linked to this appointment
+      if (apt.productSales && Array.isArray(apt.productSales)) {
+        const productTotal = apt.productSales.reduce((pSum: number, sale: any) => pSum + (sale.totalPrice || 0), 0);
+        total += productTotal;
+      }
+      
+      return sum + total;
+    }, 0);
+    
+    // Only include standalone product sales (not linked to appointments)
+    const standaloneProductSales = todaysProductSales.filter((sale: any) => !sale.appointmentId);
+    const standaloneProductRevenue = standaloneProductSales.reduce((sum, sale) => sum + (sale.totalPrice || 0), 0);
+    
+    const actualRevenue = appointmentRevenue + standaloneProductRevenue;
     
     console.log('[Today Revenue Debug]', {
       today,
       todaysAppointmentsCount: todaysAppointments.length,
       todaysProductSalesCount: todaysProductSales.length,
+      standaloneProductSalesCount: standaloneProductSales.length,
       appointmentRevenue,
-      productSalesRevenue,
-      actualRevenue,
-      todaysProductSales
+      standaloneProductRevenue,
+      actualRevenue
     });
     
     return getBossCurrentRevenue(today, actualRevenue);
