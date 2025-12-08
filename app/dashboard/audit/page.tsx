@@ -1,7 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '../../../components/dashboard/Layout';
+import { useUserRole } from '../../../hooks/useUserRole';
 import {
   Typography,
   Box,
@@ -63,12 +65,32 @@ interface DailyReconciliation {
 }
 
 export default function AuditPage() {
+  const router = useRouter();
+  const { userRole } = useUserRole();
   const [selectedDate, setSelectedDate] = React.useState<string>(
     new Date().toISOString().split('T')[0]
   );
   const [reconciliation, setReconciliation] = React.useState<DailyReconciliation | null>(null);
   const [actualRevenue, setActualRevenue] = React.useState<string>('');
   const [loading, setLoading] = React.useState(false);
+
+  // Redirect Staff users away from this page
+  React.useEffect(() => {
+    if (userRole === 'Staff') {
+      router.push('/dashboard');
+    }
+  }, [userRole, router]);
+
+  // Don't render content for Staff users
+  if (userRole === 'Staff') {
+    return (
+      <DashboardLayout>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+          <Typography>Redirecting...</Typography>
+        </Box>
+      </DashboardLayout>
+    );
+  }
 
   const fetchAuditData = async () => {
     setLoading(true);

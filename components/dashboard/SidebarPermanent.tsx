@@ -45,9 +45,9 @@ export default function SidebarPermanent({ width = 260 }: { width?: number }) {
         return true;
       }
       
-      // Staff can see everything except Staff page
+      // Staff can see everything except Staff page and Audit page
       if (userRole === 'Staff') {
-        return item.href !== '/dashboard/staff';
+        return item.href !== '/dashboard/staff' && item.href !== '/dashboard/audit';
       }
       
       // Clients can only see Overview (if needed in future)

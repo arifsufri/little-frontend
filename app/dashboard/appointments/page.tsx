@@ -56,6 +56,7 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import ReceiptIcon from '@mui/icons-material/Receipt';
+import HistoryIcon from '@mui/icons-material/History';
 import { apiGet, apiPost, apiPut, apiDelete } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
 import jsPDF from 'jspdf';
@@ -197,6 +198,9 @@ export default function AppointmentsPage() {
   const [editingAppointment, setEditingAppointment] = React.useState<any>(null);
   const [editAdditionalPackages, setEditAdditionalPackages] = React.useState<number[]>([]);
   const [editSelectedProducts, setEditSelectedProducts] = React.useState<{productId: number, quantity: number}[]>([]);
+  const [auditLogOpen, setAuditLogOpen] = React.useState(false);
+  const [auditLogs, setAuditLogs] = React.useState<any[]>([]);
+  const [loadingAuditLogs, setLoadingAuditLogs] = React.useState(false);
   
   // Edit modal discount states
   const [editDiscountCode, setEditDiscountCode] = React.useState('');
@@ -301,28 +305,8 @@ export default function AppointmentsPage() {
       const response = await apiGet<{ success: boolean; data: Appointment[] }>('/appointments');
       let appointmentsData = response.data || [];
       
-      
-      // Filter appointments based on user role
-      if (userRole === 'Staff') {
-        // Get current user ID from token
-        const token = localStorage.getItem('token');
-        if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            const currentUserId = payload.userId;
-            
-            // Staff can only see appointments assigned to them or unassigned appointments
-            appointmentsData = appointmentsData.filter(appointment => 
-              appointment.barber?.id === currentUserId || 
-              appointment.barber === null || 
-              appointment.barber === undefined
-            );
-          } catch (tokenError) {
-            console.error('Error parsing token:', tokenError);
-          }
-        }
-      }
-      // Boss can see all appointments (no filtering needed)
+      // Both Boss and Staff can see all appointments
+      // No filtering needed - all staff members can view and manage all appointments
       
       setAppointments(appointmentsData);
     } catch (error) {
@@ -837,6 +821,27 @@ export default function AppointmentsPage() {
   const handleMenuClose = () => {
     setAnchorEl(null);
     setSelectedAppointment(null);
+  };
+
+  const handleViewAuditLog = async () => {
+    if (!selectedAppointment) return;
+    
+    setLoadingAuditLogs(true);
+    setAuditLogOpen(true);
+    handleMenuClose();
+    
+    try {
+      const response = await apiGet(`/appointments/${selectedAppointment.id}/audit-logs`) as any;
+      if (response.success) {
+        setAuditLogs(response.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      showNotification('Failed to load audit logs', 'error');
+      setAuditLogs([]);
+    } finally {
+      setLoadingAuditLogs(false);
+    }
   };
 
   const handleGenerateInvoice = () => {
@@ -2662,6 +2667,13 @@ export default function AppointmentsPage() {
               Generate Invoice
             </MenuItem>
           )}
+          {/* View Audit Log - Boss only */}
+          {userRole === 'Boss' && (
+            <MenuItem onClick={handleViewAuditLog}>
+              <HistoryIcon sx={{ mr: 1, fontSize: '1rem' }} />
+              View Log
+            </MenuItem>
+          )}
           {/* Edit Appointment - Boss and Staff can edit, but not when status is pending */}
           {(userRole === 'Boss' || userRole === 'Staff') && selectedAppointment?.status !== 'pending' && (
             <MenuItem onClick={() => handleEditAppointment(selectedAppointment!)}>
@@ -3961,18 +3973,20 @@ export default function AppointmentsPage() {
                   </Select>
                 </FormControl>
 
-                {/* Appointment Date */}
-                <TextField
-                  label="Appointment Date & Time"
-                  type="datetime-local"
-                  value={editingAppointment.appointmentDate}
-                  onChange={(e) => setEditingAppointment({...editingAppointment, appointmentDate: e.target.value})}
-                  fullWidth
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                  helperText="Optional - leave empty for walk-in appointments"
-                />
+                {/* Appointment Date - Only visible to Boss */}
+                {userRole === 'Boss' && (
+                  <TextField
+                    label="Appointment Date & Time"
+                    type="datetime-local"
+                    value={editingAppointment.appointmentDate}
+                    onChange={(e) => setEditingAppointment({...editingAppointment, appointmentDate: e.target.value})}
+                    fullWidth
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                    helperText="Optional - leave empty for walk-in appointments"
+                  />
+                )}
 
                 {/* Notes */}
                 <TextField
@@ -4448,6 +4462,100 @@ export default function AppointmentsPage() {
             >
               Update Appointment
             </GradientButton>
+          </DialogActions>
+        </Dialog>
+
+        {/* Audit Log Dialog */}
+        <Dialog
+          open={auditLogOpen}
+          onClose={() => setAuditLogOpen(false)}
+          maxWidth="md"
+          fullWidth
+          sx={{
+            '& .MuiDialog-paper': {
+              borderRadius: 3
+            }
+          }}
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <HistoryIcon color="primary" />
+              <Typography variant="h6" fontWeight={600}>
+                Appointment Edit History
+              </Typography>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            {loadingAuditLogs ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <Typography>Loading audit logs...</Typography>
+              </Box>
+            ) : auditLogs.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Typography color="text.secondary">
+                  No edit history available for this appointment.
+                </Typography>
+              </Box>
+            ) : (
+              <Stack spacing={2} sx={{ mt: 2 }}>
+                {auditLogs.map((log, index) => (
+                  <Card key={log.id} variant="outlined" sx={{ p: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight={600}>
+                          {log.user?.name || 'Unknown User'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {log.user?.role} • {log.user?.email}
+                        </Typography>
+                      </Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(log.timestamp).toLocaleString('en-MY', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </Typography>
+                    </Box>
+                    
+                    <Typography variant="body2" fontWeight={500} color="primary" sx={{ mb: 1 }}>
+                      Action: {log.action.toUpperCase()}
+                    </Typography>
+                    
+                    {log.changes && Object.keys(log.changes).length > 0 && (
+                      <Box sx={{ mt: 1, p: 1.5, bgcolor: 'grey.50', borderRadius: 1 }}>
+                        <Typography variant="caption" fontWeight={600} sx={{ mb: 1, display: 'block' }}>
+                          Changes Made:
+                        </Typography>
+                        {Object.entries(log.changes).map(([field, change]: [string, any]) => (
+                          <Box key={field} sx={{ mb: 0.5 }}>
+                            <Typography variant="caption" component="span" fontWeight={500}>
+                              {field}:
+                            </Typography>
+                            <Typography variant="caption" component="span" sx={{ ml: 1 }}>
+                              <Box component="span" sx={{ color: 'error.main', textDecoration: 'line-through' }}>
+                                {change.from !== null && change.from !== undefined ? String(change.from) : 'null'}
+                              </Box>
+                              {' → '}
+                              <Box component="span" sx={{ color: 'success.main', fontWeight: 600 }}>
+                                {change.to !== null && change.to !== undefined ? String(change.to) : 'null'}
+                              </Box>
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
+                  </Card>
+                ))}
+              </Stack>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setAuditLogOpen(false)} variant="outlined">
+              Close
+            </Button>
           </DialogActions>
         </Dialog>
 
