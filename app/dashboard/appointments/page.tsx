@@ -1125,14 +1125,74 @@ export default function AppointmentsPage() {
     });
 
     try {
+      // Calculate finalPrice WITHOUT products (products are tracked separately)
+      const appointmentOnlyPrice = calculateAppointmentPriceOnly();
+      let appointmentFinalPrice = appointmentOnlyPrice;
+      
+      // Apply discounts to appointment price only (not products)
+      if (multipleDiscountCodes.length > 0) {
+        // Calculate discount on appointment packages only
+        let totalDiscount = 0;
+        multipleDiscountCodes.forEach(discount => {
+          let discountableAmount = 0;
+          discount.appliedToPackages.forEach(packageId => {
+            if (packageId === selectedAppointment.packageId) {
+              discountableAmount += selectedAppointment.package?.price || 0;
+            } else {
+              const additionalPkg = packages.find(p => p.id === packageId);
+              if (additionalPkg && selectedAdditionalPackages.includes(packageId)) {
+                discountableAmount += additionalPkg.price;
+              }
+              const customPkgIndex = customPackages.findIndex((p, index) => index === packageId);
+              if (customPkgIndex !== -1) {
+                discountableAmount += customPackages[customPkgIndex].price;
+              }
+            }
+          });
+          let discountAmount = 0;
+          if (discount.discountType === 'fixed_amount') {
+            discountAmount = Math.min(discount.discountAmount || 0, discountableAmount);
+          } else {
+            discountAmount = (discountableAmount * (discount.discountPercent || 0)) / 100;
+          }
+          totalDiscount += discountAmount;
+        });
+        appointmentFinalPrice = Math.max(0, appointmentOnlyPrice - totalDiscount);
+      } else if (discountInfo) {
+        // Legacy single discount - calculate on appointment only
+        let discountableAmount = 0;
+        if (discountAppliedTo.basePackage) {
+          const basePrice = selectedAppointment.package.hasVariablePricing && selectedPriceOption !== null
+            ? selectedPriceOption
+            : selectedAppointment.package.price;
+          discountableAmount += basePrice;
+        }
+        discountAppliedTo.additionalPackages.forEach(packageId => {
+          const pkg = packages.find(p => p.id === packageId);
+          if (pkg) discountableAmount += pkg.price;
+        });
+        discountAppliedTo.customPackages.forEach(index => {
+          if (customPackages[index]) {
+            discountableAmount += customPackages[index].price;
+          }
+        });
+        let discountAmount = 0;
+        if (discountInfo.discountType === 'fixed_amount') {
+          discountAmount = Math.min(discountInfo.discountAmount || 0, discountableAmount);
+        } else {
+          discountAmount = (discountableAmount * (discountInfo.discountPercent || 0)) / 100;
+        }
+        appointmentFinalPrice = Math.max(0, appointmentOnlyPrice - discountAmount);
+      }
+      
       const updateData = {
         status: 'completed',
         additionalPackages: selectedAdditionalPackages,
         customPackages: customPackages,
-        finalPrice: multipleDiscountCodes.length > 0 ? calculateMultipleDiscountsTotal() : finalPrice,
+        finalPrice: appointmentFinalPrice, // Only appointment price, NO products
         // Legacy single discount support
         discountCodeId: discountInfo?.id || null,
-        discountAmount: discountInfo ? (calculateTotalPrice() - finalPrice) : null,
+        discountAmount: discountInfo ? (appointmentOnlyPrice - appointmentFinalPrice) : null,
         multipleDiscountCodes: multipleDiscountCodes.length > 0 ? multipleDiscountCodes.map(discount => ({
           code: discount.code,
           appliedToPackages: discount.appliedToPackages
@@ -1203,7 +1263,7 @@ export default function AppointmentsPage() {
       // Fetch updated financial data and show comprehensive notification
       if (response.data && response.data.barber) {
         // Calculate appointment commission (based on originalPrice if available, otherwise finalPrice)
-        const appointmentPrice = response.data.originalPrice || finalPrice || 0;
+        const appointmentPrice = response.data.originalPrice || response.data.finalPrice || 0;
         const appointmentEarnings = appointmentPrice * (response.data.barber.commissionRate / 100);
         
         // Calculate product commission (using barber's productCommissionRate)
@@ -1286,7 +1346,8 @@ export default function AppointmentsPage() {
     setCustomPackages(customPackages.filter((_, i) => i !== index));
   };
 
-  const calculateTotalPrice = React.useCallback(() => {
+  // Calculate appointment price only (packages + custom packages, NO products)
+  const calculateAppointmentPriceOnly = React.useCallback(() => {
     if (!selectedAppointment) return 0;
     
     // Use selected price option if variable pricing is enabled, otherwise use base price
@@ -1305,7 +1366,16 @@ export default function AppointmentsPage() {
       total += pkg.price;
     });
     
-    // Add products
+    // DO NOT add products here - they are tracked separately via product sales
+    
+    return total;
+  }, [selectedAppointment, selectedPriceOption, selectedAdditionalPackages, packages, customPackages]);
+
+  // Calculate total price including products (for display purposes only)
+  const calculateTotalPrice = React.useCallback(() => {
+    let total = calculateAppointmentPriceOnly();
+    
+    // Add products for display
     selectedProducts.forEach(sp => {
       const product = retailProducts.find(p => p.id === sp.productId);
       if (product) {
@@ -1314,7 +1384,7 @@ export default function AppointmentsPage() {
     });
     
     return total;
-  }, [selectedAppointment, selectedPriceOption, selectedAdditionalPackages, packages, customPackages, selectedProducts, retailProducts]);
+  }, [calculateAppointmentPriceOnly, selectedProducts, retailProducts]);
 
   const calculateDiscountedPrice = React.useCallback(() => {
     const totalPrice = calculateTotalPrice();
@@ -1912,9 +1982,23 @@ export default function AppointmentsPage() {
   };
 
   const statusCounts = getStatusCounts();
+  
+  // Helper function to calculate total price including products
+  const getAppointmentTotalPrice = (appointment: Appointment) => {
+    let total = appointment.finalPrice || appointment.package.price;
+    
+    // Add product sales if any
+    if (appointment.productSales && appointment.productSales.length > 0) {
+      const productTotal = appointment.productSales.reduce((sum, sale) => sum + sale.totalPrice, 0);
+      total += productTotal;
+    }
+    
+    return total;
+  };
+  
   const totalRevenue = appointments
     .filter(apt => apt.status === 'completed')
-    .reduce((total, apt) => total + (apt.finalPrice || apt.package.price), 0);
+    .reduce((total, apt) => total + getAppointmentTotalPrice(apt), 0);
 
   return (
     <DashboardLayout>
@@ -2491,9 +2575,16 @@ export default function AppointmentsPage() {
                           </Typography>
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" fontWeight={600} color="success.main">
-                            RM{appointment.finalPrice || appointment.package.price}
-                          </Typography>
+                          <Box>
+                            <Typography variant="body2" fontWeight={600} color="success.main">
+                              RM{getAppointmentTotalPrice(appointment).toFixed(2)}
+                            </Typography>
+                            {appointment.productSales && appointment.productSales.length > 0 && (
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                Service: RM{(appointment.finalPrice || appointment.package.price).toFixed(2)} + Products: RM{appointment.productSales.reduce((sum, sale) => sum + sale.totalPrice, 0).toFixed(2)}
+                              </Typography>
+                            )}
+                          </Box>
                         </TableCell>
                         <TableCell>
                           <Chip 
@@ -3719,7 +3810,7 @@ export default function AppointmentsPage() {
                   <strong>Status:</strong> {selectedAppointment.status}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  <strong>Price:</strong> RM{selectedAppointment.finalPrice || selectedAppointment.package.price}
+                  <strong>Price:</strong> RM{getAppointmentTotalPrice(selectedAppointment).toFixed(2)}
                 </Typography>
               </Box>
             )}

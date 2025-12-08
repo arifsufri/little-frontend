@@ -35,6 +35,16 @@ interface Appointment {
   additionalPackages?: number[];
   customPackages?: any[];
   finalPrice?: number;
+  productSales?: Array<{
+    id: number;
+    product: {
+      id: number;
+      name: string;
+      price: number;
+    };
+    quantity: number;
+    totalPrice: number;
+  }>;
   client: {
     clientId: string;
     fullName: string;
@@ -76,6 +86,19 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // Calculate total price including products
+  const calculateTotalPrice = () => {
+    let total = appointment.finalPrice || appointment.package.price;
+    
+    // Add product sales if any
+    if (appointment.productSales && appointment.productSales.length > 0) {
+      const productTotal = appointment.productSales.reduce((sum, sale) => sum + sale.totalPrice, 0);
+      total += productTotal;
+    }
+    
+    return total;
   };
 
   const getStatusColor = (status: string) => {
@@ -276,15 +299,15 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                 color="success.main"
                 sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}
               >
-                RM{appointment.finalPrice || appointment.package.price}
+                RM{calculateTotalPrice().toFixed(2)}
               </Typography>
-              {appointment.finalPrice && appointment.finalPrice !== appointment.package.price && (
+              {appointment.productSales && appointment.productSales.length > 0 && (
                 <Typography 
                   variant="caption" 
                   color="text.secondary"
                   sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
                 >
-                  Base: RM{appointment.package.price}
+                  Service: RM{(appointment.finalPrice || appointment.package.price).toFixed(2)} + Products: RM{appointment.productSales.reduce((sum, sale) => sum + sale.totalPrice, 0).toFixed(2)}
                 </Typography>
               )}
             </Box>

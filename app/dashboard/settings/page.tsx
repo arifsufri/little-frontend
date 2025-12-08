@@ -47,7 +47,7 @@ import ToggleOffIcon from '@mui/icons-material/ToggleOff';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { apiGet, apiPut, apiPost, apiDelete } from '../../../src/utils/axios';
+import { apiGet, apiPut, apiPost, apiDelete, apiPatch } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
 import keepAliveService, { KeepAliveStatus } from '../../../src/utils/keepAlive';
 import { useUserRole } from '../../../hooks/useUserRole';
@@ -299,7 +299,7 @@ export default function SettingsPage() {
 
   const handleToggleDiscountStatus = async (discount: DiscountCode) => {
     try {
-      const response = await apiPut<{ success: boolean; data: DiscountCode }>(`/discount-codes/${discount.id}/toggle-status`, {});
+      const response = await apiPatch<{ success: boolean; data: DiscountCode }>(`/discount-codes/${discount.id}/toggle-status`, {});
       
       if (response.success) {
         setSuccessMsg(`Discount code ${response.data.isActive ? 'activated' : 'deactivated'} successfully!`);
