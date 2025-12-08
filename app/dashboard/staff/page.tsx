@@ -54,7 +54,9 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import PersonOffIcon from '@mui/icons-material/PersonOff';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import { apiGet, apiPost, apiPatch, apiDelete } from '../../../src/utils/axios';
+import LockResetIcon from '@mui/icons-material/LockReset';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import { apiGet, apiPost, apiPatch, apiDelete, apiPut } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
 
 interface Staff {
@@ -95,6 +97,10 @@ export default function StaffPage() {
   const [deletingStaff, setDeletingStaff] = React.useState<Staff | null>(null);
   const [menuAnchorEl, setMenuAnchorEl] = React.useState<null | HTMLElement>(null);
   const [menuStaff, setMenuStaff] = React.useState<Staff | null>(null);
+  const [passwordDialogOpen, setPasswordDialogOpen] = React.useState(false);
+  const [newPassword, setNewPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
+  const [showPassword, setShowPassword] = React.useState(false);
   const [snackbar, setSnackbar] = React.useState({
     open: false,
     message: '',
@@ -266,6 +272,10 @@ export default function StaffPage() {
       case 'commission':
         openCommissionDialog(menuStaff);
         break;
+      case 'password':
+        setSelectedStaff(menuStaff);
+        setPasswordDialogOpen(true);
+        break;
       case 'toggle':
         handleToggleStatus(menuStaff);
         break;
@@ -274,6 +284,63 @@ export default function StaffPage() {
         break;
     }
     handleMenuClose();
+  };
+
+  const handleSetPassword = async () => {
+    if (!selectedStaff) return;
+
+    // Validation
+    if (!newPassword || !confirmPassword) {
+      setSnackbar({
+        open: true,
+        message: 'Please fill in all password fields',
+        severity: 'error'
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setSnackbar({
+        open: true,
+        message: 'Password must be at least 6 characters',
+        severity: 'error'
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setSnackbar({
+        open: true,
+        message: 'Passwords do not match',
+        severity: 'error'
+      });
+      return;
+    }
+
+    try {
+      await apiPut(`/auth/users/${selectedStaff.id}/password`, {
+        newPassword
+      });
+
+      setSnackbar({
+        open: true,
+        message: `Password updated successfully for ${selectedStaff.name}`,
+        severity: 'success'
+      });
+
+      // Reset and close
+      setPasswordDialogOpen(false);
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowPassword(false);
+      setSelectedStaff(null);
+    } catch (error: any) {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to update password',
+        severity: 'error'
+      });
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -1121,6 +1188,13 @@ export default function StaffPage() {
             </ListItemIcon>
             <ListItemText>Edit Commission</ListItemText>
           </MenuItem>
+
+          <MenuItem onClick={() => handleMenuAction('password')}>
+            <ListItemIcon>
+              <LockResetIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Set Password</ListItemText>
+          </MenuItem>
           
           {menuStaff && (
             <MenuItem onClick={() => handleMenuAction('toggle')}>
@@ -1145,6 +1219,106 @@ export default function StaffPage() {
           </MenuItem>
         </Menu>
       )}
+
+      {/* Set Password Dialog */}
+      <Dialog
+        open={passwordDialogOpen}
+        onClose={() => {
+          setPasswordDialogOpen(false);
+          setNewPassword('');
+          setConfirmPassword('');
+          setShowPassword(false);
+          setSelectedStaff(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={600}>
+            Set Password for {selectedStaff?.name}
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={3} sx={{ mt: 2 }}>
+            <TextField
+              label="New Password"
+              type={showPassword ? 'text' : 'password'}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              fullWidth
+              required
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              helperText="Password must be at least 6 characters"
+            />
+            
+            <TextField
+              label="Confirm Password"
+              type={showPassword ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              fullWidth
+              required
+              error={confirmPassword !== '' && newPassword !== confirmPassword}
+              helperText={
+                confirmPassword !== '' && newPassword !== confirmPassword
+                  ? 'Passwords do not match'
+                  : 'Re-enter the password to confirm'
+              }
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ 
+          px: { xs: 2, sm: 3 }, 
+          pb: { xs: 2, sm: 3 },
+          gap: { xs: 1.5, sm: 2 },
+          flexDirection: 'row'
+        }}>
+          <GradientButton
+            variant="blue"
+            animated
+            onClick={() => {
+              setPasswordDialogOpen(false);
+              setNewPassword('');
+              setConfirmPassword('');
+              setShowPassword(false);
+              setSelectedStaff(null);
+            }}
+            sx={{ 
+              flex: 1,
+              px: { xs: 2, sm: 3 }, 
+              py: { xs: 1, sm: 1.2 }, 
+              fontSize: { xs: 13, sm: 14 }
+            }}
+          >
+            Cancel
+          </GradientButton>
+          <GradientButton
+            variant="red"
+            animated
+            onClick={handleSetPassword}
+            disabled={!newPassword || !confirmPassword || newPassword !== confirmPassword}
+            sx={{ 
+              flex: 1,
+              px: { xs: 2, sm: 3 }, 
+              py: { xs: 1, sm: 1.2 }, 
+              fontSize: { xs: 13, sm: 14 }
+            }}
+          >
+            Set Password
+          </GradientButton>
+        </DialogActions>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog
