@@ -315,7 +315,7 @@ export default function AppointmentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [userRole]);
+  }, []);
 
   React.useEffect(() => {
     fetchAppointments();

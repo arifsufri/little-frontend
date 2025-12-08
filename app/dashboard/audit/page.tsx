@@ -74,25 +74,7 @@ export default function AuditPage() {
   const [actualRevenue, setActualRevenue] = React.useState<string>('');
   const [loading, setLoading] = React.useState(false);
 
-  // Redirect Staff users away from this page
-  React.useEffect(() => {
-    if (userRole === 'Staff') {
-      router.push('/dashboard');
-    }
-  }, [userRole, router]);
-
-  // Don't render content for Staff users
-  if (userRole === 'Staff') {
-    return (
-      <DashboardLayout>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-          <Typography>Redirecting...</Typography>
-        </Box>
-      </DashboardLayout>
-    );
-  }
-
-  const fetchAuditData = async () => {
+  const fetchAuditData = React.useCallback(async () => {
     setLoading(true);
     try {
       // Fetch appointments for the date
@@ -254,11 +236,29 @@ export default function AuditPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate]);
+
+  // Redirect Staff users away from this page
+  React.useEffect(() => {
+    if (userRole === 'Staff') {
+      router.push('/dashboard');
+    }
+  }, [userRole, router]);
 
   React.useEffect(() => {
     fetchAuditData();
-  }, [selectedDate]);
+  }, [fetchAuditData]);
+
+  // Don't render content for Staff users
+  if (userRole === 'Staff') {
+    return (
+      <DashboardLayout>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+          <Typography>Redirecting...</Typography>
+        </Box>
+      </DashboardLayout>
+    );
+  }
 
   const handleReconcile = () => {
     if (!reconciliation || !actualRevenue) return;
