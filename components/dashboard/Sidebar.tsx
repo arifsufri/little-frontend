@@ -20,6 +20,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ShoppingBagIcon from '@mui/icons-material/ShoppingBagOutlined';
 import GroupIcon from '@mui/icons-material/GroupOutlined';
 import AssessmentIcon from '@mui/icons-material/AssessmentOutlined';
+import FactCheckIcon from '@mui/icons-material/FactCheckOutlined';
 
 export type NavItem = {
   label: string;
@@ -35,6 +36,7 @@ const defaultItems: NavItem[] = [
   { label: 'Products', href: '/dashboard/products', icon: <ShoppingBagIcon /> },
   { label: 'Sales', href: '/dashboard/sales', icon: <ShoppingBagIcon /> },
   { label: 'Financial Reports', href: '/dashboard/financial', icon: <AssessmentIcon /> },
+  { label: 'Audit', href: '/dashboard/audit', icon: <FactCheckIcon /> },
   { label: 'Settings', href: '/dashboard/settings', icon: <SettingsIcon /> },
 ];
 
