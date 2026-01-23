@@ -44,18 +44,14 @@ export default function GuestNamePage() {
     setIsAnimating(true);
 
     try {
-      // Generate a unique phone number for guest
-      const timestamp = Date.now();
-      const randomSuffix = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-      const guestPhoneNumber = `01999${randomSuffix}`;
-
-      // Create guest client
+      // Create guest client without phone number
       const response = await apiPost<{
         success: boolean;
         data: { client: any };
       }>('/clients/register', {
         fullName: guestName.trim(),
-        phoneNumber: guestPhoneNumber
+        phoneNumber: null,
+        isGuest: true
       });
 
       if (response.success) {
@@ -66,36 +62,9 @@ export default function GuestNamePage() {
         router.push('/client/packages');
       }
     } catch (error: any) {
-      // If phone number conflict, try again with different number
-      if (error?.response?.data?.clientExists || error?.response?.status === 409) {
-        const timestamp = Date.now();
-        const randomSuffix = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-        const guestPhoneNumber = `01999${randomSuffix}`;
-        
-        try {
-          const retryResponse = await apiPost<{
-            success: boolean;
-            data: { client: any };
-          }>('/clients/register', {
-            fullName: guestName.trim(),
-            phoneNumber: guestPhoneNumber
-          });
-
-          if (retryResponse.success) {
-            localStorage.setItem('clientData', JSON.stringify(retryResponse.data.client));
-            localStorage.setItem('isGuest', 'true');
-            router.push('/client/packages');
-          }
-        } catch (retryError: any) {
-          const msg = retryError?.response?.data?.message || retryError?.message || 'Failed to create guest account';
-          setErrorMsg(msg);
-          setIsAnimating(false);
-        }
-      } else {
-        const msg = error?.response?.data?.message || error?.message || 'Failed to create guest account';
-        setErrorMsg(msg);
-        setIsAnimating(false);
-      }
+      const msg = error?.response?.data?.message || error?.message || 'Failed to create guest account';
+      setErrorMsg(msg);
+      setIsAnimating(false);
     } finally {
       setCreatingGuest(false);
     }

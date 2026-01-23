@@ -239,20 +239,14 @@ export default function ClientPackagesPage() {
     setGuestErrorMsg(null);
 
     try {
-      // Generate a unique phone number for guest (using timestamp to ensure uniqueness)
-      // Format: 01XXXXXXXX (10-11 digits total, starting with 01)
-      // Use 01999 prefix + 5-6 random digits to ensure uniqueness
-      const timestamp = Date.now();
-      const randomSuffix = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-      const guestPhoneNumber = `01999${randomSuffix}`;
-
-      // Create guest client
+      // Create guest client without phone number
       const response = await apiPost<{
         success: boolean;
         data: { client: any };
       }>('/clients/register', {
         fullName: guestName.trim(),
-        phoneNumber: guestPhoneNumber
+        phoneNumber: null,
+        isGuest: true
       });
 
       if (response.success) {
@@ -263,36 +257,8 @@ export default function ClientPackagesPage() {
         setGuestName('');
       }
     } catch (error: any) {
-      // If phone number conflict, try again with different number
-      if (error?.response?.data?.clientExists || error?.response?.status === 409) {
-        // Retry with different phone number using timestamp
-        const timestamp = Date.now();
-        const randomSuffix = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-        const guestPhoneNumber = `01999${randomSuffix}`;
-        
-        try {
-          const retryResponse = await apiPost<{
-            success: boolean;
-            data: { client: any };
-          }>('/clients/register', {
-            fullName: guestName.trim(),
-            phoneNumber: guestPhoneNumber
-          });
-
-          if (retryResponse.success) {
-            localStorage.setItem('clientData', JSON.stringify(retryResponse.data.client));
-            setClientData(retryResponse.data.client);
-            setShowGuestNameDialog(false);
-            setGuestName('');
-          }
-        } catch (retryError: any) {
-          const msg = retryError?.response?.data?.message || retryError?.message || 'Failed to create guest account';
-          setGuestErrorMsg(msg);
-        }
-      } else {
-        const msg = error?.response?.data?.message || error?.message || 'Failed to create guest account';
-        setGuestErrorMsg(msg);
-      }
+      const msg = error?.response?.data?.message || error?.message || 'Failed to create guest account';
+      setGuestErrorMsg(msg);
     } finally {
       setCreatingGuest(false);
     }
