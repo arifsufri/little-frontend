@@ -173,8 +173,23 @@ export default function ClientLoginPage() {
                   fullWidth
                   sx={{ 
                     mt: { xs: 2.5, sm: 3 }, 
-                    bgcolor: "#111827", 
-                    "&:hover": { bgcolor: "#1f2937" } 
+                    bgcolor: "#111827",
+                    py: 1.5,
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    fontFamily: '"Inter", "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    letterSpacing: '0.5px',
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    transform: 'scale(1)',
+                    transition: 'transform 0.1s ease-in-out, all 0.2s ease-in-out',
+                    "&:active": {
+                      transform: 'scale(0.95)',
+                    },
+                    "&:hover": { 
+                      bgcolor: "#1f2937",
+                      transform: 'translateY(-2px) scale(1)',
+                    } 
                   }}
                   disabled={isSubmitting}
                 >

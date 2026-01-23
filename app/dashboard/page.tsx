@@ -49,9 +49,10 @@ import {
 
 interface DashboardStats {
   totalClients: number;
-  appointmentsToday: number;
+  appointmentsToday: number; // Total appointments (all)
   pendingAppointmentsToday: number;
   totalRevenueToday: number;
+  appointmentsTodayCount: number; // Appointments for today only
 }
 
 interface RecentActivity {
@@ -289,7 +290,8 @@ export default function DashboardPage() {
     totalClients: 0,
     appointmentsToday: 0,
     pendingAppointmentsToday: 0,
-    totalRevenueToday: 0
+    totalRevenueToday: 0,
+    appointmentsTodayCount: 0
   });
   const [recentActivity, setRecentActivity] = React.useState<RecentActivity[]>([]);
   const [revenueData, setRevenueData] = React.useState<RevenueData[]>([]);
@@ -310,12 +312,28 @@ export default function DashboardPage() {
       
       if (appointmentsResponse.success) {
         const appointments = appointmentsResponse.data;
-        const today = new Date().toDateString();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
         
-        const appointmentsToday = appointments.length;
-        const pendingAppointmentsToday = appointments.filter(apt => 
-          new Date(apt.createdAt).toDateString() === today && apt.status === 'pending'
-        ).length;
+        // Total appointments (all appointments, not filtered by date)
+        const totalAppointments = appointments.length;
+        
+        // Filter appointments for today using appointmentDate or createdAt
+        const appointmentsToday = appointments.filter(apt => {
+          const aptDate = apt.appointmentDate || apt.createdAt;
+          if (!aptDate) return false;
+          const appointmentDate = new Date(aptDate);
+          appointmentDate.setHours(0, 0, 0, 0);
+          return appointmentDate.getTime() === today.getTime();
+        }).length;
+        
+        const pendingAppointmentsToday = appointments.filter(apt => {
+          const aptDate = apt.appointmentDate || apt.createdAt;
+          if (!aptDate) return false;
+          const appointmentDate = new Date(aptDate);
+          appointmentDate.setHours(0, 0, 0, 0);
+          return appointmentDate.getTime() === today.getTime() && apt.status === 'pending';
+        }).length;
 
         const totalRevenueToday = appointments
           .filter(apt => 
@@ -337,9 +355,10 @@ export default function DashboardPage() {
 
         setStats({
           totalClients,
-          appointmentsToday,
+          appointmentsToday: totalAppointments, // Total appointments (all)
           pendingAppointmentsToday,
-          totalRevenueToday
+          totalRevenueToday,
+          appointmentsTodayCount: appointmentsToday // Appointments for today only
         });
 
         const activity: RecentActivity[] = appointments
@@ -522,8 +541,8 @@ export default function DashboardPage() {
         </Grid>
         <Grid item xs={6} sm={6} md={3}>
           <HeroStatCard 
-            label="Today's Pending" 
-            value={stats.pendingAppointmentsToday} 
+            label="Today's Appointment" 
+            value={stats.appointmentsTodayCount} 
             icon={<PendingIcon />} 
             loading={loading}
             gradient="linear-gradient(135deg, #CD853F 0%, #D2691E 100%)"

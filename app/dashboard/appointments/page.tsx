@@ -1982,11 +1982,24 @@ export default function AppointmentsPage() {
   }, [searchTerm, statusFilter, staffFilter, dateFilter]);
 
   const getStatusCounts = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Filter appointments for today using appointmentDate or createdAt
+    const todayAppointments = appointments.filter(apt => {
+      const aptDate = apt.appointmentDate || apt.createdAt;
+      if (!aptDate) return false;
+      const appointmentDate = new Date(aptDate);
+      appointmentDate.setHours(0, 0, 0, 0);
+      return appointmentDate.getTime() === today.getTime();
+    });
+    
     return {
       pending: appointments.filter(apt => apt.status === 'pending').length,
       confirmed: appointments.filter(apt => apt.status === 'confirmed').length,
       completed: appointments.filter(apt => apt.status === 'completed').length,
-      cancelled: appointments.filter(apt => apt.status === 'cancelled').length
+      cancelled: appointments.filter(apt => apt.status === 'cancelled').length,
+      todayTotal: todayAppointments.length
     };
   };
 
@@ -2132,7 +2145,7 @@ export default function AppointmentsPage() {
                       letterSpacing: '0.5px'
                     }}
                   >
-                    In Progress
+                    Today&apos;s Appointment
                   </Typography>
                   <Typography 
                     variant="h4" 
@@ -2143,7 +2156,7 @@ export default function AppointmentsPage() {
                       lineHeight: 1.1
                     }}
                   >
-                    {statusCounts.pending + statusCounts.confirmed}
+                    {statusCounts.todayTotal}
                   </Typography>
                 </Box>
                 <Avatar sx={{ 

@@ -92,15 +92,13 @@ export default function ClientOnboardingPage() {
   };
 
   const handleContinueAsGuest = () => {
-    // Mark as guest and redirect to packages page
-    // The packages page will show the name popup
-    localStorage.setItem('isGuest', 'true');
-    router.push('/client/packages');
+    // Redirect to guest name page
+    router.push('/client/guest-name');
   };
 
   const handleLoginAsMember = () => {
-    // Show the registration form
-    setShowChoice(false);
+    // Redirect to login page
+    router.push('/client/login');
   };
 
   // Show choice screen first
@@ -140,81 +138,99 @@ export default function ClientOnboardingPage() {
             alignItems="center" 
             justifyContent="center" 
             width="100%" 
-            px={{ xs: 1.5, sm: 2 }}
+            px={{ xs: 3, sm: 4 }}
+            gap={3}
           >
             {/* Logo */}
-            <Box textAlign="center" sx={{ mb: { xs: 10, sm: 9 } }}>
+            <Box textAlign="center" sx={{ mb: { xs: 4, sm: 6 } }}>
               <Box 
                 component="img" 
                 src="/images/LITTLE-BARBERSHOP-LOGO.svg" 
                 alt="Little Barbershop" 
                 sx={{ 
-                  width: { xs: 80, sm: 96 }, 
+                  width: { xs: 100, sm: 120 }, 
                   height: 'auto', 
                   filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.35))' 
                 }} 
               />
             </Box>
 
-            {/* Choice Card */}
-            <Card sx={{
+            {/* Buttons */}
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: 2,
               width: '100%',
-              maxWidth: { xs: '100%', md: 460 },
-              mx: 'auto',
-              mt: { xs: 1, sm: 0 },
-              backdropFilter: 'blur(12px)',
-              backgroundColor: 'rgba(255,255,255,0.6)',
-              border: '1px solid rgba(255,255,255,0.5)',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
-              borderRadius: 3,
+              maxWidth: { xs: '100%', sm: 400 }
             }}>
-              <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
-                <Typography variant="h4" fontWeight={700} textAlign="center" letterSpacing={0.5}>
-                  Welcome to Little Barbershop
-                </Typography>
-                <Typography variant="body2" color="text.secondary" textAlign="center" mt={0.5} mb={4}>
-                  Choose how you&apos;d like to continue
-                </Typography>
-
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <Button
-                    variant="contained"
-                    fullWidth
-                    size="large"
-                    onClick={handleContinueAsGuest}
-                    sx={{ 
-                      bgcolor: "#111827", 
-                      py: 1.5,
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                      "&:hover": { bgcolor: "#1f2937" } 
-                    }}
-                  >
-                    Continue as Guest
-                  </Button>
-                  
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    size="large"
-                    onClick={handleLoginAsMember}
-                    sx={{ 
-                      borderColor: "#111827",
-                      color: "#111827",
-                      py: 1.5,
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                      "&:hover": { 
-                        borderColor: "#1f2937",
-                        bgcolor: "rgba(17, 24, 39, 0.05)"
-                      } 
-                    }}
-                  >
-                    Login as Little Member
-                  </Button>
-                </Box>
-              </CardContent>
-            </Card>
+              <Button
+                variant="contained"
+                fullWidth
+                size="large"
+                onClick={handleContinueAsGuest}
+                sx={{ 
+                  background: 'linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)',
+                  color: "#111827",
+                  py: 2,
+                  fontSize: '1.1rem',
+                  fontWeight: 700,
+                  fontFamily: '"Inter", "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                  letterSpacing: '0.5px',
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  transform: 'scale(1)',
+                  transition: 'transform 0.1s ease-in-out, all 0.2s ease-in-out',
+                  "&:active": {
+                    transform: 'scale(0.95)',
+                  },
+                  "&:hover": { 
+                    background: 'linear-gradient(135deg, #f9fafb 0%, #e5e7eb 100%)',
+                    boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+                    transform: 'translateY(-2px) scale(1)',
+                  } 
+                }}
+              >
+                Continue as Guest
+              </Button>
+              
+              <Button
+                variant="outlined"
+                fullWidth
+                size="large"
+                onClick={handleLoginAsMember}
+                sx={{ 
+                  borderColor: "#ffffff",
+                  borderWidth: 2,
+                  color: "#ffffff",
+                  py: 2,
+                  fontSize: '1.1rem',
+                  fontWeight: 600,
+                  fontFamily: '"Inter", "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                  letterSpacing: '0.5px',
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  backdropFilter: 'blur(10px)',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                  transform: 'scale(1)',
+                  transition: 'transform 0.1s ease-in-out, all 0.2s ease-in-out',
+                  "&:active": {
+                    transform: 'scale(0.95)',
+                  },
+                  "&:hover": { 
+                    borderColor: "#ffffff",
+                    borderWidth: 2,
+                    bgcolor: "rgba(255,255,255,0.2)",
+                    boxShadow: '0 6px 16px rgba(0,0,0,0.3)',
+                    transform: 'translateY(-2px) scale(1)',
+                  } 
+                }}
+              >
+                Login as Little Member
+              </Button>
+            </Box>
           </Box>
         </Container>
       </main>
@@ -357,8 +373,23 @@ export default function ClientOnboardingPage() {
                   fullWidth
                   sx={{ 
                     mt: { xs: 2.5, sm: 3 }, 
-                    bgcolor: "#111827", 
-                    "&:hover": { bgcolor: "#1f2937" } 
+                    bgcolor: "#111827",
+                    py: 1.5,
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    fontFamily: '"Inter", "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    letterSpacing: '0.5px',
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    transform: 'scale(1)',
+                    transition: 'transform 0.1s ease-in-out, all 0.2s ease-in-out',
+                    "&:active": {
+                      transform: 'scale(0.95)',
+                    },
+                    "&:hover": { 
+                      bgcolor: "#1f2937",
+                      transform: 'translateY(-2px) scale(1)',
+                    } 
                   }}
                   disabled={isSubmitting}
                 >

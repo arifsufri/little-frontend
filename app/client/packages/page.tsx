@@ -373,13 +373,22 @@ export default function ClientPackagesPage() {
               py: 1.5,
               fontSize: '1rem',
               fontWeight: 600,
+              fontFamily: '"Inter", "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+              letterSpacing: '0.5px',
               textTransform: 'none',
               borderRadius: 2,
+              transform: 'scale(1)',
+              transition: 'transform 0.1s ease-in-out, all 0.2s ease-in-out',
+              '&:active': {
+                transform: 'scale(0.95)',
+              },
               '&:hover': {
                 background: 'linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)',
+                transform: 'translateY(-2px) scale(1)',
               },
               '&:disabled': {
                 background: '#9ca3af',
+                transform: 'scale(1)',
               }
             }}
           >
@@ -392,22 +401,62 @@ export default function ClientPackagesPage() {
       {clientData && (
         <>
           {/* Header */}
-      <AppBar position="sticky" sx={{ bgcolor: 'white', color: 'black', boxShadow: 1 }}>
-        <Toolbar>
-          <Box component="img" src="/images/LITTLE-BARBERSHOP-LOGO.svg" alt="Logo" sx={{ height: 32, mr: 2 }} />
-          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            Little Barbershop
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <PersonIcon sx={{ color: 'text.secondary' }} />
-            <Typography variant="body2" sx={{ mr: 2 }}>
-              {clientData.fullName}
-            </Typography>
+      <AppBar 
+        position="sticky" 
+        sx={{ 
+          background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
+          color: 'black', 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          borderBottom: '1px solid rgba(0,0,0,0.05)'
+        }}
+      >
+        <Toolbar sx={{ py: 1 }}>
+          <Box 
+            component="img" 
+            src="/images/LITTLE-BARBERSHOP-LOGO.svg" 
+            alt="Logo" 
+            sx={{ height: { xs: 48, sm: 56 }, mr: 2 }} 
+          />
+          <Box sx={{ flexGrow: 1 }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1,
+              px: 2,
+              py: 0.5,
+              borderRadius: 2,
+              bgcolor: 'rgba(0,0,0,0.03)'
+            }}>
+              <PersonIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  fontWeight: 500,
+                  fontFamily: '"Inter", "Manrope", sans-serif'
+                }}
+              >
+                {clientData.fullName}
+              </Typography>
+            </Box>
             <Button 
               startIcon={<LogoutIcon />}
               onClick={handleLogout}
               variant="outlined"
               size="small"
+              sx={{
+                borderColor: 'rgba(0,0,0,0.2)',
+                color: 'text.primary',
+                fontWeight: 600,
+                fontFamily: '"Inter", "Manrope", sans-serif',
+                textTransform: 'none',
+                borderRadius: 2,
+                px: 2,
+                '&:hover': {
+                  borderColor: 'rgba(0,0,0,0.3)',
+                  bgcolor: 'rgba(0,0,0,0.05)'
+                }
+              }}
             >
               Logout
             </Button>
@@ -416,45 +465,77 @@ export default function ClientPackagesPage() {
       </AppBar>
 
       {/* Main Content */}
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        {/* Header */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" fontWeight={700} sx={{ mb: 1 }}>
-            Our Services
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Choose a service to book your appointment
-          </Typography>
-        </Box>
-
-        {/* Packages Grid */}
-        <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ m: 0, width: '100%' }}>
-          {packages && packages.length > 0 ? packages.map((pkg) => (
-            <Grid item xs={6} sm={6} md={4} lg={4} xl={4} key={pkg.id}>
-              <ProductCard 
-                title={pkg.name} 
-                price={`RM${pkg.price}`} 
-                imageSrc={getImageUrl(pkg.imageUrl)} 
-                onClick={() => handleCardClick(pkg)} 
-              />
-            </Grid>
-          )) : (
-            loading ? (
-              <Grid item xs={12}>
-                <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
-                  Loading packages...
-                </Typography>
+      <Box sx={{ 
+        minHeight: 'calc(100vh - 64px)',
+        background: 'linear-gradient(180deg, #fafafa 0%, #ffffff 100%)',
+        pb: 6
+      }}>
+        <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 5 } }}>
+          {/* Packages Grid */}
+          <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ m: 0, width: '100%' }}>
+            {packages && packages.length > 0 ? packages.map((pkg) => (
+              <Grid item xs={6} sm={6} md={4} lg={3} xl={3} key={pkg.id}>
+                <Box
+                  sx={{
+                    height: '100%',
+                    transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                    }
+                  }}
+                >
+                  <ProductCard 
+                    title={pkg.name} 
+                    price={`RM${pkg.price}`} 
+                    imageSrc={getImageUrl(pkg.imageUrl)} 
+                    onClick={() => handleCardClick(pkg)} 
+                  />
+                </Box>
               </Grid>
-            ) : (
-              <Grid item xs={12}>
-                <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
-                  No packages available yet.
-                </Typography>
-              </Grid>
-            )
-          )}
-        </Grid>
-      </Container>
+            )) : (
+              loading ? (
+                <Grid item xs={12}>
+                  <Box sx={{ 
+                    textAlign: 'center', 
+                    py: 8,
+                    px: 2
+                  }}>
+                    <Typography 
+                      variant="h6" 
+                      color="text.secondary"
+                      sx={{
+                        fontFamily: '"Inter", "Manrope", sans-serif',
+                        fontWeight: 500
+                      }}
+                    >
+                      Loading packages...
+                    </Typography>
+                  </Box>
+                </Grid>
+              ) : (
+                <Grid item xs={12}>
+                  <Box sx={{ 
+                    textAlign: 'center', 
+                    py: 8,
+                    px: 2
+                  }}>
+                    <Typography 
+                      variant="h6" 
+                      color="text.secondary"
+                      sx={{
+                        fontFamily: '"Inter", "Manrope", sans-serif',
+                        fontWeight: 500
+                      }}
+                    >
+                      No packages available yet.
+                    </Typography>
+                  </Box>
+                </Grid>
+              )
+            )}
+          </Grid>
+        </Container>
+      </Box>
 
       {/* Package Details Modal */}
       <Dialog 
@@ -506,11 +587,20 @@ export default function ClientPackagesPage() {
                 }} 
                 sx={{ 
                   position: 'absolute', 
-                  right: 12, 
-                  top: 12, 
+                  right: 16, 
+                  top: 16, 
                   zIndex: 2,
-                  bgcolor: 'rgba(255,255,255,0.9)',
-                  '&:hover': { bgcolor: 'rgba(255,255,255,1)' }
+                  bgcolor: 'rgba(255,255,255,0.95)',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                  width: 40,
+                  height: 40,
+                  '&:hover': { 
+                    bgcolor: 'rgba(255,255,255,1)',
+                    transform: 'rotate(90deg)',
+                    transition: 'transform 0.2s ease-in-out'
+                  },
+                  transition: 'all 0.2s ease-in-out'
                 }}
               >
                 <CloseIcon />
@@ -527,14 +617,25 @@ export default function ClientPackagesPage() {
                       color="white" 
                       sx={{ 
                         textShadow: '0 2px 4px rgba(0,0,0,0.5)',
-                        lineHeight: 1.2
+                        lineHeight: 1.2,
+                        fontFamily: '"Inter", "Manrope", sans-serif',
                       }}
                     >
                       {selectedPackage.name}
                     </Typography>
                   </Box>
                 )}
-                <Typography variant="h4" fontWeight={700} color="white" sx={{ mb: getImageUrl(selectedPackage.imageUrl) ? 1 : 0, textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                <Typography 
+                  variant="h4" 
+                  fontWeight={800} 
+                  color="white" 
+                  sx={{ 
+                    mb: getImageUrl(selectedPackage.imageUrl) ? 1 : 0, 
+                    textShadow: '0 2px 8px rgba(0,0,0,0.6)',
+                    fontFamily: '"Inter", "Manrope", sans-serif',
+                    letterSpacing: '0.5px'
+                  }}
+                >
                   {selectedPackage.name}
                 </Typography>
               </Box>
@@ -553,22 +654,29 @@ export default function ClientPackagesPage() {
                 </Alert>
               )}
 
-              {/* Service Details */}
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>
-                  About This Service
-                </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                  {selectedPackage.description}
-                </Typography>
-              </Box>
-
               {/* Barber Selection */}
               <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                <Typography 
+                  variant="h6" 
+                  fontWeight={700} 
+                  sx={{ 
+                    mb: 2,
+                    fontFamily: '"Inter", "Manrope", sans-serif',
+                    letterSpacing: '0.3px'
+                  }}
+                >
                   Choose Your Barber
                 </Typography>
-                <FormControl fullWidth size="small">
+                <FormControl 
+                  fullWidth 
+                  size="small"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      fontFamily: '"Inter", "Manrope", sans-serif',
+                    }
+                  }}
+                >
                   <InputLabel>Select Barber (Optional)</InputLabel>
                   <Select
                     value={selectedBarber}
@@ -590,10 +698,27 @@ export default function ClientPackagesPage() {
               {/* Additional Services - Dropdown with Checkboxes */}
               {getAvailableAdditionalServices().length > 0 && (
                 <Box sx={{ mb: 3 }}>
-                  <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                  <Typography 
+                    variant="h6" 
+                    fontWeight={700} 
+                    sx={{ 
+                      mb: 2,
+                      fontFamily: '"Inter", "Manrope", sans-serif',
+                      letterSpacing: '0.3px'
+                    }}
+                  >
                     Add More Services
                   </Typography>
-                  <FormControl fullWidth size="small">
+                  <FormControl 
+                    fullWidth 
+                    size="small"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2,
+                        fontFamily: '"Inter", "Manrope", sans-serif',
+                      }
+                    }}
+                  >
                     <InputLabel>Select Additional Services</InputLabel>
                     <Select
                       multiple
@@ -609,7 +734,11 @@ export default function ClientPackagesPage() {
                                 key={serviceId} 
                                 label={`${service.name} (+RM${service.price})`} 
                                 size="small"
-                                sx={{ height: 24 }}
+                                sx={{ 
+                                  height: 26,
+                                  fontFamily: '"Inter", "Manrope", sans-serif',
+                                  fontWeight: 500
+                                }}
                               />
                             ) : null;
                           })}
@@ -622,6 +751,15 @@ export default function ClientPackagesPage() {
                           <ListItemText 
                             primary={service.name}
                             secondary={`${service.duration} mins • +RM${service.price}`}
+                            sx={{
+                              '& .MuiListItemText-primary': {
+                                fontFamily: '"Inter", "Manrope", sans-serif',
+                                fontWeight: 500
+                              },
+                              '& .MuiListItemText-secondary': {
+                                fontFamily: '"Inter", "Manrope", sans-serif',
+                              }
+                            }}
                           />
                         </MenuItem>
                       ))}
@@ -630,18 +768,61 @@ export default function ClientPackagesPage() {
                   
                   {/* Show selected services summary */}
                   {additionalServices.length > 0 && (
-                    <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
-                      <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                    <Box sx={{ 
+                      mt: 2, 
+                      p: 2.5, 
+                      bgcolor: 'rgba(0,0,0,0.02)', 
+                      borderRadius: 2,
+                      border: '1px solid rgba(0,0,0,0.05)'
+                    }}>
+                      <Typography 
+                        variant="body2" 
+                        fontWeight={700} 
+                        sx={{ 
+                          mb: 1.5,
+                          fontFamily: '"Inter", "Manrope", sans-serif',
+                          color: 'text.primary'
+                        }}
+                      >
                         Selected Additional Services:
                       </Typography>
                       {additionalServices.map(serviceId => {
                         const service = packages.find(pkg => pkg.id === serviceId);
                         return service ? (
-                          <Box key={serviceId} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                            <Typography variant="body2" color="text.secondary">
+                          <Box 
+                            key={serviceId} 
+                            sx={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center',
+                              mb: 1,
+                              pb: 1,
+                              borderBottom: '1px solid rgba(0,0,0,0.05)',
+                              '&:last-child': {
+                                borderBottom: 'none',
+                                mb: 0,
+                                pb: 0
+                              }
+                            }}
+                          >
+                            <Typography 
+                              variant="body2" 
+                              color="text.secondary"
+                              sx={{
+                                fontFamily: '"Inter", "Manrope", sans-serif',
+                                fontWeight: 500
+                              }}
+                            >
                               {service.name} ({service.duration} mins)
                             </Typography>
-                            <Typography variant="body2" fontWeight={600} color="primary">
+                            <Typography 
+                              variant="body2" 
+                              fontWeight={700} 
+                              color="primary"
+                              sx={{
+                                fontFamily: '"Inter", "Manrope", sans-serif',
+                              }}
+                            >
                               +RM{service.price}
                             </Typography>
                           </Box>
@@ -658,36 +839,81 @@ export default function ClientPackagesPage() {
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={6}>
                   <Box sx={{ 
-                    p: 2, 
+                    p: 2.5, 
                     borderRadius: 2, 
                     textAlign: 'center',
-                    background: 'linear-gradient(135deg, #000000 0%, #434343 100%)',
-                    color: 'white'
+                    background: 'linear-gradient(135deg, #111827 0%, #1f2937 100%)',
+                    color: 'white',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    border: '1px solid rgba(255,255,255,0.1)'
                   }}>
-                    <Typography variant="body2" sx={{ opacity: 0.8, mb: 0.5 }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        opacity: 0.9, 
+                        mb: 1,
+                        fontFamily: '"Inter", "Manrope", sans-serif',
+                        fontWeight: 500,
+                        fontSize: '0.85rem'
+                      }}
+                    >
                       Duration
                     </Typography>
-                    <Typography variant="h6" fontWeight={600}>
+                    <Typography 
+                      variant="h5" 
+                      fontWeight={700}
+                      sx={{
+                        fontFamily: '"Inter", "Manrope", sans-serif',
+                        letterSpacing: '0.5px'
+                      }}
+                    >
                       {selectedPackage.duration} mins
                     </Typography>
                   </Box>
                 </Grid>
                 <Grid item xs={6}>
                   <Box sx={{ 
-                    p: 2, 
+                    p: 2.5, 
                     borderRadius: 2, 
                     textAlign: 'center',
-                    background: 'linear-gradient(135deg, #000000 0%, #434343 100%)',
-                    color: 'white'
+                    background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                    color: 'white',
+                    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
+                    border: '1px solid rgba(255,255,255,0.1)'
                   }}>
-                    <Typography variant="body2" sx={{ opacity: 0.8, mb: 0.5 }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        opacity: 0.95, 
+                        mb: 1,
+                        fontFamily: '"Inter", "Manrope", sans-serif',
+                        fontWeight: 500,
+                        fontSize: '0.85rem'
+                      }}
+                    >
                       Total Price
                     </Typography>
-                    <Typography variant="h6" fontWeight={600}>
+                    <Typography 
+                      variant="h5" 
+                      fontWeight={700}
+                      sx={{
+                        fontFamily: '"Inter", "Manrope", sans-serif',
+                        letterSpacing: '0.5px'
+                      }}
+                    >
                       RM{totalPrice}
                     </Typography>
                     {additionalServices.length > 0 && (
-                      <Typography variant="caption" sx={{ opacity: 0.7, display: 'block', mt: 0.5 }}>
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          opacity: 0.9, 
+                          display: 'block', 
+                          mt: 0.5,
+                          fontFamily: '"Inter", "Manrope", sans-serif',
+                          fontSize: '0.7rem'
+                        }}
+                      >
                         Base: RM{selectedPackage.price} + Extras: RM{totalPrice - selectedPackage.price}
                       </Typography>
                     )}
@@ -709,17 +935,26 @@ export default function ClientPackagesPage() {
                   color: 'white',
                   py: 1.5,
                   fontSize: '1.1rem',
-                  fontWeight: 600,
+                  fontWeight: 700,
+                  fontFamily: '"Inter", "Manrope", sans-serif',
+                  letterSpacing: '0.5px',
                   textTransform: 'none',
                   borderRadius: 2,
                   boxShadow: '0 4px 12px rgba(220, 38, 38, 0.4)',
+                  transform: 'scale(1)',
+                  transition: 'transform 0.1s ease-in-out, all 0.2s ease-in-out',
+                  '&:active': {
+                    transform: 'scale(0.95)',
+                  },
                   '&:hover': {
                     background: 'linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)',
                     boxShadow: '0 6px 16px rgba(220, 38, 38, 0.5)',
+                    transform: 'translateY(-2px) scale(1)',
                   },
                   '&:disabled': {
                     background: '#9ca3af',
                     boxShadow: 'none',
+                    transform: 'scale(1)',
                   }
                 }}
               >
