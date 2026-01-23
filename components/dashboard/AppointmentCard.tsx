@@ -23,6 +23,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 
 interface Appointment {
   id: number;
@@ -35,6 +36,7 @@ interface Appointment {
   additionalPackages?: number[];
   customPackages?: any[];
   finalPrice?: number;
+  hasDiscount?: boolean;
   productSales?: Array<{
     id: number;
     product: {
@@ -210,8 +212,8 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
           </IconButton>
         </Box>
 
-        {/* Status chip */}
-        <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
+        {/* Status chip and Discount indicator */}
+        <Box sx={{ mb: { xs: 1.5, sm: 2 }, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
           <Chip 
             icon={getStatusIcon(appointment.status)}
             label={appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
@@ -223,6 +225,19 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
               fontSize: { xs: '0.75rem', sm: '0.8125rem' }
             }}
           />
+          {appointment.hasDiscount && (
+            <Chip
+              icon={<LocalOfferIcon />}
+              label="Discount Applied"
+              color="success"
+              size="small"
+              variant="filled"
+              sx={{ 
+                fontWeight: 600,
+                fontSize: { xs: '0.7rem', sm: '0.75rem' }
+              }}
+            />
+          )}
         </Box>
 
         <Divider sx={{ my: { xs: 1.5, sm: 2 } }} />

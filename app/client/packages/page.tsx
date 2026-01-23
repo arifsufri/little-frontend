@@ -25,7 +25,8 @@ import {
   FormGroup,
   Divider,
   Chip,
-  ListItemText
+  ListItemText,
+  TextField
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -79,25 +80,51 @@ export default function ClientPackagesPage() {
   const [bookingSuccess, setBookingSuccess] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   
+  // Guest name popup state
+  const [isGuest, setIsGuest] = React.useState(false);
+  const [showGuestNameDialog, setShowGuestNameDialog] = React.useState(false);
+  const [guestName, setGuestName] = React.useState('');
+  const [creatingGuest, setCreatingGuest] = React.useState(false);
+  const [guestErrorMsg, setGuestErrorMsg] = React.useState<string | null>(null);
+  
   // Booking form state
   const [selectedBarber, setSelectedBarber] = React.useState<number | ''>('');
   const [additionalServices, setAdditionalServices] = React.useState<number[]>([]);
   const [totalPrice, setTotalPrice] = React.useState(0);
 
-  // Check if client is logged in
+  // Check if client is logged in or is a guest
   React.useEffect(() => {
     const storedClientData = localStorage.getItem('clientData');
-    if (!storedClientData) {
+    const guestFlag = localStorage.getItem('isGuest');
+    
+    if (guestFlag === 'true') {
+      setIsGuest(true);
+      // If guest but no client data, show name dialog
+      if (!storedClientData) {
+        setShowGuestNameDialog(true);
+        return;
+      }
+      // If guest has client data, use it
+      try {
+        const client = JSON.parse(storedClientData);
+        setClientData(client);
+      } catch (error) {
+        console.error('Error parsing client data:', error);
+        setShowGuestNameDialog(true);
+      }
+    } else if (!storedClientData) {
+      // Not a guest and no client data, redirect to onboarding
       router.push('/client/onboarding');
       return;
-    }
-    
-    try {
-      const client = JSON.parse(storedClientData);
-      setClientData(client);
-    } catch (error) {
-      console.error('Error parsing client data:', error);
-      router.push('/client/onboarding');
+    } else {
+      // Regular logged-in client
+      try {
+        const client = JSON.parse(storedClientData);
+        setClientData(client);
+      } catch (error) {
+        console.error('Error parsing client data:', error);
+        router.push('/client/onboarding');
+      }
     }
   }, [router]);
 
@@ -198,7 +225,77 @@ export default function ClientPackagesPage() {
 
   const handleLogout = () => {
     localStorage.removeItem('clientData');
+    localStorage.removeItem('isGuest');
     router.push('/client/onboarding');
+  };
+
+  const handleGuestNameSubmit = async () => {
+    if (!guestName.trim()) {
+      setGuestErrorMsg('Please enter your name');
+      return;
+    }
+
+    setCreatingGuest(true);
+    setGuestErrorMsg(null);
+
+    try {
+      // Generate a unique phone number for guest (using timestamp to ensure uniqueness)
+      // Format: 01XXXXXXXX (10-11 digits total, starting with 01)
+      // Use 01999 prefix + 5-6 random digits to ensure uniqueness
+      const timestamp = Date.now();
+      const randomSuffix = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+      const guestPhoneNumber = `01999${randomSuffix}`;
+
+      // Create guest client
+      const response = await apiPost<{
+        success: boolean;
+        data: { client: any };
+      }>('/clients/register', {
+        fullName: guestName.trim(),
+        phoneNumber: guestPhoneNumber
+      });
+
+      if (response.success) {
+        // Store client data
+        localStorage.setItem('clientData', JSON.stringify(response.data.client));
+        setClientData(response.data.client);
+        setShowGuestNameDialog(false);
+        setGuestName('');
+      }
+    } catch (error: any) {
+      // If phone number conflict, try again with different number
+      if (error?.response?.data?.clientExists || error?.response?.status === 409) {
+        // Retry with different phone number using timestamp
+        const timestamp = Date.now();
+        const randomSuffix = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+        const guestPhoneNumber = `01999${randomSuffix}`;
+        
+        try {
+          const retryResponse = await apiPost<{
+            success: boolean;
+            data: { client: any };
+          }>('/clients/register', {
+            fullName: guestName.trim(),
+            phoneNumber: guestPhoneNumber
+          });
+
+          if (retryResponse.success) {
+            localStorage.setItem('clientData', JSON.stringify(retryResponse.data.client));
+            setClientData(retryResponse.data.client);
+            setShowGuestNameDialog(false);
+            setGuestName('');
+          }
+        } catch (retryError: any) {
+          const msg = retryError?.response?.data?.message || retryError?.message || 'Failed to create guest account';
+          setGuestErrorMsg(msg);
+        }
+      } else {
+        const msg = error?.response?.data?.message || error?.message || 'Failed to create guest account';
+        setGuestErrorMsg(msg);
+      }
+    } finally {
+      setCreatingGuest(false);
+    }
   };
 
   const handleAdditionalServiceChange = (serviceId: number, checked: boolean) => {
@@ -213,13 +310,88 @@ export default function ClientPackagesPage() {
     return packages.filter(pkg => pkg.id !== selectedPackage?.id);
   };
 
-  if (!clientData) {
-    return null; // Will redirect to onboarding
+  if (!clientData && !showGuestNameDialog) {
+    return null; // Will redirect to onboarding or show dialog
   }
 
   return (
     <>
-      {/* Header */}
+      {/* Guest Name Dialog */}
+      <Dialog 
+        open={showGuestNameDialog} 
+        onClose={() => {}} // Prevent closing without entering name
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 3 }
+        }}
+      >
+        <DialogTitle>
+          <Typography variant="h5" fontWeight={700}>
+            Welcome, Guest!
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Please enter your name to continue booking
+          </Typography>
+          
+          {guestErrorMsg && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {guestErrorMsg}
+            </Alert>
+          )}
+
+          <TextField
+            label="Your Name"
+            placeholder="Enter your name"
+            fullWidth
+            value={guestName}
+            onChange={(e) => {
+              setGuestName(e.target.value);
+              setGuestErrorMsg(null);
+            }}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && guestName.trim()) {
+                handleGuestNameSubmit();
+              }
+            }}
+            autoFocus
+            disabled={creatingGuest}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 0 }}>
+          <Button
+            fullWidth
+            variant="contained"
+            size="large"
+            onClick={handleGuestNameSubmit}
+            disabled={creatingGuest || !guestName.trim()}
+            sx={{
+              background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+              color: 'white',
+              py: 1.5,
+              fontSize: '1rem',
+              fontWeight: 600,
+              textTransform: 'none',
+              borderRadius: 2,
+              '&:hover': {
+                background: 'linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)',
+              },
+              '&:disabled': {
+                background: '#9ca3af',
+              }
+            }}
+          >
+            {creatingGuest ? 'Creating...' : 'Continue'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Main Content - Only show if client data exists */}
+      {clientData && (
+        <>
+          {/* Header */}
       <AppBar position="sticky" sx={{ bgcolor: 'white', color: 'black', boxShadow: 1 }}>
         <Toolbar>
           <Box component="img" src="/images/LITTLE-BARBERSHOP-LOGO.svg" alt="Logo" sx={{ height: 32, mr: 2 }} />
@@ -557,6 +729,8 @@ export default function ClientPackagesPage() {
           </>
         )}
       </Dialog>
+        </>
+      )}
     </>
   );
 }

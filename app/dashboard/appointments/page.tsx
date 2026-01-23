@@ -57,6 +57,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import HistoryIcon from '@mui/icons-material/History';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import { apiGet, apiPost, apiPut, apiDelete } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
 import jsPDF from 'jspdf';
@@ -89,6 +90,7 @@ interface Appointment {
   additionalPackages?: number[];
   customPackages?: CustomPackage[];
   finalPrice?: number;
+  hasDiscount?: boolean;
   productSales?: Array<{
     id: number;
     product: {
@@ -2524,6 +2526,7 @@ export default function AppointmentsPage() {
                       <TableCell><strong>Service</strong></TableCell>
                       <TableCell><strong>Barber</strong></TableCell>
                       <TableCell><strong>Price</strong></TableCell>
+                      <TableCell><strong>Discount</strong></TableCell>
                       <TableCell><strong>Status</strong></TableCell>
                       <TableCell><strong>Booked Date</strong></TableCell>
                       <TableCell><strong>Duration</strong></TableCell>
@@ -2592,6 +2595,22 @@ export default function AppointmentsPage() {
                               </Typography>
                             )}
                           </Box>
+                        </TableCell>
+                        <TableCell>
+                          {appointment.hasDiscount ? (
+                            <Chip
+                              icon={<LocalOfferIcon />}
+                              label="Yes"
+                              color="success"
+                              size="small"
+                              variant="filled"
+                              sx={{ fontWeight: 600 }}
+                            />
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">
+                              No
+                            </Typography>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Chip 

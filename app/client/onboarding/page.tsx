@@ -20,6 +20,10 @@ import { apiPost } from '../../../src/utils/axios';
 
 // Malaysian phone number validation schema
 const OnboardingSchema = z.object({
+  fullName: z
+    .string()
+    .min(1, 'Name is required')
+    .min(2, 'Name must be at least 2 characters'),
   phoneNumber: z
     .string()
     .regex(/^01[0-9]{8,9}$/, 'Phone number must be in Malaysian format (01XXXXXXXX)')
@@ -31,6 +35,7 @@ type OnboardingForm = z.infer<typeof OnboardingSchema>;
 
 export default function ClientOnboardingPage() {
   const router = useRouter();
+  const [showChoice, setShowChoice] = React.useState(true);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = React.useState(false);
   
@@ -85,6 +90,136 @@ export default function ClientOnboardingPage() {
   const handleLoginRedirect = () => {
     router.push('/client/login');
   };
+
+  const handleContinueAsGuest = () => {
+    // Mark as guest and redirect to packages page
+    // The packages page will show the name popup
+    localStorage.setItem('isGuest', 'true');
+    router.push('/client/packages');
+  };
+
+  const handleLoginAsMember = () => {
+    // Show the registration form
+    setShowChoice(false);
+  };
+
+  // Show choice screen first
+  if (showChoice) {
+    return (
+      <main 
+        className="auth-page select-none"
+        style={{
+          background: `
+            radial-gradient(circle at 20% 80%, rgba(220, 38, 38, 0.8) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(239, 68, 68, 0.6) 0%, transparent 50%),
+            radial-gradient(circle at 40% 40%, rgba(185, 28, 28, 0.4) 0%, transparent 50%),
+            linear-gradient(135deg, #000000 0%, #1a1a1a 25%, #dc2626 50%, #991b1b 75%, #000000 100%)
+          `,
+          backgroundSize: '400% 400%',
+          animation: 'gradientShift 15s ease infinite'
+        }}
+      >
+        {/* Grain PNG overlay */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: "url(/images/Grain%20Overlay.png)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            opacity: 0.3,
+            mixBlendMode: "multiply" as const,
+          }}
+          aria-hidden
+        />
+
+        {/* Content */}
+        <Container maxWidth="sm" sx={{ position: "relative", zIndex: 10, height: "100vh", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Box 
+            display="flex" 
+            flexDirection="column" 
+            alignItems="center" 
+            justifyContent="center" 
+            width="100%" 
+            px={{ xs: 1.5, sm: 2 }}
+          >
+            {/* Logo */}
+            <Box textAlign="center" sx={{ mb: { xs: 10, sm: 9 } }}>
+              <Box 
+                component="img" 
+                src="/images/LITTLE-BARBERSHOP-LOGO.svg" 
+                alt="Little Barbershop" 
+                sx={{ 
+                  width: { xs: 80, sm: 96 }, 
+                  height: 'auto', 
+                  filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.35))' 
+                }} 
+              />
+            </Box>
+
+            {/* Choice Card */}
+            <Card sx={{
+              width: '100%',
+              maxWidth: { xs: '100%', md: 460 },
+              mx: 'auto',
+              mt: { xs: 1, sm: 0 },
+              backdropFilter: 'blur(12px)',
+              backgroundColor: 'rgba(255,255,255,0.6)',
+              border: '1px solid rgba(255,255,255,0.5)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+              borderRadius: 3,
+            }}>
+              <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+                <Typography variant="h4" fontWeight={700} textAlign="center" letterSpacing={0.5}>
+                  Welcome to Little Barbershop
+                </Typography>
+                <Typography variant="body2" color="text.secondary" textAlign="center" mt={0.5} mb={4}>
+                  Choose how you&apos;d like to continue
+                </Typography>
+
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    size="large"
+                    onClick={handleContinueAsGuest}
+                    sx={{ 
+                      bgcolor: "#111827", 
+                      py: 1.5,
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      "&:hover": { bgcolor: "#1f2937" } 
+                    }}
+                  >
+                    Continue as Guest
+                  </Button>
+                  
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    size="large"
+                    onClick={handleLoginAsMember}
+                    sx={{ 
+                      borderColor: "#111827",
+                      color: "#111827",
+                      py: 1.5,
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      "&:hover": { 
+                        borderColor: "#1f2937",
+                        bgcolor: "rgba(17, 24, 39, 0.05)"
+                      } 
+                    }}
+                  >
+                    Login as Little Member
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
+        </Container>
+      </main>
+    );
+  }
 
   return (
     <main 
@@ -154,7 +289,7 @@ export default function ClientOnboardingPage() {
                 Welcome to Little Barbershop
               </Typography>
               <Typography variant="body2" color="text.secondary" textAlign="center" mt={0.5}>
-                Enter your phone number to get started
+                Enter your name and phone number to get started
               </Typography>
 
               {errorMsg && (
@@ -195,6 +330,17 @@ export default function ClientOnboardingPage() {
               )}
 
               <Box component="form" onSubmit={handleSubmit(onSubmit)} mt={{ xs: 2, sm: 3 }}>
+                <TextField
+                  label="Full Name"
+                  placeholder="Enter your full name"
+                  fullWidth
+                  size="small"
+                  {...register("fullName")}
+                  error={!!errors.fullName}
+                  helperText={errors.fullName?.message || "Enter your full name"}
+                  sx={{ mb: 2 }}
+                />
+                
                 <TextField
                   label="Phone Number"
                   placeholder="01XXXXXXXX"
