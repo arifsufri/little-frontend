@@ -336,10 +336,14 @@ export default function DashboardPage() {
         }).length;
 
         const totalRevenueToday = appointments
-          .filter(apt => 
-            apt.status === 'completed' &&
-            new Date(apt.updatedAt || apt.createdAt).toDateString() === today
-          )
+          .filter(apt => {
+            if (apt.status !== 'completed') return false;
+            const aptDate = apt.updatedAt || apt.createdAt;
+            if (!aptDate) return false;
+            const appointmentDate = new Date(aptDate);
+            appointmentDate.setHours(0, 0, 0, 0);
+            return appointmentDate.getTime() === today.getTime();
+          })
           .reduce((total, apt) => {
             // Calculate appointment price
             let appointmentPrice = apt.finalPrice || apt.package?.price || 0;
