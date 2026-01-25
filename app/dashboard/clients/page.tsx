@@ -54,7 +54,7 @@ interface Client {
   id: number;
   clientId: string;
   fullName: string;
-  phoneNumber: string;
+  phoneNumber: string | null;
   createdAt: string;
   appointments: Array<{
     id: number;
@@ -229,7 +229,7 @@ export default function ClientsPage() {
       const searchLower = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(client =>
         client.fullName.toLowerCase().includes(searchLower) ||
-        client.phoneNumber.toLowerCase().includes(searchLower) ||
+        (client.phoneNumber && client.phoneNumber.toLowerCase().includes(searchLower)) ||
         client.clientId.toLowerCase().includes(searchLower)
       );
     }
@@ -425,7 +425,7 @@ export default function ClientsPage() {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                               <PhoneIcon fontSize="small" color="action" />
                               <Typography variant="body2" color="text.secondary">
-                                {client.phoneNumber}
+                                {client.phoneNumber || 'Guest (No phone)'}
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 1 }}>
@@ -528,8 +528,8 @@ export default function ClientsPage() {
                             </Box>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2">
-                              {client.phoneNumber}
+                            <Typography variant="body2" color={client.phoneNumber ? 'text.primary' : 'text.secondary'}>
+                              {client.phoneNumber || 'Guest (No phone)'}
                             </Typography>
                           </TableCell>
                           <TableCell>
@@ -745,7 +745,7 @@ export default function ClientsPage() {
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Client ID: {clientToDelete?.clientId}<br/>
-            Phone: {clientToDelete?.phoneNumber}
+            Phone: {clientToDelete?.phoneNumber || 'Guest (No phone)'}
           </Typography>
           <Box sx={{ 
             mt: 2, 
