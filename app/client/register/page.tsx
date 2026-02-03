@@ -12,7 +12,8 @@ import {
   Button,
   Box,
   Alert,
-  Link as MUILink
+  Link as MUILink,
+  CircularProgress
 } from '@mui/material';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -20,7 +21,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { apiPost } from '../../../src/utils/axios';
 
 // Malaysian phone number validation schema
-const LoginSchema = z.object({
+const RegisterSchema = z.object({
+  fullName: z
+    .string()
+    .min(1, 'Name is required')
+    .min(2, 'Name must be at least 2 characters'),
   phoneNumber: z
     .string()
     .regex(/^01[0-9]{8,9}$/, 'Phone number must be in Malaysian format (01XXXXXXXX)')
@@ -28,17 +33,18 @@ const LoginSchema = z.object({
     .max(11, 'Phone number must be at most 11 digits')
 });
 
-type LoginForm = z.infer<typeof LoginSchema>;
+type RegisterForm = z.infer<typeof RegisterSchema>;
 
-export default function ClientLoginPage() {
+export default function ClientRegisterPage() {
   const router = useRouter();
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = React.useState(false);
   
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<LoginForm>({ resolver: zodResolver(LoginSchema) });
+  } = useForm<RegisterForm>({ resolver: zodResolver(RegisterSchema) });
 
   React.useEffect(() => {
     document.documentElement.classList.add('auth-locked');
@@ -54,14 +60,16 @@ export default function ClientLoginPage() {
     };
   }, []);
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async (data: RegisterForm) => {
     setErrorMsg(null);
+    setShowLoginPrompt(false);
     
     try {
       const response = await apiPost<{
         success: boolean;
         data: { client: any };
-      }>('/clients/login', data);
+        clientExists?: boolean;
+      }>('/clients/register', data);
 
       if (response.success) {
         // Store client data in localStorage for the session
@@ -70,13 +78,18 @@ export default function ClientLoginPage() {
         router.push('/client/packages');
       }
     } catch (e: any) {
-      if (e?.response?.status === 404) {
-        setErrorMsg('No account found with this phone number. Please register first.');
+      if (e?.response?.data?.clientExists) {
+        setShowLoginPrompt(true);
+        setErrorMsg('A client with this phone number already exists. Please Login instead.');
       } else {
-        const msg = e?.response?.data?.message || e?.message || 'Login failed';
+        const msg = e?.response?.data?.message || e?.message || 'Registration failed';
         setErrorMsg(msg);
       }
     }
+  };
+
+  const handleLoginRedirect = () => {
+    router.push('/client/login');
   };
 
   return (
@@ -130,7 +143,7 @@ export default function ClientLoginPage() {
             />
           </Box>
 
-          {/* Login Card */}
+          {/* Registration Card */}
           <Card sx={{
             width: '100%',
             maxWidth: { xs: '100%', md: 460 },
@@ -144,19 +157,61 @@ export default function ClientLoginPage() {
           }}>
             <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
               <Typography variant="h4" fontWeight={700} textAlign="center" letterSpacing={0.5}>
-                Welcome Back
+                Welcome to Little Barbershop
               </Typography>
               <Typography variant="body2" color="text.secondary" textAlign="center" mt={0.5}>
-                Login to Little Barbershop
+                Enter your name and phone number to get started
               </Typography>
 
               {errorMsg && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                  {errorMsg}
+                <Alert 
+                  severity={showLoginPrompt ? "info" : "error"} 
+                  sx={{ mt: 2 }}
+                  action={
+                    showLoginPrompt ? (
+                      <Button 
+                        color="inherit" 
+                        size="small" 
+                        onClick={handleLoginRedirect}
+                        sx={{ fontWeight: 600 }}
+                      >
+                        Login
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  {errorMsg.split('Login').map((part, index, array) => (
+                    <React.Fragment key={index}>
+                      {part}
+                      {index < array.length - 1 && <strong>Login</strong>}
+                    </React.Fragment>
+                  ))}
+                  {showLoginPrompt && (
+                    <Box sx={{ mt: 1 }}>
+                      <MUILink 
+                        component="button"
+                        onClick={handleLoginRedirect}
+                        sx={{ fontWeight: 600, textDecoration: 'underline' }}
+                      >
+                        Click here to login!
+                      </MUILink>
+                    </Box>
+                  )}
                 </Alert>
               )}
 
               <Box component="form" onSubmit={handleSubmit(onSubmit)} mt={{ xs: 2, sm: 3 }}>
+                <TextField
+                  label="Full Name"
+                  placeholder="Enter your full name"
+                  fullWidth
+                  size="small"
+                  {...register("fullName")}
+                  error={!!errors.fullName}
+                  helperText={errors.fullName?.message || "Enter your full name"}
+                  sx={{ mb: 2 }}
+                />
+                
                 <TextField
                   label="Phone Number"
                   placeholder="01XXXXXXXX"
@@ -164,7 +219,7 @@ export default function ClientLoginPage() {
                   size="small"
                   {...register("phoneNumber")}
                   error={!!errors.phoneNumber}
-                  helperText={errors.phoneNumber?.message || "Enter your registered phone number"}
+                  helperText={errors.phoneNumber?.message || "Malaysian format: 01XXXXXXXX"}
                 />
                 
                 <Button
@@ -189,23 +244,28 @@ export default function ClientLoginPage() {
                     "&:hover": { 
                       bgcolor: "#1f2937",
                       transform: 'translateY(-2px) scale(1)',
-                    } 
+                    },
+                    "&:disabled": {
+                      bgcolor: "#111827",
+                      opacity: 0.7
+                    }
                   }}
                   disabled={isSubmitting}
+                  startIcon={isSubmitting ? <CircularProgress size={16} sx={{ color: 'white' }} /> : null}
                 >
-                  {isSubmitting ? 'Logging in...' : 'Login'}
+                  {isSubmitting ? 'Registering...' : 'Get Started'}
                 </Button>
               </Box>
 
               <Typography variant="body2" textAlign="center" mt={2} color="text.secondary">
-                Don&apos;t have an account?{" "}
+                Already have an account?{" "}
                 <MUILink 
                   component={NextLink}
-                  href="/client/register"
+                  href="/client/login"
                   underline="always" 
                   sx={{ fontWeight: 600 }}
                 >
-                  Register here
+                  Login here
                 </MUILink>
               </Typography>
             </CardContent>
@@ -215,3 +275,4 @@ export default function ClientLoginPage() {
     </main>
   );
 }
+

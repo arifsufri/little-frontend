@@ -11,7 +11,8 @@ import {
   Button,
   Box,
   Alert,
-  Link as MUILink
+  Link as MUILink,
+  CircularProgress
 } from '@mui/material';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -389,9 +390,14 @@ export default function ClientOnboardingPage() {
                     "&:hover": { 
                       bgcolor: "#1f2937",
                       transform: 'translateY(-2px) scale(1)',
-                    } 
+                    },
+                    "&:disabled": {
+                      bgcolor: "#111827",
+                      opacity: 0.7
+                    }
                   }}
                   disabled={isSubmitting}
+                  startIcon={isSubmitting ? <CircularProgress size={16} sx={{ color: 'white' }} /> : null}
                 >
                   {isSubmitting ? 'Registering...' : 'Get Started'}
                 </Button>
