@@ -59,6 +59,7 @@ import ReceiptIcon from '@mui/icons-material/Receipt';
 import HistoryIcon from '@mui/icons-material/History';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import { apiGet, apiPost, apiPut, apiDelete } from '../../../src/utils/axios';
+import { getSocket, disconnectSocket } from '../../../src/utils/socket';
 import GradientButton from '../../../components/GradientButton';
 import jsPDF from 'jspdf';
 
@@ -328,6 +329,36 @@ export default function AppointmentsPage() {
       fetchDiscountCodes();
     }
   }, [fetchAppointments, userRole]);
+
+  // Socket.io connection for real-time updates
+  React.useEffect(() => {
+    const socket = getSocket();
+
+    // Listen for new appointment events
+    socket.on('appointment:created', (data: { appointment: Appointment }) => {
+      console.log('📨 New appointment received via socket:', data.appointment);
+      
+      // Add the new appointment to the list
+      setAppointments(prev => {
+        // Check if appointment already exists (avoid duplicates)
+        const exists = prev.some(apt => apt.id === data.appointment.id);
+        if (exists) {
+          return prev;
+        }
+        
+        // Add new appointment at the beginning of the list
+        return [data.appointment, ...prev];
+      });
+
+      // Show notification
+      showNotification('New appointment created!', 'success');
+    });
+
+    // Cleanup on unmount
+    return () => {
+      socket.off('appointment:created');
+    };
+  }, []);
 
   const fetchPackages = async () => {
     try {

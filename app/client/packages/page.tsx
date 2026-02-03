@@ -100,7 +100,7 @@ export default function ClientPackagesPage() {
     if (guestFlag === 'true') {
       setIsGuest(true);
       // If guest but no client data, show name dialog
-      if (!storedClientData) {
+    if (!storedClientData) {
         setShowGuestNameDialog(true);
         return;
       }
@@ -118,12 +118,12 @@ export default function ClientPackagesPage() {
       return;
     } else {
       // Regular logged-in client
-      try {
-        const client = JSON.parse(storedClientData);
-        setClientData(client);
-      } catch (error) {
-        console.error('Error parsing client data:', error);
-        router.push('/client/onboarding');
+    try {
+      const client = JSON.parse(storedClientData);
+      setClientData(client);
+    } catch (error) {
+      console.error('Error parsing client data:', error);
+      router.push('/client/onboarding');
       }
     }
   }, [router]);
@@ -402,8 +402,8 @@ export default function ClientPackagesPage() {
                   fontFamily: '"Inter", "Manrope", sans-serif'
                 }}
               >
-                {clientData.fullName}
-              </Typography>
+              {clientData.fullName}
+            </Typography>
             </Box>
             <Button 
               startIcon={<LogoutIcon />}
@@ -437,9 +437,9 @@ export default function ClientPackagesPage() {
         pb: 6
       }}>
         <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 5 } }}>
-          {/* Packages Grid */}
+        {/* Packages Grid */}
           <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ m: 0, width: '100%' }}>
-            {packages && packages.length > 0 ? packages.map((pkg) => (
+          {packages && packages.length > 0 ? packages.map((pkg) => (
               <Grid item xs={6} sm={6} md={4} lg={3} xl={3} key={pkg.id}>
                 <Box
                   sx={{
@@ -450,17 +450,36 @@ export default function ClientPackagesPage() {
                     }
                   }}
                 >
-                  <ProductCard 
-                    title={pkg.name} 
-                    price={`RM${pkg.price}`} 
-                    imageSrc={getImageUrl(pkg.imageUrl)} 
-                    onClick={() => handleCardClick(pkg)} 
-                  />
+              <ProductCard 
+                title={pkg.name} 
+                price={`RM${pkg.price}`} 
+                imageSrc={getImageUrl(pkg.imageUrl)} 
+                onClick={() => handleCardClick(pkg)} 
+              />
                 </Box>
+            </Grid>
+          )) : (
+            loading ? (
+              <Grid item xs={12}>
+                  <Box sx={{ 
+                    textAlign: 'center', 
+                    py: 8,
+                    px: 2
+                  }}>
+                    <Typography 
+                      variant="h6" 
+                      color="text.secondary"
+                      sx={{
+                        fontFamily: '"Inter", "Manrope", sans-serif',
+                        fontWeight: 500
+                      }}
+                    >
+                  Loading packages...
+                </Typography>
+                  </Box>
               </Grid>
-            )) : (
-              loading ? (
-                <Grid item xs={12}>
+            ) : (
+              <Grid item xs={12}>
                   <Box sx={{ 
                     textAlign: 'center', 
                     py: 8,
@@ -474,33 +493,14 @@ export default function ClientPackagesPage() {
                         fontWeight: 500
                       }}
                     >
-                      Loading packages...
-                    </Typography>
+                  No packages available yet.
+                </Typography>
                   </Box>
-                </Grid>
-              ) : (
-                <Grid item xs={12}>
-                  <Box sx={{ 
-                    textAlign: 'center', 
-                    py: 8,
-                    px: 2
-                  }}>
-                    <Typography 
-                      variant="h6" 
-                      color="text.secondary"
-                      sx={{
-                        fontFamily: '"Inter", "Manrope", sans-serif',
-                        fontWeight: 500
-                      }}
-                    >
-                      No packages available yet.
-                    </Typography>
-                  </Box>
-                </Grid>
-              )
-            )}
-          </Grid>
-        </Container>
+              </Grid>
+            )
+          )}
+        </Grid>
+      </Container>
       </Box>
 
       {/* Package Details Modal */}
