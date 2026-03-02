@@ -304,159 +304,25 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       
-      const clientsResponse = await apiGet<{ success: boolean; data: any[] }>('/clients');
-      const totalClients = clientsResponse.success ? clientsResponse.data.length : 0;
-
-      const appointmentsResponse = await apiGet<{ success: boolean; data: any[] }>('/appointments');
-      const staffResponse = await apiGet<{ success: boolean; data: any[] }>('/staff');
+      // OPTIMIZED: Use new dashboard overview endpoint
+      const response = await apiGet<{ success: boolean; data: any }>('/dashboard/overview');
       
-      if (appointmentsResponse.success) {
-        const appointments = appointmentsResponse.data;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+      if (response.success && response.data) {
+        const { stats, recentActivity, revenueData, staffPerformance, serviceBreakdown, peakHours } = response.data;
         
-        // Total appointments (all appointments, not filtered by date)
-        const totalAppointments = appointments.length;
-        
-        // Filter appointments for today using appointmentDate or createdAt
-        const appointmentsToday = appointments.filter(apt => {
-          const aptDate = apt.appointmentDate || apt.createdAt;
-          if (!aptDate) return false;
-          const appointmentDate = new Date(aptDate);
-          appointmentDate.setHours(0, 0, 0, 0);
-          return appointmentDate.getTime() === today.getTime();
-        }).length;
-        
-        const pendingAppointmentsToday = appointments.filter(apt => {
-          const aptDate = apt.appointmentDate || apt.createdAt;
-          if (!aptDate) return false;
-          const appointmentDate = new Date(aptDate);
-          appointmentDate.setHours(0, 0, 0, 0);
-          return appointmentDate.getTime() === today.getTime() && apt.status === 'pending';
-        }).length;
-
-        const totalRevenueToday = appointments
-          .filter(apt => {
-            if (apt.status !== 'completed') return false;
-            const aptDate = apt.updatedAt || apt.createdAt;
-            if (!aptDate) return false;
-            const appointmentDate = new Date(aptDate);
-            appointmentDate.setHours(0, 0, 0, 0);
-            return appointmentDate.getTime() === today.getTime();
-          })
-          .reduce((total, apt) => {
-            // Calculate appointment price
-            let appointmentPrice = apt.finalPrice || apt.package?.price || 0;
-            
-            // Add product sales if any
-            if (apt.productSales && Array.isArray(apt.productSales)) {
-              const productTotal = apt.productSales.reduce((sum: number, sale: any) => sum + (sale.totalPrice || 0), 0);
-              appointmentPrice += productTotal;
-            }
-            
-            return total + appointmentPrice;
-          }, 0);
-
         setStats({
-          totalClients,
-          appointmentsToday: totalAppointments, // Total appointments (all)
-          pendingAppointmentsToday,
-          totalRevenueToday,
-          appointmentsTodayCount: appointmentsToday // Appointments for today only
+          totalClients: stats.totalClients,
+          appointmentsToday: stats.appointmentsToday,
+          pendingAppointmentsToday: stats.pendingAppointmentsToday,
+          totalRevenueToday: stats.totalRevenueToday,
+          appointmentsTodayCount: stats.appointmentsTodayCount
         });
-
-        const activity: RecentActivity[] = appointments
-          .slice(0, 6)
-          .map((apt, index) => ({
-            id: index,
-            type: 'appointment' as const,
-            message: `${apt.client?.fullName || 'Client'} booked ${apt.package?.name || 'a service'}`,
-            time: formatTimeAgo(apt.createdAt),
-            status: apt.status
-          }));
-
-        setRecentActivity(activity);
-
-        // Revenue trend
-        const last7Days = Array.from({ length: 7 }, (_, i) => {
-          const date = new Date();
-          date.setDate(date.getDate() - (6 - i));
-          return date;
-        });
-
-        const revenueTrend = last7Days.map(date => {
-          const dateStr = date.toDateString();
-          const dayRevenue = appointments
-            .filter(apt => 
-              apt.status === 'completed' &&
-              new Date(apt.appointmentDate || apt.createdAt).toDateString() === dateStr
-            )
-            .reduce((total, apt) => total + (apt.finalPrice || apt.package?.price || 0), 0);
-          
-          return {
-            date: date.toLocaleDateString('en-MY', { month: 'short', day: 'numeric' }),
-            revenue: dayRevenue
-          };
-        });
-        setRevenueData(revenueTrend);
-
-        // Staff performance
-        if (staffResponse.success) {
-          const staffPerf = staffResponse.data
-            .map(staff => {
-              const staffAppointments = appointments.filter(apt => 
-                apt.status === 'completed' && apt.staffId === staff.id
-              );
-              const staffRevenue = staffAppointments.reduce(
-                (total, apt) => total + (apt.finalPrice || apt.package?.price || 0), 
-                0
-              );
-              return {
-                name: staff.name,
-                appointments: staffAppointments.length,
-                revenue: staffRevenue
-              };
-            })
-            .filter(s => s.appointments > 0)
-            .sort((a, b) => b.revenue - a.revenue)
-            .slice(0, 5);
-          setStaffPerformance(staffPerf);
-        }
-
-        // Service breakdown
-        const serviceMap = new Map<string, { count: number; revenue: number }>();
-        appointments
-          .filter(apt => apt.status === 'completed')
-          .forEach(apt => {
-            const serviceName = apt.package?.name || 'Unknown';
-            const existing = serviceMap.get(serviceName) || { count: 0, revenue: 0 };
-            serviceMap.set(serviceName, {
-              count: existing.count + 1,
-              revenue: existing.revenue + (apt.finalPrice || apt.package?.price || 0)
-            });
-          });
         
-        const services = Array.from(serviceMap.entries())
-          .map(([name, data]) => ({ name, ...data }))
-          .sort((a, b) => b.revenue - a.revenue)
-          .slice(0, 5);
-        setServiceBreakdown(services);
-
-        // Peak hours
-        const hourMap = new Map<number, number>();
-        appointments.forEach(apt => {
-          const hour = new Date(apt.appointmentDate || apt.createdAt).getHours();
-          hourMap.set(hour, (hourMap.get(hour) || 0) + 1);
-        });
-
-        const peakHoursData = Array.from({ length: 12 }, (_, i) => {
-          const hour = i + 9;
-          return {
-            hour: `${hour}:00`,
-            appointments: hourMap.get(hour) || 0
-          };
-        });
-        setPeakHours(peakHoursData);
+        setRecentActivity(recentActivity || []);
+        setRevenueData(revenueData || []);
+        setStaffPerformance(staffPerformance || []);
+        setServiceBreakdown(serviceBreakdown || []);
+        setPeakHours(peakHours || []);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
