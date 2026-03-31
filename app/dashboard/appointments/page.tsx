@@ -85,6 +85,7 @@ interface Appointment {
   clientId: number;
   packageId: number;
   status: string;
+  paymentMethod?: 'CASH' | 'TRANSFER' | null;
   appointmentDate: string | null;
   notes: string | null;
   createdAt: string;
@@ -144,6 +145,7 @@ export default function AppointmentsPage() {
   const [selectedAdditionalPackages, setSelectedAdditionalPackages] = React.useState<number[]>([]);
   const [customPackages, setCustomPackages] = React.useState<CustomPackage[]>([]);
   const [finalPrice, setFinalPrice] = React.useState<number>(0);
+  const [paymentMethod, setPaymentMethod] = React.useState<'CASH' | 'TRANSFER' | ''>('');
   const [retailProducts, setRetailProducts] = React.useState<any[]>([]);
   const [selectedProducts, setSelectedProducts] = React.useState<{productId: number, quantity: number}[]>([]);
   const [selectedPriceOption, setSelectedPriceOption] = React.useState<number | null>(null);
@@ -705,6 +707,7 @@ export default function AppointmentsPage() {
         notes: editingAppointment.notes || null,
         additionalPackages: editAdditionalPackages,
         finalPrice: finalPriceWithProducts, // Include product prices in finalPrice
+        paymentMethod: editingAppointment.paymentMethod ?? null,
         ...(editDiscountCode && {
           discountCode: editDiscountCode,
           discountAppliedTo: {
@@ -1108,6 +1111,10 @@ export default function AppointmentsPage() {
       // Reset products and fetch retail products
       setSelectedProducts([]);
       fetchRetailProducts();
+
+      // Important: start empty so accidental "Confirm" doesn't pre-fill
+      // (user must explicitly choose Cash or Online Transfer).
+      setPaymentMethod('');
       
       // Reset price option selection
       setSelectedPriceOption(null);
@@ -1143,6 +1150,12 @@ export default function AppointmentsPage() {
     // Check if price option is selected for variable pricing packages
     if (selectedAppointment.package.hasVariablePricing && selectedPriceOption === null) {
       showNotification('Please select a price option for ' + selectedAppointment.package.name, 'error');
+      return;
+    }
+
+    // Payment method is required when completing
+    if (!paymentMethod) {
+      showNotification('Please select payment method (Cash or Online Transfer).', 'error');
       return;
     }
 
@@ -1224,15 +1237,24 @@ export default function AppointmentsPage() {
         }
         appointmentFinalPrice = Math.max(0, appointmentOnlyPrice - discountAmount);
       }
+
+      // "Final Price" field is the grand total (services + products). Persist service-only amount.
+      const productSubtotal = selectedProducts.reduce((sum, sp) => {
+        const product = retailProducts.find(p => p.id === sp.productId);
+        return sum + (product ? product.price * sp.quantity : 0);
+      }, 0);
+      const manualGrandTotal = Number.isFinite(finalPrice) ? finalPrice : appointmentFinalPrice + productSubtotal;
+      const appointmentFinalPriceForApi = Math.max(0, manualGrandTotal - productSubtotal);
       
       const updateData = {
         status: 'completed',
         additionalPackages: selectedAdditionalPackages,
         customPackages: customPackages,
-        finalPrice: appointmentFinalPrice, // Only appointment price, NO products
+        finalPrice: appointmentFinalPriceForApi,
+        paymentMethod,
         // Legacy single discount support
         discountCodeId: discountInfo?.id || null,
-        discountAmount: discountInfo ? (appointmentOnlyPrice - appointmentFinalPrice) : null,
+        discountAmount: discountInfo ? (appointmentOnlyPrice - appointmentFinalPriceForApi) : null,
         multipleDiscountCodes: multipleDiscountCodes.length > 0 ? multipleDiscountCodes.map(discount => ({
           code: discount.code,
           appliedToPackages: discount.appliedToPackages
@@ -1278,7 +1300,8 @@ export default function AppointmentsPage() {
               productId: sp.productId,
               clientId: selectedAppointment.clientId,
               quantity: sp.quantity,
-              appointmentId: selectedAppointment.id  // Link product sale to appointment
+              appointmentId: selectedAppointment.id, // Link product sale to appointment
+              paymentMethod
             };
             
             // Always include staffId if we have it
@@ -1829,6 +1852,7 @@ export default function AppointmentsPage() {
     setCustomPackages([]);
     setSelectedProducts([]);
     setFinalPrice(0);
+    setPaymentMethod('');
     setCustomPackageName('');
     setCustomPackagePrice(0);
     // Reset discount code state
@@ -3433,6 +3457,28 @@ export default function AppointmentsPage() {
                 </Stack>
               </Box>
 
+              {/* Payment Method Selection (required) */}
+              <Box>
+                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
+                  Payment Method (required)
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="payment-method-label">Payment Method *</InputLabel>
+                  <Select
+                    labelId="payment-method-label"
+                    label="Payment Method *"
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value as any)}
+                  >
+                    <MenuItem value="">
+                      Select...
+                    </MenuItem>
+                    <MenuItem value="CASH">Cash</MenuItem>
+                    <MenuItem value="TRANSFER">Online Transfer</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+
               {/* Final Price Adjustment */}
               <Box>
                 <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
@@ -4061,6 +4107,28 @@ export default function AppointmentsPage() {
                   fullWidth
                   placeholder="Any special requirements or notes..."
                 />
+
+                {/* Payment Method (editable) */}
+                <FormControl fullWidth>
+                  <InputLabel>Payment Method</InputLabel>
+                  <Select
+                    value={editingAppointment.paymentMethod ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value as any;
+                      setEditingAppointment({
+                        ...editingAppointment,
+                        paymentMethod: v === '' ? null : v,
+                      });
+                    }}
+                    label="Payment Method"
+                  >
+                    <MenuItem value="">
+                      Clear / Not set
+                    </MenuItem>
+                    <MenuItem value="CASH">Cash</MenuItem>
+                    <MenuItem value="TRANSFER">Online Transfer</MenuItem>
+                  </Select>
+                </FormControl>
 
                 {/* Additional Packages */}
                 <Box>

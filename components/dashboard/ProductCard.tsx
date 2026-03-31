@@ -20,6 +20,7 @@ export default function ProductCard({
   onEdit,
   onDelete,
   onToggleStatus,
+  retailMeta,
 }: {
   title: string;
   price: string;
@@ -30,6 +31,8 @@ export default function ProductCard({
   onEdit?: () => void;
   onDelete?: () => void;
   onToggleStatus?: () => void;
+  /** Extra line for retail (e.g. margin / unit profit) */
+  retailMeta?: string;
 }) {
   const { userRole } = useUserRole();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
@@ -191,27 +194,34 @@ export default function ProductCard({
             }}
           />
         </Box>
-        <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: { xs: 1.25, sm: 2 }, position: 'relative' }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, fontSize: { xs: 14, sm: 18 } }}>
-            {title}
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="subtitle1" color="text.secondary" sx={{ fontWeight: 800, fontSize: { xs: 14, sm: 18 } }}>
-              {price}
+        <CardContent sx={{ display: 'flex', flexDirection: retailMeta ? 'column' : 'row', alignItems: retailMeta ? 'stretch': 'center', justifyContent: 'space-between', gap: retailMeta ? 0.5 : 2, py: { xs: 1.25, sm: 2 }, position: 'relative' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, width: '100%' }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800, fontSize: { xs: 14, sm: 18 } }}>
+              {title}
             </Typography>
-            {userRole === 'Boss' && (onEdit || onDelete || onToggleStatus) && (
-              <IconButton
-                size="small"
-                onClick={handleMenuClick}
-                sx={{ 
-                  ml: 1,
-                  '&:hover': { backgroundColor: 'rgba(0,0,0,0.04)' }
-                }}
-              >
-                <MoreVertIcon fontSize="small" />
-              </IconButton>
-            )}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle1" color="text.secondary" sx={{ fontWeight: 800, fontSize: { xs: 14, sm: 18 } }}>
+                {price}
+              </Typography>
+              {userRole === 'Boss' && (onEdit || onDelete || onToggleStatus) && (
+                <IconButton
+                  size="small"
+                  onClick={handleMenuClick}
+                  sx={{ 
+                    ml: 1,
+                    '&:hover': { backgroundColor: 'rgba(0,0,0,0.04)' }
+                  }}
+                >
+                  <MoreVertIcon fontSize="small" />
+                </IconButton>
+              )}
+            </Box>
           </Box>
+          {retailMeta ? (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', pr: userRole === 'Boss' ? 4 : 0 }}>
+              {retailMeta}
+            </Typography>
+          ) : null}
         </CardContent>
       </Card>
 

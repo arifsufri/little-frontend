@@ -22,6 +22,7 @@ const items = [
   { label: 'Products', href: '/dashboard/products', icon: <ShoppingBagIcon /> },
   { label: 'Sales', href: '/dashboard/sales', icon: <ShoppingBagIcon /> },
   { label: 'Financial Reports', href: '/dashboard/financial', icon: <AssessmentIcon /> },
+  { label: 'Profit & Loss', href: '/dashboard/profit-loss', icon: <AssessmentIcon /> },
   { label: 'Audit', href: '/dashboard/audit', icon: <FactCheckIcon /> },
   { label: 'Settings', href: '/dashboard/settings', icon: <SettingsIcon /> },
 ];
@@ -47,7 +48,7 @@ export default function SidebarPermanent({ width = 260 }: { width?: number }) {
       
       // Staff can see everything except Staff page and Audit page
       if (userRole === 'Staff') {
-        return item.href !== '/dashboard/staff' && item.href !== '/dashboard/audit';
+        return item.href !== '/dashboard/staff' && item.href !== '/dashboard/audit' && item.href !== '/dashboard/profit-loss';
       }
       
       // Clients can only see Overview (if needed in future)

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import DashboardLayout from '../../../components/dashboard/Layout';
-import { Grid, Typography, Box, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, FormControlLabel, Checkbox, MenuItem, Select, InputLabel, FormControl, IconButton, Container, Divider, Alert, Snackbar, Tabs, Tab } from '@mui/material';
+import { Grid, Typography, Box, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, FormControlLabel, Checkbox, MenuItem, Select, InputLabel, FormControl, IconButton, Container, Divider, Alert, Snackbar, Tabs, Tab, Card, CardContent, Paper } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCutIcon from '@mui/icons-material/ContentCut';
 import ProductCard from '../../../components/dashboard/ProductCard';
@@ -70,6 +70,7 @@ export default function ProductsPage() {
   const [retailProductName, setRetailProductName] = React.useState('');
   const [retailProductDesc, setRetailProductDesc] = React.useState('');
   const [retailProductPrice, setRetailProductPrice] = React.useState('');
+  const [retailProductUnitCost, setRetailProductUnitCost] = React.useState('');
   const [retailProductStock, setRetailProductStock] = React.useState('0');
   const [retailProductImage, setRetailProductImage] = React.useState<File | null>(null);
   const [creatingRetail, setCreatingRetail] = React.useState(false);
@@ -119,6 +120,7 @@ export default function ProductsPage() {
       formData.append('name', retailProductName);
       formData.append('description', retailProductDesc);
       formData.append('price', retailProductPrice);
+      formData.append('unitCost', retailProductUnitCost === '' ? '0' : retailProductUnitCost);
       formData.append('stock', retailProductStock);
       if (retailProductImage) {
         formData.append('image', retailProductImage);
@@ -145,6 +147,9 @@ export default function ProductsPage() {
     setRetailProductName(product.name);
     setRetailProductDesc(product.description || '');
     setRetailProductPrice(product.price.toString());
+    setRetailProductUnitCost(
+      product.unitCost !== undefined && product.unitCost !== null ? String(product.unitCost) : ''
+    );
     setRetailProductStock(product.stock?.toString() || '0');
     setRetailProductEditOpen(true);
   };
@@ -161,6 +166,7 @@ export default function ProductsPage() {
       formData.append('name', retailProductName);
       formData.append('description', retailProductDesc);
       formData.append('price', retailProductPrice);
+      formData.append('unitCost', retailProductUnitCost === '' ? '0' : retailProductUnitCost);
       formData.append('stock', retailProductStock);
       if (retailProductImage) {
         formData.append('image', retailProductImage);
@@ -201,6 +207,25 @@ export default function ProductsPage() {
     }
   };
 
+  const retailCatalogTotals = React.useMemo(() => {
+    return retailProducts.reduce(
+      (acc, p) => {
+        const stock = Number(p.stock) || 0;
+        const c = Number(p.unitCost) || 0;
+        const pr = Number(p.price) || 0;
+        acc.inventoryCost += stock * c;
+        acc.potentialRevenue += stock * pr;
+        return acc;
+      },
+      { inventoryCost: 0, potentialRevenue: 0 }
+    );
+  }, [retailProducts]);
+
+  const draftSell = parseFloat(retailProductPrice) || 0;
+  const draftCost = parseFloat(retailProductUnitCost) || 0;
+  const draftUnitProfit = draftSell - draftCost;
+  const draftMarginPct = draftSell > 0 ? (draftUnitProfit / draftSell) * 100 : 0;
+
   const resetRetailModal = () => {
     setRetailProductOpen(false);
     setRetailProductEditOpen(false);
@@ -208,6 +233,7 @@ export default function ProductsPage() {
     setRetailProductName('');
     setRetailProductDesc('');
     setRetailProductPrice('');
+    setRetailProductUnitCost('');
     setRetailProductStock('0');
     setRetailProductImage(null);
   };
@@ -585,8 +611,50 @@ export default function ProductsPage() {
             )}
           </Grid>
         ) : (
+          <>
+            {retailProducts.length > 0 && (
+              <Card sx={{ mb: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+                <CardContent sx={{ py: 2 }}>
+                  <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                    Catalog totals (aggregated across products)
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={4}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Total inventory cost (stock × unit cost)
+                      </Typography>
+                      <Typography variant="h6" fontWeight={700}>
+                        RM{retailCatalogTotals.inventoryCost.toFixed(2)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Total retail value (stock × selling price)
+                      </Typography>
+                      <Typography variant="h6" fontWeight={700} color="primary.main">
+                        RM{retailCatalogTotals.potentialRevenue.toFixed(2)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Potential gross profit if all stock sells
+                      </Typography>
+                      <Typography variant="h6" fontWeight={700} color="success.main">
+                        RM{(retailCatalogTotals.potentialRevenue - retailCatalogTotals.inventoryCost).toFixed(2)}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            )}
           <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ m: 0, width: '100%' }}>
-            {retailProducts && retailProducts.length > 0 ? retailProducts.map((product) => (
+            {retailProducts && retailProducts.length > 0 ? retailProducts.map((product) => {
+              const unitCost = Number(product.unitCost) || 0;
+              const sell = Number(product.price) || 0;
+              const unitProfit = sell - unitCost;
+              const marginPct = sell > 0 ? (unitProfit / sell) * 100 : 0;
+              const retailMeta = `COGS RM${unitCost.toFixed(2)} · +RM${unitProfit.toFixed(2)} per unit · ${marginPct.toFixed(0)}% margin`;
+              return (
               <Grid item xs={6} sm={6} md={4} lg={4} xl={4} key={product.id}>
                 <ProductCard 
                   title={product.name} 
@@ -596,9 +664,11 @@ export default function ProductsPage() {
                   onClick={() => {}}
                   onEdit={userRole === 'Boss' ? () => handleEditRetailProduct(product) : undefined}
                   onDelete={userRole === 'Boss' ? () => handleDeleteRetailProduct(product) : undefined}
+                  retailMeta={retailMeta}
                 />
               </Grid>
-            )) : (
+            );
+            }) : (
               retailLoading ? (
                 <Grid item xs={12}>
                   <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
@@ -614,6 +684,7 @@ export default function ProductsPage() {
               )
             )}
           </Grid>
+          </>
         )}
       </Container>
 
@@ -1472,7 +1543,16 @@ export default function ProductsPage() {
               minRows={3} 
             />
             <TextField 
-              label="Price (RM) *" 
+              label="Unit cost / COGS (RM)" 
+              type="number" 
+              value={retailProductUnitCost} 
+              onChange={(e) => setRetailProductUnitCost(e.target.value)} 
+              fullWidth 
+              inputProps={{ min: 0, step: 0.01 }} 
+              helperText="Your landed cost per unit (what you pay to stock it)"
+            />
+            <TextField 
+              label="Selling price (RM) *" 
               type="number" 
               value={retailProductPrice} 
               onChange={(e) => setRetailProductPrice(e.target.value)} 
@@ -1480,6 +1560,16 @@ export default function ProductsPage() {
               inputProps={{ min: 0, step: 0.01 }} 
               required
             />
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50' }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" gutterBottom>
+                Per-unit economics
+              </Typography>
+              <Typography variant="body2">
+                Profit: <strong>RM{draftUnitProfit.toFixed(2)}</strong>
+                {' · '}
+                Margin: <strong>{draftMarginPct.toFixed(1)}%</strong> on selling price
+              </Typography>
+            </Paper>
             <TextField 
               label="Stock Quantity" 
               type="number" 
@@ -1549,7 +1639,16 @@ export default function ProductsPage() {
               minRows={3} 
             />
             <TextField 
-              label="Price (RM) *" 
+              label="Unit cost / COGS (RM)" 
+              type="number" 
+              value={retailProductUnitCost} 
+              onChange={(e) => setRetailProductUnitCost(e.target.value)} 
+              fullWidth 
+              inputProps={{ min: 0, step: 0.01 }} 
+              helperText="Your landed cost per unit (what you pay to stock it)"
+            />
+            <TextField 
+              label="Selling price (RM) *" 
               type="number" 
               value={retailProductPrice} 
               onChange={(e) => setRetailProductPrice(e.target.value)} 
@@ -1557,6 +1656,16 @@ export default function ProductsPage() {
               inputProps={{ min: 0, step: 0.01 }} 
               required
             />
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50' }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" gutterBottom>
+                Per-unit economics
+              </Typography>
+              <Typography variant="body2">
+                Profit: <strong>RM{draftUnitProfit.toFixed(2)}</strong>
+                {' · '}
+                Margin: <strong>{draftMarginPct.toFixed(1)}%</strong> on selling price
+              </Typography>
+            </Paper>
             <TextField 
               label="Stock Quantity" 
               type="number" 

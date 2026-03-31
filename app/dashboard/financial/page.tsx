@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import DashboardLayout from '../../../components/dashboard/Layout';
+import PeriodProfitLossCard from '../../../components/dashboard/PeriodProfitLossCard';
 import { useUserRole } from '../../../hooks/useUserRole';
 import {
   Typography,
@@ -64,10 +65,33 @@ import html2canvas from 'html2canvas';
 
 interface FinancialOverview {
   totalRevenue: number;
+  cashRevenue?: number;
+  transferRevenue?: number;
+  unspecifiedRevenue?: number;
+  /** Completed service / appointment income (excludes standalone product tally; total revenue adds products) */
+  serviceRevenue?: number;
   totalCommissionPaid: number;
+  cashCommissionPaid?: number;
+  transferCommissionPaid?: number;
+  unspecifiedCommissionPaid?: number;
   totalExpenses: number;
   netProfit: number;
   totalCustomers: number;
+  totalProductRevenue?: number;
+  totalProductCOGS?: number;
+  retailGrossProfit?: number;
+  retailMarginPercent?: number;
+  /** Total revenue minus product COGS (before commissions and OpEx) */
+  contributionAfterProductCOGS?: number;
+}
+
+interface ProductSalesBreakdownRow {
+  name: string;
+  quantity: number;
+  totalRevenue: number;
+  totalCOGS: number;
+  grossProfit: number;
+  marginPercent: number;
 }
 
 interface BarberPerformance {
@@ -76,6 +100,8 @@ interface BarberPerformance {
   customerCount: number;
   totalSales: number;
   commissionPaid: number;
+  cashCommissionPaid?: number;
+  transferCommissionPaid?: number;
   commissionRate: number;
   appointmentCount: number;
   packageBreakdown?: Array<{ name: string; count: number }>;
@@ -101,6 +127,7 @@ interface FinancialData {
   overview: FinancialOverview;
   barberPerformance: BarberPerformance[];
   serviceBreakdown: ServiceBreakdown[];
+  productSalesBreakdown?: ProductSalesBreakdownRow[];
   expenses: Expense[];
 }
 
@@ -287,6 +314,7 @@ export default function FinancialPage() {
   // Temporary date state for custom date picker (not applied until user clicks Apply)
   const [tempDateRange, setTempDateRange] = React.useState(dateRange);
   const [dateFilter, setDateFilter] = React.useState('current_month');
+  const [paymentMethodFilter, setPaymentMethodFilter] = React.useState<'ALL' | 'CASH' | 'TRANSFER'>('ALL');
   
   // Expense management state
   const [expenseDialogOpen, setExpenseDialogOpen] = React.useState(false);
@@ -709,7 +737,8 @@ export default function FinancialPage() {
       // Fetch latest data before generating PDF
       showNotification('Fetching latest financial data...', 'info');
       
-      const response = await apiGet(`/financial/overview?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`) as any;
+      const pmParam = paymentMethodFilter !== 'ALL' ? `&paymentMethod=${paymentMethodFilter}` : '';
+      const response = await apiGet(`/financial/overview?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}${pmParam}`) as any;
       if (!response.success) {
         showNotification('Failed to fetch latest financial data', 'error');
         return;
@@ -809,14 +838,18 @@ export default function FinancialPage() {
       yPosition += 8;
       
       // Summary boxes - Black and white design
+      const ov = latestData.overview;
       const summaryItems = [
-        { label: 'Total Revenue', value: latestData.overview.totalRevenue },
-        { label: 'Commission Paid', value: latestData.overview.totalCommissionPaid },
-        { label: 'Total Expenses', value: latestData.overview.totalExpenses },
-        { label: 'Net Profit', value: latestData.overview.netProfit }
+        { label: 'Total Revenue', value: ov.totalRevenue },
+        { label: 'Cash Revenue', value: ov.cashRevenue ?? 0 },
+        { label: 'Transfer Revenue', value: ov.transferRevenue ?? 0 },
+        { label: 'Product COGS', value: ov.totalProductCOGS ?? 0 },
+        { label: 'Commission Paid', value: ov.totalCommissionPaid },
+        { label: 'Total Expenses', value: ov.totalExpenses },
+        { label: 'Net Profit', value: ov.netProfit }
       ];
       
-      const boxWidth = (contentWidth - 9) / 4; // 3px gaps between boxes
+      const boxWidth = (contentWidth - 12) / summaryItems.length;
       let boxX = margin;
       
       summaryItems.forEach((item, index) => {
@@ -990,8 +1023,8 @@ export default function FinancialPage() {
         pdf.setFontSize(9);
         pdf.setFont('helvetica', 'bold');
         
-        const productColPositions = [margin + 2, margin + 100, margin + 150, margin + 170];
-        const productHeaders = ['Product', 'Quantity', 'Revenue', 'Avg Price'];
+        const productColPositions = [margin + 2, margin + 72, margin + 102, margin + 132, margin + 162, margin + 192];
+        const productHeaders = ['Product', 'Qty', 'Revenue', 'COGS', 'Profit', 'Margin'];
         
         productHeaders.forEach((header, i) => {
           pdf.text(header, productColPositions[i], yPosition);
@@ -1001,24 +1034,41 @@ export default function FinancialPage() {
         
         // Table rows
         pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(8);
+        pdf.setFontSize(7);
         pdf.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
         
+        let sumRev = 0;
+        let sumCogs = 0;
+        let sumGp = 0;
         latestData.productSalesBreakdown.forEach((product: any) => {
           if (yPosition > pageHeight - 25) {
             pdf.addPage();
             yPosition = margin;
           }
           
-          const avgPrice = product.quantity > 0 ? product.totalRevenue / product.quantity : 0;
+          const cogs = product.totalCOGS ?? 0;
+          const gp = product.grossProfit ?? (product.totalRevenue - cogs);
+          const marginPct = product.totalRevenue > 0 ? ((gp / product.totalRevenue) * 100).toFixed(1) : '0.0';
+          sumRev += product.totalRevenue || 0;
+          sumCogs += cogs;
+          sumGp += gp;
           
-          pdf.text(product.name.substring(0, 30), productColPositions[0], yPosition);
-          pdf.text(product.quantity.toString(), productColPositions[1], yPosition);
-          pdf.text(`RM${product.totalRevenue.toFixed(2)}`, productColPositions[2], yPosition);
-          pdf.text(`RM${avgPrice.toFixed(2)}`, productColPositions[3], yPosition);
+          pdf.text(String(product.name).substring(0, 22), productColPositions[0], yPosition);
+          pdf.text(String(product.quantity), productColPositions[1], yPosition);
+          pdf.text(`RM${(product.totalRevenue || 0).toFixed(2)}`, productColPositions[2], yPosition);
+          pdf.text(`RM${cogs.toFixed(2)}`, productColPositions[3], yPosition);
+          pdf.text(`RM${gp.toFixed(2)}`, productColPositions[4], yPosition);
+          pdf.text(`${marginPct}%`, productColPositions[5], yPosition);
           
-          yPosition += 6;
+          yPosition += 5;
         });
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Total', productColPositions[0], yPosition);
+        pdf.text(`RM${sumRev.toFixed(2)}`, productColPositions[2], yPosition);
+        pdf.text(`RM${sumCogs.toFixed(2)}`, productColPositions[3], yPosition);
+        pdf.text(`RM${sumGp.toFixed(2)}`, productColPositions[4], yPosition);
+        pdf.setFont('helvetica', 'normal');
+        yPosition += 8;
       } else {
         // No product sales - show 0
         pdf.setTextColor(colors.mediumGray[0], colors.mediumGray[1], colors.mediumGray[2]);
@@ -1140,20 +1190,21 @@ export default function FinancialPage() {
     fetchTodaysAppointments();
     fetchTodaysProductSales();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userRole]);
+  }, [userRole, paymentMethodFilter]);
 
   // Auto-fetch when dateRange changes
   React.useEffect(() => {
     fetchFinancialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange]);
+  }, [dateRange, paymentMethodFilter]);
 
   const fetchFinancialData = async () => {
     try {
       setLoading(true);
       
       if (userRole === 'Boss') {
-        const response = await apiGet(`/financial/overview?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`) as any;
+        const pmParam = paymentMethodFilter !== 'ALL' ? `&paymentMethod=${paymentMethodFilter}` : '';
+        const response = await apiGet(`/financial/overview?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}${pmParam}`) as any;
         if (response.success) {
           setFinancialData(response.data);
         } else {
@@ -1161,10 +1212,11 @@ export default function FinancialPage() {
         }
       } else if (userRole === 'Staff') {
         // Use hook data if available, otherwise fetch manually
-        if (hookFinancialData) {
+        if (hookFinancialData && paymentMethodFilter === 'ALL') {
           setStaffData(hookFinancialData);
         } else {
-          const response = await apiGet(`/financial/staff-report?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`) as any;
+          const pmParam = paymentMethodFilter !== 'ALL' ? `&paymentMethod=${paymentMethodFilter}` : '';
+          const response = await apiGet(`/financial/staff-report?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}${pmParam}`) as any;
           if (response.success) {
             setStaffData(response.data);
           }
@@ -1400,6 +1452,21 @@ export default function FinancialPage() {
               <MenuItem value="last_month">Last Month</MenuItem>
               <MenuItem value="last_3_months">Last 3 Months</MenuItem>
               <MenuItem value="this_year">This Year</MenuItem>
+            </Select>
+          </FormControl>
+
+          {/* Payment Method Filter */}
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+            <InputLabel>Payment Method</InputLabel>
+            <Select
+              value={paymentMethodFilter}
+              onChange={(e) => setPaymentMethodFilter(e.target.value as any)}
+              label="Payment Method"
+              sx={{ bgcolor: 'white' }}
+            >
+              <MenuItem value="ALL">All</MenuItem>
+              <MenuItem value="CASH">Cash</MenuItem>
+              <MenuItem value="TRANSFER">Online Transfer</MenuItem>
             </Select>
           </FormControl>
 
@@ -1690,7 +1757,122 @@ export default function FinancialPage() {
                     subtitle="Total served"
                   />
                 </Grid>
+
+                {(financialData.overview.totalProductRevenue ?? 0) > 0 && (
+                  <>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <FinancialCard
+                        title="Retail revenue"
+                        value={formatCurrency(financialData.overview.totalProductRevenue ?? 0)}
+                        icon={<MonetizationOnIcon />}
+                        color="#0d9488"
+                        bgColor="linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%)"
+                        subtitle="Product sales (all channels)"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <FinancialCard
+                        title="Product COGS"
+                        value={formatCurrency(financialData.overview.totalProductCOGS ?? 0)}
+                        icon={<TrendingDownIcon />}
+                        color="#b45309"
+                        bgColor="linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)"
+                        subtitle="Cost of goods sold"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <FinancialCard
+                        title="Retail gross profit"
+                        value={formatCurrency(financialData.overview.retailGrossProfit ?? 0)}
+                        icon={<TrendingUpIcon />}
+                        color={(financialData.overview.retailGrossProfit ?? 0) >= 0 ? '#047857' : '#ef4444'}
+                        bgColor={(financialData.overview.retailGrossProfit ?? 0) >= 0
+                          ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)'
+                          : 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)'}
+                        subtitle={`Margin ${(financialData.overview.retailMarginPercent ?? 0).toFixed(1)}% on retail`}
+                      />
+                    </Grid>
+                  </>
+                )}
               </Grid>
+
+              <PeriodProfitLossCard overview={financialData.overview} formatCurrency={formatCurrency} />
+
+              {financialData.productSalesBreakdown && financialData.productSalesBreakdown.length > 0 && (
+                <Card sx={{
+                  mt: 3,
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                  border: 'none',
+                  borderRadius: { xs: 4, sm: 5 },
+                  bgcolor: '#fff'
+                }}>
+                  <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                    <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                      Retail products (walk-in and standalone sales)
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Totals include only sales not linked to an appointment (same basis as period product mix). Shop-wide COGS and retail profit are in the cards above.
+                    </Typography>
+                    <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                            <TableCell><strong>Product</strong></TableCell>
+                            <TableCell align="right"><strong>Qty</strong></TableCell>
+                            <TableCell align="right"><strong>Revenue</strong></TableCell>
+                            <TableCell align="right"><strong>COGS</strong></TableCell>
+                            <TableCell align="right"><strong>Gross profit</strong></TableCell>
+                            <TableCell align="right"><strong>Margin</strong></TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {financialData.productSalesBreakdown.map((row) => (
+                            <TableRow key={row.name}>
+                              <TableCell>{row.name}</TableCell>
+                              <TableCell align="right">{row.quantity}</TableCell>
+                              <TableCell align="right">{formatCurrency(row.totalRevenue)}</TableCell>
+                              <TableCell align="right">{formatCurrency(row.totalCOGS)}</TableCell>
+                              <TableCell align="right" sx={{ color: row.grossProfit >= 0 ? 'success.main' : 'error.main', fontWeight: 600 }}>
+                                {formatCurrency(row.grossProfit)}
+                              </TableCell>
+                              <TableCell align="right">{row.marginPercent.toFixed(1)}%</TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow sx={{ bgcolor: '#f1f5f9', fontWeight: 600 }}>
+                            <TableCell><strong>Total</strong></TableCell>
+                            <TableCell align="right">
+                              <strong>
+                                {financialData.productSalesBreakdown.reduce((s, r) => s + r.quantity, 0)}
+                              </strong>
+                            </TableCell>
+                            <TableCell align="right">
+                              <strong>{formatCurrency(financialData.productSalesBreakdown.reduce((s, r) => s + r.totalRevenue, 0))}</strong>
+                            </TableCell>
+                            <TableCell align="right">
+                              <strong>{formatCurrency(financialData.productSalesBreakdown.reduce((s, r) => s + r.totalCOGS, 0))}</strong>
+                            </TableCell>
+                            <TableCell align="right">
+                              <strong>
+                                {formatCurrency(financialData.productSalesBreakdown.reduce((s, r) => s + r.grossProfit, 0))}
+                              </strong>
+                            </TableCell>
+                            <TableCell align="right">
+                              <strong>
+                                {(() => {
+                                  const tr = financialData.productSalesBreakdown.reduce((s, r) => s + r.totalRevenue, 0);
+                                  const gp = financialData.productSalesBreakdown.reduce((s, r) => s + r.grossProfit, 0);
+                                  return tr > 0 ? ((gp / tr) * 100).toFixed(1) : '0.0';
+                                })()}
+                                %
+                              </strong>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </CardContent>
+                </Card>
+              )}
             </Box>
           )}
 
@@ -2154,6 +2336,12 @@ export default function FinancialPage() {
                     </Typography>
                   </Box>
 
+                  <PeriodProfitLossCard
+                    overview={financialData.overview}
+                    formatCurrency={formatCurrency}
+                    cardSx={{ mt: 0, mb: 3 }}
+                  />
+
                   {/* Summary Cards */}
                   <Grid container spacing={3} sx={{ mb: 4 }}>
                     <Grid item xs={12} sm={6} md={3}>
@@ -2209,10 +2397,43 @@ export default function FinancialPage() {
                         borderRadius: 3
                       }}>
                         <Typography variant="h4" fontWeight={700} color="#8b5cf6">
-                          {((financialData.overview.totalCommissionPaid / financialData.overview.totalRevenue) * 100).toFixed(1)}%
+                          {(financialData.overview.totalRevenue > 0
+                            ? (financialData.overview.totalCommissionPaid / financialData.overview.totalRevenue) * 100
+                            : 0
+                          ).toFixed(1)}%
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Payroll Percentage
+                          Commission % of income
+                        </Typography>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card sx={{
+                        p: 2,
+                        textAlign: 'center',
+                        border: '2px solid #b45309',
+                        borderRadius: 3,
+                      }}>
+                        <Typography variant="h4" fontWeight={700} color="#b45309">
+                          {formatCurrency(financialData.overview.totalProductCOGS ?? 0)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Product COGS
+                        </Typography>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card sx={{
+                        p: 2,
+                        textAlign: 'center',
+                        border: `2px solid ${financialData.overview.netProfit >= 0 ? '#059669' : '#dc2626'}`,
+                        borderRadius: 3,
+                      }}>
+                        <Typography variant="h4" fontWeight={700} color={financialData.overview.netProfit >= 0 ? '#059669' : '#dc2626'}>
+                          {formatCurrency(financialData.overview.netProfit)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Net profit (after COGS, commissions, expenses)
                         </Typography>
                       </Card>
                     </Grid>
@@ -2268,9 +2489,14 @@ export default function FinancialPage() {
                                 </Typography>
                               </TableCell>
                               <TableCell>
-                                <Typography variant="body2" fontWeight={600} color="success.main">
-                                  {formatCurrency(barber.commissionPaid)}
-                                </Typography>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                                  <Typography variant="body2" fontWeight={600} color="success.main">
+                                    {formatCurrency(barber.commissionPaid)}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    Cash: {formatCurrency(barber.cashCommissionPaid ?? 0)} · Transfer: {formatCurrency(barber.transferCommissionPaid ?? 0)}
+                                  </Typography>
+                                </Box>
                               </TableCell>
                               <TableCell>{barber.customerCount}</TableCell>
                               <TableCell>{barber.appointmentCount}</TableCell>
@@ -2308,9 +2534,14 @@ export default function FinancialPage() {
                               </Typography>
                             </TableCell>
                             <TableCell>
-                              <Typography variant="body2" fontWeight={600} color="success.main">
-                                {formatCurrency(financialData.overview.totalCommissionPaid)}
-                              </Typography>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                                <Typography variant="body2" fontWeight={600} color="success.main">
+                                  {formatCurrency(financialData.overview.totalCommissionPaid)}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Cash: {formatCurrency(financialData.overview.cashCommissionPaid ?? 0)} · Transfer: {formatCurrency(financialData.overview.transferCommissionPaid ?? 0)}
+                                </Typography>
+                              </Box>
                             </TableCell>
                             <TableCell>
                               <Typography variant="body2" fontWeight={600}>
@@ -2369,23 +2600,32 @@ export default function FinancialPage() {
                         height: '100%'
                       }}>
                         <Typography variant="h6" fontWeight={600} gutterBottom color="success.main">
-                          Revenue Breakdown
+                          Income, COGS, commissions, and expenses
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
+                          Same figures as the Profit and loss table on Overview / this tab. Product COGS is always shown (use 0 if no retail cost entered).
                         </Typography>
                         <Stack spacing={2}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Total Revenue:</Typography>
+                            <Typography variant="body2">Total income:</Typography>
                             <Typography variant="body1" fontWeight={600} color="success.main">
                               {formatCurrency(financialData.overview.totalRevenue)}
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Staff Commissions:</Typography>
+                            <Typography variant="body2">Product COGS (retail):</Typography>
+                            <Typography variant="body1" fontWeight={600} color="warning.main">
+                              -{formatCurrency(financialData.overview.totalProductCOGS ?? 0)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Staff commissions:</Typography>
                             <Typography variant="body1" fontWeight={600} color="warning.main">
                               -{formatCurrency(financialData.overview.totalCommissionPaid)}
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Business Expenses:</Typography>
+                            <Typography variant="body2">Business expenses:</Typography>
                             <Typography variant="body1" fontWeight={600} color="error.main">
                               -{formatCurrency(financialData.overview.totalExpenses)}
                             </Typography>
@@ -2423,33 +2663,55 @@ export default function FinancialPage() {
                         </Typography>
                         <Stack spacing={2}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Profit Margin:</Typography>
+                            <Typography variant="body2">Net profit margin:</Typography>
                             <Typography variant="body1" fontWeight={600}>
-                              {((financialData.overview.netProfit / financialData.overview.totalRevenue) * 100).toFixed(1)}%
+                              {(financialData.overview.totalRevenue > 0
+                                ? (financialData.overview.netProfit / financialData.overview.totalRevenue) * 100
+                                : 0
+                              ).toFixed(1)}%
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Staff Cost Ratio:</Typography>
+                            <Typography variant="body2">Product COGS % of income:</Typography>
                             <Typography variant="body1" fontWeight={600}>
-                              {((financialData.overview.totalCommissionPaid / financialData.overview.totalRevenue) * 100).toFixed(1)}%
+                              {(financialData.overview.totalRevenue > 0
+                                ? ((financialData.overview.totalProductCOGS ?? 0) / financialData.overview.totalRevenue) * 100
+                                : 0
+                              ).toFixed(1)}%
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Expense Ratio:</Typography>
+                            <Typography variant="body2">Staff commission % of income:</Typography>
                             <Typography variant="body1" fontWeight={600}>
-                              {((financialData.overview.totalExpenses / financialData.overview.totalRevenue) * 100).toFixed(1)}%
+                              {(financialData.overview.totalRevenue > 0
+                                ? (financialData.overview.totalCommissionPaid / financialData.overview.totalRevenue) * 100
+                                : 0
+                              ).toFixed(1)}%
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Revenue per Customer:</Typography>
+                            <Typography variant="body2">Operating expense % of income:</Typography>
                             <Typography variant="body1" fontWeight={600}>
-                              {formatCurrency(financialData.overview.totalRevenue / financialData.overview.totalCustomers)}
+                              {(financialData.overview.totalRevenue > 0
+                                ? (financialData.overview.totalExpenses / financialData.overview.totalRevenue) * 100
+                                : 0
+                              ).toFixed(1)}%
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Avg Staff Earnings:</Typography>
+                            <Typography variant="body2">Income per customer:</Typography>
                             <Typography variant="body1" fontWeight={600}>
-                              {formatCurrency(financialData.overview.totalCommissionPaid / financialData.barberPerformance.length)}
+                              {financialData.overview.totalCustomers > 0
+                                ? formatCurrency(financialData.overview.totalRevenue / financialData.overview.totalCustomers)
+                                : formatCurrency(0)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Avg commission per staff:</Typography>
+                            <Typography variant="body1" fontWeight={600}>
+                              {financialData.barberPerformance.length > 0
+                                ? formatCurrency(financialData.overview.totalCommissionPaid / financialData.barberPerformance.length)
+                                : formatCurrency(0)}
                             </Typography>
                           </Box>
                   </Stack>
