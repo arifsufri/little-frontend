@@ -149,11 +149,14 @@ export default function RegisterPage() {
           }}>
             <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
               <Typography variant="h4" fontWeight={700} textAlign="center" letterSpacing={0.5}>
-                Create account
+                Boss Registration
               </Typography>
               <Typography variant="body2" color="text.secondary" textAlign="center" mt={0.5}>
-                Join Little Barbershop
+                Create a Boss account for Little Barbershop
               </Typography>
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Staff accounts can only be created by the Boss. If you&apos;re a staff member, please contact your boss to create an account for you.
+              </Alert>
 
               {errorMsg && (
                 <Alert severity="error" sx={{ mt: 2 }}>

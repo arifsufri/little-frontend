@@ -63,6 +63,7 @@ interface Staff {
   id: number;
   name: string;
   email: string;
+  idNumber?: string;
   phone: string;
   role: 'Boss' | 'Staff';
   status: 'active' | 'inactive';
@@ -97,10 +98,8 @@ export default function StaffPage() {
   const [deletingStaff, setDeletingStaff] = React.useState<Staff | null>(null);
   const [menuAnchorEl, setMenuAnchorEl] = React.useState<null | HTMLElement>(null);
   const [menuStaff, setMenuStaff] = React.useState<Staff | null>(null);
-  const [passwordDialogOpen, setPasswordDialogOpen] = React.useState(false);
-  const [newPassword, setNewPassword] = React.useState('');
-  const [confirmPassword, setConfirmPassword] = React.useState('');
-  const [showPassword, setShowPassword] = React.useState(false);
+  const [idNumberDialogOpen, setIdNumberDialogOpen] = React.useState(false);
+  const [newIdNumber, setNewIdNumber] = React.useState('');
   const [snackbar, setSnackbar] = React.useState({
     open: false,
     message: '',
@@ -108,7 +107,7 @@ export default function StaffPage() {
   });
   const [newStaff, setNewStaff] = React.useState({
     name: '',
-    email: '',
+    idNumber: '',
     phone: '',
     role: 'Staff' as 'Boss' | 'Staff'
   });
@@ -145,17 +144,23 @@ export default function StaffPage() {
 
   const handleCreateStaff = async () => {
     try {
+      // Validate ID number
+      if (!/^\d{4}$/.test(newStaff.idNumber)) {
+        showNotification('ID number must be exactly 4 digits', 'error');
+        return;
+      }
+
       const response = await apiPost('/staff', newStaff) as any;
       if (response.success) {
         setStaff([...staff, response.data]);
       setCreateStaffOpen(false);
       setNewStaff({
         name: '',
-        email: '',
+        idNumber: '',
           phone: '',
         role: 'Staff'
       });
-        showNotification('Staff member added successfully!', 'success');
+        showNotification(`Staff member added successfully with ID: ${newStaff.idNumber}`, 'success');
       } else {
         showNotification(response.message || 'Failed to add staff member. Please try again.', 'error');
       }
@@ -272,9 +277,10 @@ export default function StaffPage() {
       case 'commission':
         openCommissionDialog(menuStaff);
         break;
-      case 'password':
+      case 'idnumber':
         setSelectedStaff(menuStaff);
-        setPasswordDialogOpen(true);
+        setNewIdNumber(menuStaff.idNumber || '');
+        setIdNumberDialogOpen(true);
         break;
       case 'toggle':
         handleToggleStatus(menuStaff);
@@ -286,58 +292,54 @@ export default function StaffPage() {
     handleMenuClose();
   };
 
-  const handleSetPassword = async () => {
+  const handleSetIdNumber = async () => {
     if (!selectedStaff) return;
 
     // Validation
-    if (!newPassword || !confirmPassword) {
+    if (!newIdNumber) {
       setSnackbar({
         open: true,
-        message: 'Please fill in all password fields',
+        message: 'Please enter an ID number',
         severity: 'error'
       });
       return;
     }
 
-    if (newPassword.length < 6) {
+    if (!/^\d{4}$/.test(newIdNumber)) {
       setSnackbar({
         open: true,
-        message: 'Password must be at least 6 characters',
-        severity: 'error'
-      });
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setSnackbar({
-        open: true,
-        message: 'Passwords do not match',
+        message: 'ID number must be exactly 4 digits',
         severity: 'error'
       });
       return;
     }
 
     try {
-      await apiPut(`/auth/users/${selectedStaff.id}/password`, {
-        newPassword
+      await apiPut(`/auth/users/${selectedStaff.id}/idnumber`, {
+        idNumber: newIdNumber
       });
+
+      // Update the staff list with new ID number
+      setStaff(staff.map(member => 
+        member.id === selectedStaff.id 
+          ? { ...member, idNumber: newIdNumber }
+          : member
+      ));
 
       setSnackbar({
         open: true,
-        message: `Password updated successfully for ${selectedStaff.name}`,
+        message: `ID number set successfully for ${selectedStaff.name}`,
         severity: 'success'
       });
 
       // Reset and close
-      setPasswordDialogOpen(false);
-      setNewPassword('');
-      setConfirmPassword('');
-      setShowPassword(false);
+      setIdNumberDialogOpen(false);
+      setNewIdNumber('');
       setSelectedStaff(null);
     } catch (error: any) {
       setSnackbar({
         open: true,
-        message: error.response?.data?.message || 'Failed to update password',
+        message: error.response?.data?.message || 'Failed to set ID number',
         severity: 'error'
       });
     }
@@ -833,7 +835,7 @@ export default function StaffPage() {
                               />
                               </Stack>
                               <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-                                {member.email} • {member.phone}
+                                ID: {member.idNumber || 'Not set'} {member.phone && `• ${member.phone}`}
                               </Typography>
                               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -877,9 +879,9 @@ export default function StaffPage() {
                     <TableHead>
                       <TableRow>
                         <TableCell><strong>Staff Member</strong></TableCell>
+                        <TableCell><strong>ID Number</strong></TableCell>
                         <TableCell><strong>Role</strong></TableCell>
                         <TableCell><strong>Status</strong></TableCell>
-                        <TableCell><strong>Contact</strong></TableCell>
                         <TableCell><strong>Commission</strong></TableCell>
                         <TableCell><strong>Join Date</strong></TableCell>
                         <TableCell><strong>Performance</strong></TableCell>
@@ -899,10 +901,15 @@ export default function StaffPage() {
                                   {member.name}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
-                                  ID: {member.id}
+                                  {member.phone || 'No phone'}
                               </Typography>
                               </Box>
                             </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600} color="primary">
+                              {member.idNumber || 'Not set'}
+                            </Typography>
                           </TableCell>
                           <TableCell>
                             <Chip 
@@ -919,12 +926,6 @@ export default function StaffPage() {
                               size="small"
                               variant="outlined"
                             />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">{member.email}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {member.phone}
-                            </Typography>
                           </TableCell>
                           <TableCell>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -1010,12 +1011,18 @@ export default function StaffPage() {
             />
 
             <TextField
-              label="Email Address"
-              type="email"
-              value={newStaff.email}
-              onChange={(e) => setNewStaff({...newStaff, email: e.target.value})}
+              label="ID Number"
+              type="text"
+              value={newStaff.idNumber}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                setNewStaff({...newStaff, idNumber: value});
+              }}
               fullWidth
               required
+              placeholder="Enter 4-digit ID"
+              inputProps={{ maxLength: 4, pattern: '[0-9]*' }}
+              helperText="4-digit number for staff login"
             />
 
             <TextField
@@ -1023,8 +1030,7 @@ export default function StaffPage() {
               value={newStaff.phone}
               onChange={(e) => setNewStaff({...newStaff, phone: e.target.value})}
               fullWidth
-              required
-              placeholder="012-3456789"
+              placeholder="012-3456789 (optional)"
             />
 
             <FormControl fullWidth>
@@ -1063,7 +1069,7 @@ export default function StaffPage() {
             variant="red"
             animated
             onClick={handleCreateStaff}
-            disabled={!newStaff.name || !newStaff.email || !newStaff.phone}
+            disabled={!newStaff.name || !newStaff.idNumber || newStaff.idNumber.length !== 4}
             sx={{ 
               flex: 1,
               px: { xs: 2, sm: 3 }, 
@@ -1189,11 +1195,11 @@ export default function StaffPage() {
             <ListItemText>Edit Commission</ListItemText>
           </MenuItem>
 
-          <MenuItem onClick={() => handleMenuAction('password')}>
+          <MenuItem onClick={() => handleMenuAction('idnumber')}>
             <ListItemIcon>
               <LockResetIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText>Set Password</ListItemText>
+            <ListItemText>Set ID Number</ListItemText>
           </MenuItem>
           
           {menuStaff && (
@@ -1220,14 +1226,12 @@ export default function StaffPage() {
         </Menu>
       )}
 
-      {/* Set Password Dialog */}
+      {/* Set ID Number Dialog */}
       <Dialog
-        open={passwordDialogOpen}
+        open={idNumberDialogOpen}
         onClose={() => {
-          setPasswordDialogOpen(false);
-          setNewPassword('');
-          setConfirmPassword('');
-          setShowPassword(false);
+          setIdNumberDialogOpen(false);
+          setNewIdNumber('');
           setSelectedStaff(null);
         }}
         maxWidth="sm"
@@ -1235,46 +1239,24 @@ export default function StaffPage() {
       >
         <DialogTitle>
           <Typography variant="h6" fontWeight={600}>
-            Set Password for {selectedStaff?.name}
+            Set ID Number for {selectedStaff?.name}
           </Typography>
         </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 2 }}>
             <TextField
-              label="New Password"
-              type={showPassword ? 'text' : 'password'}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              fullWidth
-              required
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
+              label="ID Number"
+              type="text"
+              value={newIdNumber}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                setNewIdNumber(value);
               }}
-              helperText="Password must be at least 6 characters"
-            />
-            
-            <TextField
-              label="Confirm Password"
-              type={showPassword ? 'text' : 'password'}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
               fullWidth
               required
-              error={confirmPassword !== '' && newPassword !== confirmPassword}
-              helperText={
-                confirmPassword !== '' && newPassword !== confirmPassword
-                  ? 'Passwords do not match'
-                  : 'Re-enter the password to confirm'
-              }
+              placeholder="Enter 4-digit ID"
+              inputProps={{ maxLength: 4, pattern: '[0-9]*' }}
+              helperText="4-digit number for staff login. Current ID: ${selectedStaff?.idNumber || 'Not set'}"
             />
           </Stack>
         </DialogContent>
@@ -1288,10 +1270,8 @@ export default function StaffPage() {
             variant="blue"
             animated
             onClick={() => {
-              setPasswordDialogOpen(false);
-              setNewPassword('');
-              setConfirmPassword('');
-              setShowPassword(false);
+              setIdNumberDialogOpen(false);
+              setNewIdNumber('');
               setSelectedStaff(null);
             }}
             sx={{ 
@@ -1306,8 +1286,8 @@ export default function StaffPage() {
           <GradientButton
             variant="red"
             animated
-            onClick={handleSetPassword}
-            disabled={!newPassword || !confirmPassword || newPassword !== confirmPassword}
+            onClick={handleSetIdNumber}
+            disabled={!newIdNumber || newIdNumber.length !== 4}
             sx={{ 
               flex: 1,
               px: { xs: 2, sm: 3 }, 
@@ -1315,7 +1295,7 @@ export default function StaffPage() {
               fontSize: { xs: 13, sm: 14 }
             }}
           >
-            Set Password
+            Set ID Number
           </GradientButton>
         </DialogActions>
       </Dialog>

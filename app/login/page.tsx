@@ -25,8 +25,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { apiPost } from "../../src/utils/axios";
 
 const LoginSchema = z.object({
-  email: z.string().email("Invalid email"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().email("Invalid email").optional(),
+  password: z.string().min(1, "Password is required").optional(),
+  idNumber: z.string().regex(/^\d{4}$/, "ID number must be 4 digits").optional(),
+}).refine((data) => {
+  // Either email+password OR idNumber must be provided
+  return (data.email && data.password) || data.idNumber;
+}, {
+  message: "Please provide either email and password, or ID number",
 });
 
 type LoginForm = z.infer<typeof LoginSchema>;
@@ -35,6 +41,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [showPassword, setShowPassword] = React.useState(false);
+  const [loginMode, setLoginMode] = React.useState<'id' | 'email'>('id'); // Default to ID login
   const {
     register,
     handleSubmit,
@@ -59,9 +66,14 @@ export default function LoginPage() {
     setErrorMsg(null);
     
     try {
+      // Prepare login data based on mode
+      const loginData = loginMode === 'id' 
+        ? { idNumber: data.idNumber }
+        : { email: data.email, password: data.password };
+
       const res = await apiPost<{ success: boolean; data: { token: string } }>(
         '/auth/login',
-        data
+        loginData
       );
       const token = res?.data?.token;
       if (!token) throw new Error('No token received');
@@ -76,6 +88,8 @@ export default function LoginPage() {
         msg = 'This email is not registered. Please check your email or create an account.';
       } else if (errorResponse?.error === 'Wrong password') {
         msg = 'The password you entered is incorrect. Please try again.';
+      } else if (errorResponse?.error === 'ID number not found') {
+        msg = 'This ID number is not registered. Please contact your boss.';
       } else if (errorResponse?.error === 'Account not activated') {
         msg = 'Your account is pending activation. Please contact your administrator.';
       } else if (errorResponse?.message) {
@@ -156,52 +170,108 @@ export default function LoginPage() {
                 </Alert>
               )}
 
+              {/* Login Mode Toggle */}
+              <Box sx={{ display: 'flex', gap: 1, mt: 3, mb: 2 }}>
+                <Button
+                  fullWidth
+                  variant={loginMode === 'id' ? 'contained' : 'outlined'}
+                  onClick={() => setLoginMode('id')}
+                  sx={{
+                    bgcolor: loginMode === 'id' ? '#111827' : 'transparent',
+                    color: loginMode === 'id' ? 'white' : '#111827',
+                    borderColor: '#111827',
+                    '&:hover': {
+                      bgcolor: loginMode === 'id' ? '#1f2937' : 'rgba(17, 24, 39, 0.04)',
+                      borderColor: '#111827',
+                    }
+                  }}
+                >
+                  Staff ID
+                </Button>
+                <Button
+                  fullWidth
+                  variant={loginMode === 'email' ? 'contained' : 'outlined'}
+                  onClick={() => setLoginMode('email')}
+                  sx={{
+                    bgcolor: loginMode === 'email' ? '#111827' : 'transparent',
+                    color: loginMode === 'email' ? 'white' : '#111827',
+                    borderColor: '#111827',
+                    '&:hover': {
+                      bgcolor: loginMode === 'email' ? '#1f2937' : 'rgba(17, 24, 39, 0.04)',
+                      borderColor: '#111827',
+                    }
+                  }}
+                >
+                  Boss Login
+                </Button>
+              </Box>
+
               <Box 
                 component="form" 
                 onSubmit={(e) => {
                   e.preventDefault();
                   handleSubmit(onSubmit)(e);
                 }} 
-                mt={{ xs: 2, sm: 3 }}
+                mt={{ xs: 2, sm: 2 }}
               >
-                <TextField
-                  label="Email"
-                  type="email"
-                  fullWidth
-                  size="small"
-                  {...register("email", {
-                    onChange: () => handleInputChange()
-                  })}
-                  error={!!errors.email}
-                  helperText={errors.email?.message}
-                />
-                <TextField
-                  label="Password"
-                  type={showPassword ? "text" : "password"}
-                  fullWidth
-                  size="small"
-                  sx={{ mt: 2 }}
-                  {...register("password", {
-                    onChange: () => handleInputChange()
-                  })}
-                  error={!!errors.password}
-                  helperText={errors.password?.message}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          aria-label="toggle password visibility"
-                          onClick={() => setShowPassword(!showPassword)}
-                          onMouseDown={(e) => e.preventDefault()}
-                          edge="end"
-                          size="small"
-                        >
-                          {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
+                {loginMode === 'id' ? (
+                  // Staff ID Login
+                  <TextField
+                    label="Staff ID Number"
+                    type="text"
+                    fullWidth
+                    size="small"
+                    placeholder="Enter 4-digit ID"
+                    inputProps={{ maxLength: 4, pattern: '[0-9]*' }}
+                    {...register("idNumber", {
+                      onChange: () => handleInputChange()
+                    })}
+                    error={!!errors.idNumber}
+                    helperText={errors.idNumber?.message || "Enter your 4-digit staff ID number"}
+                  />
+                ) : (
+                  // Boss Email/Password Login
+                  <>
+                    <TextField
+                      label="Email"
+                      type="email"
+                      fullWidth
+                      size="small"
+                      {...register("email", {
+                        onChange: () => handleInputChange()
+                      })}
+                      error={!!errors.email}
+                      helperText={errors.email?.message}
+                    />
+                    <TextField
+                      label="Password"
+                      type={showPassword ? "text" : "password"}
+                      fullWidth
+                      size="small"
+                      sx={{ mt: 2 }}
+                      {...register("password", {
+                        onChange: () => handleInputChange()
+                      })}
+                      error={!!errors.password}
+                      helperText={errors.password?.message}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label="toggle password visibility"
+                              onClick={() => setShowPassword(!showPassword)}
+                              onMouseDown={(e) => e.preventDefault()}
+                              edge="end"
+                              size="small"
+                            >
+                              {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </>
+                )}
                 <Button
                   type="submit"
                   variant="contained"
@@ -220,12 +290,14 @@ export default function LoginPage() {
                 </Button>
               </Box>
 
-              <Typography variant="body2" textAlign="center" mt={2} color="text.secondary">
-                Don&apos;t have an account yet?{" "}
-                <MUILink component={NextLink} href="/register" underline="always" sx={{ fontWeight: 600 }}>
-                  Create an account
-                </MUILink>
-              </Typography>
+              {loginMode === 'email' && (
+                <Typography variant="body2" textAlign="center" mt={2} color="text.secondary">
+                  Don&apos;t have an account yet?{" "}
+                  <MUILink component={NextLink} href="/register" underline="always" sx={{ fontWeight: 600 }}>
+                    Create an account
+                  </MUILink>
+                </Typography>
+              )}
             </CardContent>
           </Card>
         </Box>
