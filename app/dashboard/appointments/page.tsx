@@ -3270,6 +3270,62 @@ export default function AppointmentsPage() {
                   )}
               </Box>
 
+              {/* Payment Method Selection (required) - Moved here */}
+              <Box>
+                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
+                  Payment Method <span style={{ color: '#dc2626' }}>*</span>
+                </Typography>
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    fullWidth
+                    variant={paymentMethod === 'CASH' ? 'contained' : 'outlined'}
+                    onClick={() => setPaymentMethod('CASH')}
+                    sx={{
+                      py: 1.5,
+                      bgcolor: paymentMethod === 'CASH' ? '#059669' : 'transparent',
+                      color: paymentMethod === 'CASH' ? 'white' : '#059669',
+                      borderColor: '#059669',
+                      borderWidth: 2,
+                      fontWeight: 600,
+                      fontSize: '0.95rem',
+                      '&:hover': {
+                        bgcolor: paymentMethod === 'CASH' ? '#047857' : 'rgba(5, 150, 105, 0.08)',
+                        borderColor: '#047857',
+                        borderWidth: 2,
+                      }
+                    }}
+                  >
+                    💵 Cash
+                  </Button>
+                  <Button
+                    fullWidth
+                    variant={paymentMethod === 'TRANSFER' ? 'contained' : 'outlined'}
+                    onClick={() => setPaymentMethod('TRANSFER')}
+                    sx={{
+                      py: 1.5,
+                      bgcolor: paymentMethod === 'TRANSFER' ? '#2563eb' : 'transparent',
+                      color: paymentMethod === 'TRANSFER' ? 'white' : '#2563eb',
+                      borderColor: '#2563eb',
+                      borderWidth: 2,
+                      fontWeight: 600,
+                      fontSize: '0.95rem',
+                      '&:hover': {
+                        bgcolor: paymentMethod === 'TRANSFER' ? '#1d4ed8' : 'rgba(37, 99, 235, 0.08)',
+                        borderColor: '#1d4ed8',
+                        borderWidth: 2,
+                      }
+                    }}
+                  >
+                    🏦 Online Transfer
+                  </Button>
+                </Stack>
+                {!paymentMethod && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                    Please select a payment method to continue
+                  </Typography>
+                )}
+              </Box>
+
               {/* Price Summary */}
               <Box sx={{ 
                 p: 2.5, 
@@ -3455,28 +3511,6 @@ export default function AppointmentsPage() {
                     </Typography>
                   </Box>
                 </Stack>
-              </Box>
-
-              {/* Payment Method Selection (required) */}
-              <Box>
-                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
-                  Payment Method (required)
-                </Typography>
-                <FormControl fullWidth size="small">
-                  <InputLabel id="payment-method-label">Payment Method *</InputLabel>
-                  <Select
-                    labelId="payment-method-label"
-                    label="Payment Method *"
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as any)}
-                  >
-                    <MenuItem value="">
-                      Select...
-                    </MenuItem>
-                    <MenuItem value="CASH">Cash</MenuItem>
-                    <MenuItem value="TRANSFER">Online Transfer</MenuItem>
-                  </Select>
-                </FormControl>
               </Box>
 
               {/* Final Price Adjustment */}
