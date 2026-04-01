@@ -225,7 +225,7 @@ export default function LoginPage() {
                     size="small"
                     placeholder="••••"
                     autoComplete="off"
-                    name="staff-id-entry"
+                    id="staff-id-entry"
                     inputProps={{ maxLength: 4, inputMode: 'numeric', pattern: '[0-9]*' }}
                     {...register("idNumber", {
                       onChange: () => handleInputChange()
