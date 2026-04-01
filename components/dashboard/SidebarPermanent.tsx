@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import NextLink from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useUserRole } from '../../hooks/useUserRole';
 import { Drawer, List, ListSubheader, ListItemButton, ListItemIcon, ListItemText, Box, Divider } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/SpaceDashboardOutlined';
@@ -13,6 +13,7 @@ import ShoppingBagIcon from '@mui/icons-material/ShoppingBagOutlined';
 import GroupIcon from '@mui/icons-material/GroupOutlined';
 import AssessmentIcon from '@mui/icons-material/AssessmentOutlined';
 import FactCheckIcon from '@mui/icons-material/FactCheckOutlined';
+import LogoutIcon from '@mui/icons-material/Logout';
 
 const items = [
   { label: 'Overview', href: '/dashboard', icon: <DashboardIcon /> },
@@ -29,7 +30,13 @@ const items = [
 
 export default function SidebarPermanent({ width = 260 }: { width?: number }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { userRole } = useUserRole();
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    router.replace('/login');
+  };
 
   const isActive = (href: string) => {
     if (href === '/dashboard') {
@@ -124,6 +131,31 @@ export default function SidebarPermanent({ width = 260 }: { width?: number }) {
               </React.Fragment>
             );
           })}
+          <Divider sx={{ mx: 2, my: 1.5, borderColor: 'rgba(0, 0, 0, 0.08)' }} />
+          <ListItemButton
+            onClick={handleLogout}
+            sx={{
+              borderRadius: 2,
+              mx: 1,
+              mb: 1,
+              color: 'error.main',
+              '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.08)' },
+            }}
+          >
+            <ListItemIcon sx={{ color: 'error.main' }}>
+              <LogoutIcon />
+            </ListItemIcon>
+            <ListItemText
+              primary="Log out"
+              primaryTypographyProps={{
+                sx: {
+                  fontFamily: 'Manrope, Inter, system-ui, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif',
+                  fontWeight: 600,
+                },
+              }}
+            />
+          </ListItemButton>
+      
         </List>
       </Box>
     </Drawer>

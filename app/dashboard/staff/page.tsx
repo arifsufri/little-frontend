@@ -40,6 +40,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import GroupIcon from '@mui/icons-material/GroupOutlined';
 import PendingIcon from '@mui/icons-material/PendingActions';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
@@ -55,7 +56,6 @@ import ListItemText from '@mui/material/ListItemText';
 import PersonOffIcon from '@mui/icons-material/PersonOff';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LockResetIcon from '@mui/icons-material/LockReset';
-import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { apiGet, apiPost, apiPatch, apiDelete, apiPut } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
 
@@ -111,6 +111,8 @@ export default function StaffPage() {
     phone: '',
     role: 'Staff' as 'Boss' | 'Staff'
   });
+  const [showNewStaffId, setShowNewStaffId] = React.useState(false);
+  const [showEditStaffId, setShowEditStaffId] = React.useState(false);
 
   const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
     setSnackbar({ open: true, message, severity });
@@ -980,7 +982,10 @@ export default function StaffPage() {
       {/* Create Staff Modal */}
       <Dialog 
         open={createStaffOpen} 
-        onClose={() => setCreateStaffOpen(false)} 
+        onClose={() => {
+          setCreateStaffOpen(false);
+          setShowNewStaffId(false);
+        }} 
         maxWidth="sm" 
         fullWidth
         sx={{
@@ -1012,7 +1017,7 @@ export default function StaffPage() {
 
             <TextField
               label="ID Number"
-              type="text"
+              type={showNewStaffId ? 'text' : 'password'}
               value={newStaff.idNumber}
               onChange={(e) => {
                 const value = e.target.value.replace(/\D/g, '').slice(0, 4);
@@ -1020,9 +1025,26 @@ export default function StaffPage() {
               }}
               fullWidth
               required
-              placeholder="Enter 4-digit ID"
-              inputProps={{ maxLength: 4, pattern: '[0-9]*' }}
-              helperText="4-digit number for staff login"
+              placeholder="••••"
+              autoComplete="off"
+              name="new-staff-id"
+              inputProps={{ maxLength: 4, inputMode: 'numeric', pattern: '[0-9]*' }}
+              helperText="4-digit login ID (masked like a password — use eye icon to show)"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label={showNewStaffId ? 'Hide ID' : 'Show ID'}
+                      onClick={() => setShowNewStaffId((v) => !v)}
+                      onMouseDown={(e) => e.preventDefault()}
+                      edge="end"
+                      size="small"
+                    >
+                      {showNewStaffId ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
 
             <TextField
@@ -1233,6 +1255,7 @@ export default function StaffPage() {
           setIdNumberDialogOpen(false);
           setNewIdNumber('');
           setSelectedStaff(null);
+          setShowEditStaffId(false);
         }}
         maxWidth="sm"
         fullWidth
@@ -1246,7 +1269,7 @@ export default function StaffPage() {
           <Stack spacing={3} sx={{ mt: 2 }}>
             <TextField
               label="ID Number"
-              type="text"
+              type={showEditStaffId ? 'text' : 'password'}
               value={newIdNumber}
               onChange={(e) => {
                 const value = e.target.value.replace(/\D/g, '').slice(0, 4);
@@ -1254,9 +1277,26 @@ export default function StaffPage() {
               }}
               fullWidth
               required
-              placeholder="Enter 4-digit ID"
-              inputProps={{ maxLength: 4, pattern: '[0-9]*' }}
-              helperText="4-digit number for staff login. Current ID: ${selectedStaff?.idNumber || 'Not set'}"
+              placeholder="••••"
+              autoComplete="off"
+              name="edit-staff-id"
+              inputProps={{ maxLength: 4, inputMode: 'numeric', pattern: '[0-9]*' }}
+              helperText={`4-digit number for staff login. Current ID: ${selectedStaff?.idNumber || 'Not set'}`}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label={showEditStaffId ? 'Hide ID' : 'Show ID'}
+                      onClick={() => setShowEditStaffId((v) => !v)}
+                      onMouseDown={(e) => e.preventDefault()}
+                      edge="end"
+                      size="small"
+                    >
+                      {showEditStaffId ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
           </Stack>
         </DialogContent>

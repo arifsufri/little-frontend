@@ -41,6 +41,8 @@ export default function LoginPage() {
   const router = useRouter();
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [showPassword, setShowPassword] = React.useState(false);
+  /** Mask staff ID like a password so browsers don\'t suggest / remember recent IDs */
+  const [showStaffId, setShowStaffId] = React.useState(false);
   const [loginMode, setLoginMode] = React.useState<'id' | 'email'>('id'); // Default to ID login
   const {
     register,
@@ -215,19 +217,36 @@ export default function LoginPage() {
                 mt={{ xs: 2, sm: 2 }}
               >
                 {loginMode === 'id' ? (
-                  // Staff ID Login
+                  // Staff ID Login (password field style — reduces autocomplete / recent values)
                   <TextField
                     label="Staff ID Number"
-                    type="text"
+                    type={showStaffId ? 'text' : 'password'}
                     fullWidth
                     size="small"
-                    placeholder="Enter 4-digit ID"
-                    inputProps={{ maxLength: 4, pattern: '[0-9]*' }}
+                    placeholder="••••"
+                    autoComplete="off"
+                    name="staff-id-entry"
+                    inputProps={{ maxLength: 4, inputMode: 'numeric', pattern: '[0-9]*' }}
                     {...register("idNumber", {
                       onChange: () => handleInputChange()
                     })}
                     error={!!errors.idNumber}
-                    helperText={errors.idNumber?.message || "Enter your 4-digit staff ID number"}
+                    helperText={errors.idNumber?.message || 'Enter 4 digits. Tap the eye to show or hide.'}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label={showStaffId ? 'Hide staff ID' : 'Show staff ID'}
+                            onClick={() => setShowStaffId((v) => !v)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            edge="end"
+                            size="small"
+                          >
+                            {showStaffId ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
                   />
                 ) : (
                   // Boss Email/Password Login

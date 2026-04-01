@@ -363,6 +363,9 @@ export default function ClientOnboardingPage() {
                   placeholder="01XXXXXXXX"
                   fullWidth
                   size="small"
+                  type="tel"
+                  autoComplete="off"
+                  inputMode="numeric"
                   {...register("phoneNumber")}
                   error={!!errors.phoneNumber}
                   helperText={errors.phoneNumber?.message || "Malaysian format: 01XXXXXXXX"}
