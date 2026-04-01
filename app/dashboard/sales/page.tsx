@@ -34,7 +34,8 @@ import {
   useTheme,
   useMediaQuery,
   Divider,
-  Stack
+  Stack,
+  Pagination,
 } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import AddIcon from '@mui/icons-material/Add';
@@ -100,15 +101,52 @@ export default function SalesPage() {
   const [quantity, setQuantity] = React.useState('1');
   const [notes, setNotes] = React.useState('');
   const [selling, setSelling] = React.useState(false);
+  const [salesPage, setSalesPage] = React.useState(1);
+  const [salesMeta, setSalesMeta] = React.useState<{
+    total: number;
+    totalPages: number;
+  } | null>(null);
 
   React.useEffect(() => {
     if (userRole === 'Boss' || userRole === 'Staff') {
       fetchProducts();
       fetchClients();
       fetchStaff();
-      fetchSales();
     }
   }, [userRole]);
+
+  const fetchSales = React.useCallback(
+    async (pageArg?: number) => {
+      try {
+        setLoading(true);
+        const page = pageArg ?? salesPage;
+        const response = await apiGet<{
+          success: boolean;
+          data: ProductSale[];
+          meta?: { total: number; totalPages: number };
+        }>(`/products/sales/all?page=${page}&limit=120`);
+        setSales(response.data || []);
+        setSalesMeta(
+          response.meta
+            ? { total: response.meta.total, totalPages: response.meta.totalPages }
+            : null
+        );
+      } catch (error) {
+        console.error('Error fetching sales:', error);
+        setSales([]);
+        setSalesMeta(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [salesPage]
+  );
+
+  React.useEffect(() => {
+    if (userRole === 'Boss' || userRole === 'Staff') {
+      fetchSales();
+    }
+  }, [userRole, salesPage, fetchSales]);
 
   const fetchProducts = async () => {
     try {
@@ -122,7 +160,9 @@ export default function SalesPage() {
 
   const fetchClients = async () => {
     try {
-      const response = await apiGet<{ success: boolean; data: Client[] }>('/clients');
+      const response = await apiGet<{ success: boolean; data: Client[] }>(
+        '/clients?minimal=true&limit=400'
+      );
       setClients(response.data || []);
     } catch (error) {
       console.error('Error fetching clients:', error);
@@ -137,19 +177,6 @@ export default function SalesPage() {
     } catch (error) {
       console.error('Error fetching staff:', error);
       setStaff([]);
-    }
-  };
-
-  const fetchSales = async () => {
-    try {
-      setLoading(true);
-      const response = await apiGet<{ success: boolean; data: ProductSale[] }>('/products/sales/all');
-      setSales(response.data || []);
-    } catch (error) {
-      console.error('Error fetching sales:', error);
-      setSales([]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -217,7 +244,8 @@ export default function SalesPage() {
       
       showNotification('Product sold successfully!', 'success');
       handleCloseSellDialog();
-      fetchSales();
+      setSalesPage(1);
+      await fetchSales(1);
       fetchProducts(); // Refresh to update stock
     } catch (error: any) {
       console.error('Error selling product:', error);
@@ -338,7 +366,7 @@ export default function SalesPage() {
               ) : isMobile ? (
                 // Mobile Card Layout
                 <Stack spacing={2}>
-                  {sales.slice(0, 20).map((sale) => (
+                  {sales.map((sale) => (
                     <Card 
                       key={sale.id} 
                       variant="outlined" 
@@ -452,7 +480,7 @@ export default function SalesPage() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {sales.slice(0, 20).map((sale) => (
+                      {sales.map((sale) => (
                         <TableRow key={sale.id} hover>
                           <TableCell>
                             <Typography variant="body2" color="text.secondary">
@@ -517,6 +545,23 @@ export default function SalesPage() {
                     </TableBody>
                   </Table>
                 </TableContainer>
+              )}
+              {salesMeta && salesMeta.totalPages > 1 && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                  <Pagination
+                    count={salesMeta.totalPages}
+                    page={salesPage}
+                    onChange={(_, p) => setSalesPage(p)}
+                    color="primary"
+                    showFirstButton
+                    showLastButton
+                  />
+                </Box>
+              )}
+              {salesMeta && (
+                <Typography variant="caption" color="text.secondary" display="block" textAlign="center" sx={{ mt: 1 }}>
+                  Showing {sales.length} of {salesMeta.total.toLocaleString()} sales (newest first)
+                </Typography>
               )}
             </CardContent>
           </Card>

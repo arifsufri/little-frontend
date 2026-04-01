@@ -639,24 +639,21 @@ export default function FinancialPage() {
 
   const fetchTodaysAppointments = async () => {
     try {
-      const response = await apiGet<{ success: boolean; data: any[] }>('/appointments');
-      
-      // Use the same logic as appointments page for "today" filter
-      const today = new Date();
-      const filterDate = new Date(today);
-      filterDate.setHours(0, 0, 0, 0);
-      const todayEnd = new Date(filterDate);
-      todayEnd.setHours(23, 59, 59, 999);
-      
-      const todaysCompleted = response.data.filter(apt => {
-        if (apt.status !== 'completed') return false;
-        if (!apt.appointmentDate) return false;
-        
-        const appointmentDate = new Date(apt.appointmentDate);
-        return appointmentDate >= filterDate && appointmentDate <= todayEnd;
+      const today = new Date(
+        new Date().toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' })
+      );
+      const ymd = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
+      const params = new URLSearchParams({
+        status: 'completed',
+        dateFrom: ymd,
+        dateTo: ymd,
+        limit: '500',
+        page: '1',
       });
-      
-      setTodaysAppointments(todaysCompleted);
+      const response = await apiGet<{ success: boolean; data: any[] }>(
+        `/appointments?${params.toString()}`
+      );
+      setTodaysAppointments(response.data || []);
     } catch (error) {
       console.error('Error fetching today\'s appointments:', error);
       setTodaysAppointments([]);

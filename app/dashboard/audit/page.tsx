@@ -78,11 +78,10 @@ export default function AuditPage() {
     setLoading(true);
     try {
       // Fetch appointments for the date
-      const appointmentsRes = await apiGet('/appointments') as any;
-      const appointments = (appointmentsRes.data || []).filter((apt: any) => {
-        const aptDate = new Date(apt.appointmentDate || apt.createdAt).toISOString().split('T')[0];
-        return aptDate === selectedDate && apt.status === 'completed';
-      });
+      const appointmentsRes = await apiGet(
+        `/appointments?status=completed&dateFrom=${selectedDate}&dateTo=${selectedDate}&limit=2000&page=1`
+      ) as any;
+      const appointments = appointmentsRes.data || [];
 
       // Fetch product sales for the date
       const productSalesRes = await apiGet('/products/sales/all') as any;

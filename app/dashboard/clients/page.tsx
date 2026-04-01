@@ -56,6 +56,9 @@ interface Client {
   fullName: string;
   phoneNumber: string | null;
   createdAt: string;
+  appointmentCount?: number;
+  pendingCount?: number;
+  totalSpent?: number;
   appointments: Array<{
     id: number;
     status: string;
@@ -89,25 +92,53 @@ export default function ClientsPage() {
     phoneNumber: ''
   });
   
-  // Pagination states
+  const PAGE_SIZE = 30;
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage] = React.useState(10);
-
+  const [listMeta, setListMeta] = React.useState<{
+    total: number;
+    totalPages: number;
+  } | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = React.useState('');
   React.useEffect(() => {
-    fetchClients();
-  }, []);
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
 
-  const fetchClients = async () => {
+  const fetchClients = React.useCallback(async () => {
     try {
-      const response = await apiGet<{ success: boolean; data: Client[] }>('/clients');
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: String(currentPage),
+        limit: String(PAGE_SIZE),
+      });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (statusFilter !== 'all') params.set('statusFilter', statusFilter);
+      const response = await apiGet<{
+        success: boolean;
+        data: Client[];
+        meta?: { total: number; totalPages: number };
+      }>(`/clients?${params.toString()}`);
       setClients(response.data || []);
+      if (response.meta) {
+        setListMeta({
+          total: response.meta.total,
+          totalPages: response.meta.totalPages,
+        });
+      } else {
+        setListMeta(null);
+      }
     } catch (error) {
       console.error('Error fetching clients:', error);
       setClients([]);
+      setListMeta(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, debouncedSearch, statusFilter, PAGE_SIZE]);
+
+  React.useEffect(() => {
+    fetchClients();
+  }, [fetchClients]);
 
   const handleCreateClient = async () => {
     try {
@@ -216,63 +247,26 @@ export default function ClientsPage() {
       }, 0);
   };
 
-  const getAppointmentCount = (appointments: Client['appointments']) => {
-    return appointments.length;
-  };
+  const getAppointmentCount = (client: Client) =>
+    client.appointmentCount ?? client.appointments?.length ?? 0;
 
-  // Filter and search logic
-  const filteredClients = React.useMemo(() => {
-    let filtered = clients;
+  const getClientTotalSpent = (client: Client) =>
+    client.totalSpent !== undefined
+      ? client.totalSpent
+      : getTotalSpent(client.appointments || []);
 
-    // Apply search filter
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(client =>
-        client.fullName.toLowerCase().includes(searchLower) ||
-        (client.phoneNumber && client.phoneNumber.toLowerCase().includes(searchLower)) ||
-        client.clientId.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(client => {
-        const hasAppointments = client.appointments.length > 0;
-        const hasPendingAppointments = client.appointments.some(apt => apt.status === 'pending');
-        const hasCompletedAppointments = client.appointments.some(apt => apt.status === 'completed');
-
-        switch (statusFilter) {
-          case 'active':
-            return hasAppointments;
-          case 'pending':
-            return hasPendingAppointments;
-          case 'completed':
-            return hasCompletedAppointments && !hasPendingAppointments;
-          case 'inactive':
-            return !hasAppointments;
-          default:
-            return true;
-        }
-      });
-    }
-
-    return filtered;
-  }, [clients, searchTerm, statusFilter]);
-
-  // Pagination logic
-  const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedClients = filteredClients.slice(startIndex, endIndex);
+  const totalPages = listMeta?.totalPages ?? 1;
+  const totalListed = listMeta?.total ?? 0;
+  const startIndex = totalListed === 0 ? 0 : (currentPage - 1) * PAGE_SIZE;
+  const endIndex = startIndex + clients.length;
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
 
-  // Reset page when search or filter changes
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [debouncedSearch, statusFilter]);
 
   return (
     <DashboardLayout>
@@ -375,8 +369,8 @@ export default function ClientsPage() {
                 <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography variant="body2" color="text.secondary">
                     {totalPages > 1 
-                      ? `Page ${currentPage} of ${totalPages} (${filteredClients.length} of ${clients.length} clients)`
-                      : `Showing ${filteredClients.length} of ${clients.length} clients`
+                      ? `Page ${currentPage} of ${totalPages} (${totalListed.toLocaleString()} matched)`
+                      : `${totalListed.toLocaleString()} clients`
                     }
                   </Typography>
                 </Box>
@@ -386,14 +380,14 @@ export default function ClientsPage() {
               <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
                 Loading clients...
               </Typography>
-            ) : filteredClients.length === 0 ? (
+            ) : clients.length === 0 ? (
               <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
-                {clients.length === 0 ? 'No clients found.' : 'No clients match your search criteria.'}
+                {totalListed === 0 ? 'No clients found.' : 'No clients on this page.'}
               </Typography>
             ) : isMobile ? (
               // Mobile Card Layout
               <Stack spacing={2}>
-                {paginatedClients.map((client, index) => {
+                {clients.map((client, index) => {
                   const latestAppointment = client.appointments[0];
                   return (
                     <Card 
@@ -432,11 +426,11 @@ export default function ClientsPage() {
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <EventIcon fontSize="small" color="action" />
                                 <Typography variant="caption" color="text.secondary">
-                                  {getAppointmentCount(client.appointments)} appointments
+                                  {getAppointmentCount(client)} appointments
                                 </Typography>
                               </Box>
                               <Typography variant="caption" fontWeight={600} color="success.main">
-                                RM{getTotalSpent(client.appointments)} spent
+                                RM{getClientTotalSpent(client)} spent
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
@@ -503,7 +497,7 @@ export default function ClientsPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {paginatedClients.map((client, index) => {
+                    {clients.map((client, index) => {
                       const latestAppointment = client.appointments[0];
                       return (
                         <TableRow key={client.id} hover>
@@ -539,12 +533,12 @@ export default function ClientsPage() {
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2" fontWeight={600}>
-                              {getAppointmentCount(client.appointments)}
+                              {getAppointmentCount(client)}
                             </Typography>
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2" fontWeight={600} color="success.main">
-                              RM{getTotalSpent(client.appointments)}
+                              RM{getClientTotalSpent(client)}
                             </Typography>
                           </TableCell>
                           <TableCell>
@@ -602,7 +596,7 @@ export default function ClientsPage() {
                 gap: 2
               }}>
                 <Typography variant="body2" color="text.secondary">
-                  Showing {startIndex + 1}-{Math.min(endIndex, filteredClients.length)} of {filteredClients.length} clients
+                  Showing {startIndex + 1}-{endIndex} of {totalListed.toLocaleString()} clients
                 </Typography>
                 <Pagination
                   count={totalPages}

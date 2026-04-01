@@ -241,9 +241,21 @@ export default function AppointmentsPage() {
   const [editCurrentDiscountPackages, setEditCurrentDiscountPackages] = React.useState<number[]>([]);
   const [editValidatingCurrentDiscount, setEditValidatingCurrentDiscount] = React.useState(false);
   
-  // Pagination states
+  // Pagination — server-side (see PAGE_SIZE + listMeta)
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage] = React.useState(10);
+  const PAGE_SIZE = 50;
+  const [listMeta, setListMeta] = React.useState<{
+    total: number;
+    totalPages: number;
+    statusCounts: Record<string, number>;
+    completedFinalPriceSum: number;
+    todayTotal: number;
+  } | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = React.useState('');
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
   const [newAppointment, setNewAppointment] = React.useState({
     clientId: '',
     packageId: '',
@@ -260,9 +272,6 @@ export default function AppointmentsPage() {
   // Helper function to get all services for an appointment
   const getAppointmentServices = (appointment: any) => {
     const services = [appointment.package.name];
-    
-    // Debug logging
-    console.log('[getAppointmentServices] Appointment:', appointment.id, 'ProductSales:', appointment.productSales);
     
     // Add additional packages
     if (appointment.additionalPackages && Array.isArray(appointment.additionalPackages)) {
@@ -285,7 +294,6 @@ export default function AppointmentsPage() {
     
     // Add products
     if (appointment.productSales && Array.isArray(appointment.productSales)) {
-      console.log('[getAppointmentServices] Found product sales:', appointment.productSales.length);
       appointment.productSales.forEach((sale: any) => {
         if (sale.product) {
           const productName = sale.quantity > 1 
@@ -294,8 +302,6 @@ export default function AppointmentsPage() {
           services.push(`🛍️ ${productName}`);
         }
       });
-    } else {
-      console.log('[getAppointmentServices] No product sales found');
     }
     
     return services;
@@ -307,30 +313,107 @@ export default function AppointmentsPage() {
 
   const fetchAppointments = React.useCallback(async () => {
     try {
-      const response = await apiGet<{ success: boolean; data: Appointment[] }>('/appointments');
-      let appointmentsData = response.data || [];
-      
-      // Both Boss and Staff can see all appointments
-      // No filtering needed - all staff members can view and manage all appointments
-      
-      setAppointments(appointmentsData);
+      setLoading(true);
+      const params = new URLSearchParams();
+      params.set('page', String(currentPage));
+      params.set('limit', String(PAGE_SIZE));
+      if (statusFilter !== 'all') {
+        params.set('status', statusFilter);
+      }
+      if (staffFilter !== 'all') {
+        params.set('barberId', staffFilter === 'unassigned' ? 'unassigned' : staffFilter);
+      }
+      if (debouncedSearch.length > 0) {
+        params.set('search', debouncedSearch);
+      }
+
+      const ymdMY = (d: Date) =>
+        d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
+      const malaysiaNow = new Date(
+        new Date().toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' })
+      );
+
+      if (dateFilter !== 'all') {
+        if (dateFilter === 'today') {
+          const s = ymdMY(malaysiaNow);
+          params.set('dateFrom', s);
+          params.set('dateTo', s);
+        } else if (dateFilter === 'yesterday') {
+          const d = new Date(malaysiaNow);
+          d.setDate(d.getDate() - 1);
+          const s = ymdMY(d);
+          params.set('dateFrom', s);
+          params.set('dateTo', s);
+        } else if (dateFilter === 'this_week') {
+          const d = new Date(malaysiaNow);
+          const day = d.getDay();
+          const daysToMonday = day === 0 ? 6 : day - 1;
+          const weekStart = new Date(d);
+          weekStart.setDate(d.getDate() - daysToMonday);
+          params.set('dateFrom', ymdMY(weekStart));
+          params.set('dateTo', ymdMY(malaysiaNow));
+        } else if (dateFilter === 'this_month') {
+          const monthStart = new Date(malaysiaNow.getFullYear(), malaysiaNow.getMonth(), 1);
+          params.set('dateFrom', ymdMY(monthStart));
+          params.set('dateTo', ymdMY(malaysiaNow));
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateFilter)) {
+          params.set('dateFrom', dateFilter);
+          params.set('dateTo', dateFilter);
+        }
+      }
+
+      const response = await apiGet<{
+        success: boolean;
+        data: Appointment[];
+        meta?: {
+          total: number;
+          totalPages: number;
+          statusCounts: Record<string, number>;
+          completedFinalPriceSum: number;
+          todayTotal: number;
+        };
+      }>(`/appointments?${params.toString()}`);
+
+      setAppointments(response.data || []);
+      if (response.meta) {
+        setListMeta({
+          total: response.meta.total,
+          totalPages: response.meta.totalPages,
+          statusCounts: response.meta.statusCounts || {},
+          completedFinalPriceSum: response.meta.completedFinalPriceSum ?? 0,
+          todayTotal: response.meta.todayTotal ?? 0,
+        });
+      } else {
+        setListMeta(null);
+      }
     } catch (error) {
       console.error('Error fetching appointments:', error);
       setAppointments([]);
+      setListMeta(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [
+    PAGE_SIZE,
+    currentPage,
+    statusFilter,
+    staffFilter,
+    dateFilter,
+    debouncedSearch,
+  ]);
 
   React.useEffect(() => {
-    fetchAppointments();
     fetchPackages();
     fetchClients();
     if (userRole === 'Boss' || userRole === 'Staff') {
       fetchStaff();
       fetchDiscountCodes();
     }
-  }, [fetchAppointments, userRole]);
+  }, [userRole]);
+
+  React.useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   // Socket.io connection for real-time updates
   React.useEffect(() => {
@@ -360,7 +443,7 @@ export default function AppointmentsPage() {
     return () => {
       socket.off('appointment:created');
     };
-  }, []);
+  }, [fetchAppointments]);
 
   const fetchPackages = async () => {
     try {
@@ -384,7 +467,9 @@ export default function AppointmentsPage() {
 
   const fetchClients = async () => {
     try {
-      const response = await apiGet<{ success: boolean; data: any[] }>('/clients');
+      const response = await apiGet<{ success: boolean; data: any[] }>(
+        '/clients?minimal=true&limit=400'
+      );
       setClients(response.data || []);
     } catch (error) {
       console.error('Error fetching clients:', error);
@@ -1922,143 +2007,27 @@ export default function AppointmentsPage() {
     }
   };
 
-  // Filter and search logic
-  const filteredAppointments = React.useMemo(() => {
-    let filtered = appointments;
-
-    // Apply search filter
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(appointment =>
-        appointment.client.fullName.toLowerCase().includes(searchLower) ||
-        appointment.client.clientId.toLowerCase().includes(searchLower) ||
-        appointment.package.name.toLowerCase().includes(searchLower) ||
-        (appointment.notes && appointment.notes.toLowerCase().includes(searchLower))
-      );
-    }
-
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(appointment => appointment.status === statusFilter);
-    }
-
-    // Apply staff filter
-    if (staffFilter !== 'all') {
-      if (staffFilter === 'unassigned') {
-        filtered = filtered.filter(appointment => !appointment.barber || appointment.barber === null);
-      } else {
-        filtered = filtered.filter(appointment => appointment.barber && appointment.barber.id.toString() === staffFilter);
-      }
-    }
-
-    // Apply date filter
-    if (dateFilter !== 'all') {
-      const today = new Date();
-      const filterDate = new Date(today);
-      
-      switch (dateFilter) {
-        case 'today':
-          filterDate.setHours(0, 0, 0, 0);
-          const todayEnd = new Date(filterDate);
-          todayEnd.setHours(23, 59, 59, 999);
-          filtered = filtered.filter(appointment => {
-            if (!appointment.appointmentDate) return false;
-            const appointmentDate = new Date(appointment.appointmentDate);
-            return appointmentDate >= filterDate && appointmentDate <= todayEnd;
-          });
-          break;
-        case 'yesterday':
-          filterDate.setDate(today.getDate() - 1);
-          filterDate.setHours(0, 0, 0, 0);
-          const yesterdayEnd = new Date(filterDate);
-          yesterdayEnd.setHours(23, 59, 59, 999);
-          filtered = filtered.filter(appointment => {
-            if (!appointment.appointmentDate) return false;
-            const appointmentDate = new Date(appointment.appointmentDate);
-            return appointmentDate >= filterDate && appointmentDate <= yesterdayEnd;
-          });
-          break;
-        case 'this_week':
-          const dayOfWeek = today.getDay();
-          const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-          const weekStart = new Date(today.getTime() - daysToMonday * 24 * 60 * 60 * 1000);
-          weekStart.setHours(0, 0, 0, 0);
-          const weekEnd = new Date(today);
-          weekEnd.setHours(23, 59, 59, 999);
-          filtered = filtered.filter(appointment => {
-            if (!appointment.appointmentDate) return false;
-            const appointmentDate = new Date(appointment.appointmentDate);
-            return appointmentDate >= weekStart && appointmentDate <= weekEnd;
-          });
-          break;
-        case 'this_month':
-          const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-          monthStart.setHours(0, 0, 0, 0);
-          const monthEnd = new Date(today);
-          monthEnd.setHours(23, 59, 59, 999);
-          filtered = filtered.filter(appointment => {
-            if (!appointment.appointmentDate) return false;
-            const appointmentDate = new Date(appointment.appointmentDate);
-            return appointmentDate >= monthStart && appointmentDate <= monthEnd;
-          });
-          break;
-        default:
-          // For custom date (specific date), expect dateFilter to be in YYYY-MM-DD format
-          if (dateFilter.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            const customDate = new Date(dateFilter);
-            customDate.setHours(0, 0, 0, 0);
-            const customDateEnd = new Date(customDate);
-            customDateEnd.setHours(23, 59, 59, 999);
-            filtered = filtered.filter(appointment => {
-              if (!appointment.appointmentDate) return false;
-              const appointmentDate = new Date(appointment.appointmentDate);
-              return appointmentDate >= customDate && appointmentDate <= customDateEnd;
-            });
-          }
-      }
-    }
-
-    return filtered;
-  }, [appointments, searchTerm, statusFilter, staffFilter, dateFilter]);
-
-  // Pagination logic
-  const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedAppointments = filteredAppointments.slice(startIndex, endIndex);
+  // List rows are server-paginated and server-filtered
+  const totalPages = listMeta?.totalPages ?? 1;
+  const totalListed = listMeta?.total ?? 0;
+  const startIndex = totalListed === 0 ? 0 : (currentPage - 1) * PAGE_SIZE;
+  const endIndex = startIndex + appointments.length;
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
 
-  // Reset page when search or filter changes
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, staffFilter, dateFilter]);
+  }, [statusFilter, staffFilter, dateFilter, debouncedSearch]);
 
-  const getStatusCounts = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // Filter appointments for today using appointmentDate or createdAt
-    const todayAppointments = appointments.filter(apt => {
-      const aptDate = apt.appointmentDate || apt.createdAt;
-      if (!aptDate) return false;
-      const appointmentDate = new Date(aptDate);
-      appointmentDate.setHours(0, 0, 0, 0);
-      return appointmentDate.getTime() === today.getTime();
-    });
-    
-    return {
-      pending: appointments.filter(apt => apt.status === 'pending').length,
-      confirmed: appointments.filter(apt => apt.status === 'confirmed').length,
-      completed: appointments.filter(apt => apt.status === 'completed').length,
-      cancelled: appointments.filter(apt => apt.status === 'cancelled').length,
-      todayTotal: todayAppointments.length
-    };
+  const statusCounts = {
+    pending: listMeta?.statusCounts?.pending ?? 0,
+    confirmed: listMeta?.statusCounts?.confirmed ?? 0,
+    completed: listMeta?.statusCounts?.completed ?? 0,
+    cancelled: listMeta?.statusCounts?.cancelled ?? 0,
+    todayTotal: listMeta?.todayTotal ?? 0,
   };
-
-  const statusCounts = getStatusCounts();
   
   // Helper function to calculate total price including products
   const getAppointmentTotalPrice = (appointment: Appointment) => {
@@ -2073,9 +2042,8 @@ export default function AppointmentsPage() {
     return total;
   };
   
-  const totalRevenue = appointments
-    .filter(apt => apt.status === 'completed')
-    .reduce((total, apt) => total + getAppointmentTotalPrice(apt), 0);
+  /** Sum of completed appointment finalPrice across all rows (excludes retail add-ons; fast server aggregate). */
+  const totalRevenue = listMeta?.completedFinalPriceSum ?? 0;
 
   return (
     <DashboardLayout>
@@ -2558,7 +2526,7 @@ export default function AppointmentsPage() {
                       textAlign: { xs: 'center', sm: 'right' }
                     }}
                   >
-                    Showing {filteredAppointments.length} of {appointments.length} appointments
+                    Showing page {currentPage} of {totalPages} ({totalListed.toLocaleString()} filtered)
                   </Typography>
                 </Box>
               </Box>
@@ -2567,14 +2535,14 @@ export default function AppointmentsPage() {
               <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
                 Loading appointments...
               </Typography>
-            ) : filteredAppointments.length === 0 ? (
+            ) : appointments.length === 0 ? (
               <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
-                {appointments.length === 0 ? 'No appointments found.' : 'No appointments match your search criteria.'}
+                {totalListed === 0 ? 'No appointments found.' : 'No appointments match your filters for this page.'}
               </Typography>
             ) : isMobile ? (
               // Mobile Card Layout
               <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-                {paginatedAppointments.map((appointment, index) => (
+                {appointments.map((appointment, index) => (
                   <Grid item xs={12} key={appointment.id}>
                     <AppointmentCard
                       appointment={appointment}
@@ -2602,7 +2570,7 @@ export default function AppointmentsPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {paginatedAppointments.map((appointment, index) => (
+                    {appointments.map((appointment, index) => (
                       <TableRow key={appointment.id} hover>
                         <TableCell>
                           <Typography variant="body2" fontWeight={500}>
@@ -2724,7 +2692,7 @@ export default function AppointmentsPage() {
                 gap: 2
               }}>
                 <Typography variant="body2" color="text.secondary">
-                  Showing {startIndex + 1}-{Math.min(endIndex, filteredAppointments.length)} of {filteredAppointments.length} appointments
+                  Showing {startIndex + 1}-{endIndex} of {totalListed.toLocaleString()} appointments
                 </Typography>
                 <Pagination
                   count={totalPages}
