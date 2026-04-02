@@ -127,6 +127,18 @@ interface Appointment {
   } | null;
 }
 
+function formatClientPickerLabel(option: {
+  fullName?: string;
+  clientId?: string;
+  phoneNumber?: string | null;
+}): string {
+  const phone =
+    option.phoneNumber != null && String(option.phoneNumber).trim() !== ''
+      ? String(option.phoneNumber)
+      : 'No phone';
+  return `${option.fullName ?? ''} - ${option.clientId ?? ''} - ${phone}`;
+}
+
 export default function AppointmentsPage() {
   const { userRole } = useUserRole();
   const theme = useTheme();
@@ -196,6 +208,8 @@ export default function AppointmentsPage() {
   const [changeBarberOpen, setChangeBarberOpen] = React.useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [clients, setClients] = React.useState<any[]>([]);
+  const [createClientSnapshot, setCreateClientSnapshot] = React.useState<any>(null);
+  const [editClientSnapshot, setEditClientSnapshot] = React.useState<any>(null);
   const [staff, setStaff] = React.useState<any[]>([]);
   const [discountCodes, setDiscountCodes] = React.useState<any[]>([]);
   const [selectedBarberId, setSelectedBarberId] = React.useState<string>('');
@@ -404,12 +418,79 @@ export default function AppointmentsPage() {
 
   React.useEffect(() => {
     fetchPackages();
-    fetchClients();
     if (userRole === 'Boss' || userRole === 'Staff') {
       fetchStaff();
       fetchDiscountCodes();
     }
   }, [userRole]);
+
+  // Load clients for create/edit pickers: server-side search so all clients are findable (not only first N by name).
+  React.useEffect(() => {
+    if (!createAppointmentOpen && !editAppointmentOpen) return;
+
+    const searchQuery = createAppointmentOpen
+      ? newClientPhoneNumber.trim()
+      : editClientPhoneNumber.trim();
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ minimal: 'true', limit: '500' });
+        if (searchQuery) params.set('search', searchQuery);
+        const response = await apiGet<{ success: boolean; data: any[] }>(
+          `/clients?${params.toString()}`,
+          { signal: controller.signal }
+        );
+        setClients(response.data || []);
+      } catch (e: any) {
+        if (e?.code === 'ERR_CANCELED' || e?.name === 'CanceledError') return;
+        console.error('Error fetching clients:', e);
+        setClients([]);
+      }
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [
+    createAppointmentOpen,
+    editAppointmentOpen,
+    newClientPhoneNumber,
+    editClientPhoneNumber,
+  ]);
+
+  const createAppointmentClientValue = React.useMemo(() => {
+    const cid = newAppointment.clientId;
+    if (cid === '' || cid === null || cid === undefined) return null;
+    const idStr = String(cid);
+    if (createClientSnapshot && String(createClientSnapshot.id) === idStr) {
+      return createClientSnapshot;
+    }
+    return clients.find((c) => String(c.id) === idStr) ?? null;
+  }, [newAppointment.clientId, clients, createClientSnapshot]);
+
+  const editAppointmentClientValue = React.useMemo(() => {
+    if (!editingAppointment) return null;
+    const cid = editingAppointment.clientId;
+    if (cid === '' || cid === null || cid === undefined) return null;
+    const idStr = String(cid);
+    if (editClientSnapshot && String(editClientSnapshot.id) === idStr) {
+      return editClientSnapshot;
+    }
+    const fromList = clients.find((c) => String(c.id) === idStr);
+    if (fromList) return fromList;
+    const c = editingAppointment.client;
+    if (c) {
+      return {
+        id: Number(editingAppointment.clientId),
+        clientId: c.clientId,
+        fullName: c.fullName,
+        phoneNumber: c.phoneNumber ?? null,
+      };
+    }
+    return null;
+  }, [editingAppointment, clients, editClientSnapshot]);
 
   React.useEffect(() => {
     fetchAppointments();
@@ -462,18 +543,6 @@ export default function AppointmentsPage() {
     } catch (error) {
       console.error('Error fetching retail products:', error);
       setRetailProducts([]);
-    }
-  };
-
-  const fetchClients = async () => {
-    try {
-      const response = await apiGet<{ success: boolean; data: any[] }>(
-        '/clients?minimal=true&limit=400'
-      );
-      setClients(response.data || []);
-    } catch (error) {
-      console.error('Error fetching clients:', error);
-      setClients([]);
     }
   };
 
@@ -627,11 +696,11 @@ export default function AppointmentsPage() {
       });
       setNewClientPhoneNumber('');
       setNewAdditionalPackages([]);
-      
-      // Refresh appointments and clients
+      setCreateClientSnapshot(null);
+
+      // Refresh appointments
       fetchAppointments();
-      fetchClients();
-      
+
       showNotification('Appointment created successfully!', 'success');
     } catch (error: any) {
       console.error('Error creating appointment:', error);
@@ -642,7 +711,8 @@ export default function AppointmentsPage() {
 
   const handleEditAppointment = (appointment: any) => {
     console.log('Editing appointment:', appointment); // Debug log
-    
+    setEditClientSnapshot(null);
+
     // Find the discount code from the discountCodeId if it exists
     const currentDiscountCode = appointment.discountCodeId ? 
       discountCodes.find(dc => dc.id === appointment.discountCodeId)?.code || '' : '';
@@ -908,6 +978,7 @@ export default function AppointmentsPage() {
       setEditAdditionalPackages([]);
       setEditSelectedProducts([]);
       setEditClientPhoneNumber('');
+      setEditClientSnapshot(null);
       // Reset edit discount states
       setEditDiscountCode('');
       setEditDiscountInfo(null);
@@ -2071,7 +2142,10 @@ export default function AppointmentsPage() {
             <GradientButton
               variant="red"
               animated
-              onClick={() => setCreateAppointmentOpen(true)}
+              onClick={() => {
+                setCreateClientSnapshot(null);
+                setCreateAppointmentOpen(true);
+              }}
               sx={{ 
                 px: { xs: 2, sm: 3 }, 
                 py: { xs: 1, sm: 1.2 }, 
@@ -3542,7 +3616,10 @@ export default function AppointmentsPage() {
         {/* Create Appointment Modal */}
         <Dialog 
           open={createAppointmentOpen} 
-          onClose={() => setCreateAppointmentOpen(false)} 
+          onClose={() => {
+            setCreateAppointmentOpen(false);
+            setCreateClientSnapshot(null);
+          }} 
           maxWidth="sm" 
           fullWidth
           sx={{
@@ -3569,34 +3646,35 @@ export default function AppointmentsPage() {
                 fullWidth
                 freeSolo
                 options={clients}
-                getOptionLabel={(option) => {
-                  if (typeof option === 'string') return option;
-                  return `${option.fullName} - ${option.clientId} - ${option.phoneNumber}`;
-                }}
-                value={clients.find(c => c.id === newAppointment.clientId) || null}
+                filterOptions={(opts) => opts}
+                getOptionLabel={(option) =>
+                  typeof option === 'string' ? option : formatClientPickerLabel(option)
+                }
+                value={createAppointmentClientValue}
                 inputValue={newClientPhoneNumber}
                 onInputChange={(event, newInputValue) => {
                   setNewClientPhoneNumber(newInputValue);
                 }}
                 onChange={(event, newValue) => {
                   if (typeof newValue === 'string') {
-                    // Store the phone number for later registration
                     setNewClientPhoneNumber(newValue.trim());
-                    setNewAppointment({...newAppointment, clientId: ''});
+                    setNewAppointment({ ...newAppointment, clientId: '' });
+                    setCreateClientSnapshot(null);
                   } else if (newValue) {
-                    // User selected existing client
-                    setNewAppointment({...newAppointment, clientId: newValue.id});
+                    setNewAppointment({ ...newAppointment, clientId: newValue.id });
                     setNewClientPhoneNumber('');
+                    setCreateClientSnapshot(newValue);
                   } else {
-                    setNewAppointment({...newAppointment, clientId: ''});
+                    setNewAppointment({ ...newAppointment, clientId: '' });
+                    setCreateClientSnapshot(null);
                   }
                 }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     label="Select or Add Client"
-                    placeholder="Search or type phone number (01XXXXXXXX)..."
-                    helperText="Type a phone number to register a new client, or select existing"
+                    placeholder="Search name, ID, or phone (01XXXXXXXX)..."
+                    helperText="Results load from the server as you type. For a brand-new client, type a Malaysian mobile number."
                   />
                 )}
                 renderOption={(props, option) => (
@@ -3604,12 +3682,14 @@ export default function AppointmentsPage() {
                     <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                       <Typography fontWeight={500}>{option.fullName}</Typography>
                       <Typography variant="caption" color="text.secondary">
-                        ID: {option.clientId} • Phone: {option.phoneNumber}
+                        ID: {option.clientId} • Phone: {option.phoneNumber ?? '—'}
                       </Typography>
                     </Box>
                   </li>
                 )}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
+                isOptionEqualToValue={(option, value) =>
+                  String(option.id) === String(value.id)
+                }
               />
 
               {/* Package Selection */}
@@ -3748,6 +3828,7 @@ export default function AppointmentsPage() {
               animated
               onClick={() => {
                 setCreateAppointmentOpen(false);
+                setCreateClientSnapshot(null);
                 setNewAdditionalPackages([]);
               }}
               sx={{ 
@@ -3981,7 +4062,10 @@ export default function AppointmentsPage() {
         {/* Edit Appointment Dialog */}
         <Dialog 
           open={editAppointmentOpen} 
-          onClose={() => setEditAppointmentOpen(false)} 
+          onClose={() => {
+            setEditAppointmentOpen(false);
+            setEditClientSnapshot(null);
+          }} 
           maxWidth="md" 
           fullWidth
           sx={{
@@ -4015,34 +4099,35 @@ export default function AppointmentsPage() {
                   fullWidth
                   freeSolo
                   options={clients}
-                  getOptionLabel={(option) => {
-                    if (typeof option === 'string') return option;
-                    return `${option.fullName} - ${option.clientId} - ${option.phoneNumber}`;
-                  }}
-                  value={clients.find(c => c.id === editingAppointment.clientId) || null}
+                  filterOptions={(opts) => opts}
+                  getOptionLabel={(option) =>
+                    typeof option === 'string' ? option : formatClientPickerLabel(option)
+                  }
+                  value={editAppointmentClientValue}
                   inputValue={editClientPhoneNumber}
                   onInputChange={(event, newInputValue) => {
                     setEditClientPhoneNumber(newInputValue);
                   }}
                   onChange={(event, newValue) => {
                     if (typeof newValue === 'string') {
-                      // Store the phone number for later registration
                       setEditClientPhoneNumber(newValue.trim());
-                      setEditingAppointment({...editingAppointment, clientId: ''});
+                      setEditingAppointment({ ...editingAppointment, clientId: '' });
+                      setEditClientSnapshot(null);
                     } else if (newValue) {
-                      // User selected existing client
-                      setEditingAppointment({...editingAppointment, clientId: newValue.id});
+                      setEditingAppointment({ ...editingAppointment, clientId: newValue.id });
                       setEditClientPhoneNumber('');
+                      setEditClientSnapshot(newValue);
                     } else {
-                      setEditingAppointment({...editingAppointment, clientId: ''});
+                      setEditingAppointment({ ...editingAppointment, clientId: '' });
+                      setEditClientSnapshot(null);
                     }
                   }}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       label="Select or Add Client"
-                      placeholder="Search or type phone number (01XXXXXXXX)..."
-                      helperText="Type a phone number to register a new client, or select existing"
+                      placeholder="Search name, ID, or phone (01XXXXXXXX)..."
+                      helperText="Results load from the server as you type. For a brand-new client, type a Malaysian mobile number."
                     />
                   )}
                   renderOption={(props, option) => (
@@ -4050,12 +4135,14 @@ export default function AppointmentsPage() {
                       <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                         <Typography fontWeight={500}>{option.fullName}</Typography>
                         <Typography variant="caption" color="text.secondary">
-                          ID: {option.clientId} • Phone: {option.phoneNumber}
+                          ID: {option.clientId} • Phone: {option.phoneNumber ?? '—'}
                         </Typography>
                       </Box>
                     </li>
                   )}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  isOptionEqualToValue={(option, value) =>
+                    String(option.id) === String(value.id)
+                  }
                 />
 
                 {/* Package Selection */}
@@ -4556,6 +4643,7 @@ export default function AppointmentsPage() {
               animated
               onClick={() => {
                 setEditAppointmentOpen(false);
+                setEditClientSnapshot(null);
                 setEditAdditionalPackages([]);
                 // Reset edit discount states
                 setEditDiscountCode('');
