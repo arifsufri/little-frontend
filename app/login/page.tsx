@@ -231,7 +231,7 @@ export default function LoginPage() {
                       onChange: () => handleInputChange()
                     })}
                     error={!!errors.idNumber}
-                    helperText={errors.idNumber?.message || 'Enter 4 digits. Tap the eye to show or hide.'}
+                    helperText={errors.idNumber?.message || 'Enter 4 digits.'}
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
