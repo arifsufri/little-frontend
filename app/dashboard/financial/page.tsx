@@ -39,6 +39,8 @@ import {
   LinearProgress,
   Snackbar,
   Alert,
+  Collapse,
+  Divider,
 } from '@mui/material';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -366,6 +368,10 @@ export default function FinancialPage() {
 
   // Handle preset date filter changes
   const handleDateFilterChange = (filterType: string) => {
+    if (filterType === 'custom') {
+      setDateFilter('custom');
+      return;
+    }
     setDateFilter(filterType);
     const today = getMalaysiaDate();
     let startDate: Date;
@@ -1382,49 +1388,10 @@ export default function FinancialPage() {
               Track your business performance and financial insights
             </Typography>
           </Box>
-          
-          {/* Action Button */}
-          {userRole === 'Boss' && (
-            <Box sx={{ 
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-              width: { xs: '100%', sm: 'auto' }
-            }}>
-            <GradientButton
-              variant="red"
-              animated
-              startIcon={<AddIcon />}
-              onClick={() => setExpenseDialogOpen(true)}
-              sx={{ 
-                  px: { xs: 3, sm: 4 }, 
-                  py: { xs: 1.5, sm: 1.8 }, 
-                  fontSize: { xs: '0.9rem', sm: '0.95rem' },
-                  fontWeight: 600,
-                width: { xs: '100%', sm: 'auto' },
-                  borderRadius: 3,
-                  textTransform: 'none',
-                  minWidth: { sm: 160 },
-                  boxShadow: '0 4px 12px rgba(139, 14, 16, 0.3)',
-                  '&:hover': {
-                    boxShadow: '0 6px 16px rgba(139, 14, 16, 0.4)',
-                    transform: 'translateY(-1px)'
-                  },
-                  transition: 'all 0.2s ease-in-out'
-              }}
-            >
-              Add Expense
-            </GradientButton>
-            </Box>
-          )}
         </Box>
 
-        {/* Compact Date Filter */}
+        {/* Period & payment filters */}
         <Box sx={{ 
-          display: 'flex', 
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 2, sm: 3 },
-          alignItems: { xs: 'stretch', sm: 'center' },
           mb: 3,
           p: 2,
           bgcolor: 'grey.50',
@@ -1432,94 +1399,149 @@ export default function FinancialPage() {
           border: '1px solid',
           borderColor: 'grey.200'
         }}>
-          {/* Period Selector */}
-          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-            <InputLabel>Quick Filter</InputLabel>
-            <Select
-              value={dateFilter}
-              onChange={(e) => handleDateFilterChange(e.target.value)}
-              label="Quick Filter"
-              sx={{ bgcolor: 'white' }}
+          <Box sx={{ 
+            display: 'flex', 
+            flexWrap: 'wrap',
+            gap: 1.5, 
+            alignItems: 'center',
+            mb: dateFilter === 'custom' ? 1.5 : 0
+          }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, width: '100%', mb: 0.5 }}>
+              Period
+            </Typography>
+            {([
+              { key: 'today', label: 'Today' },
+              { key: 'this_week', label: 'This week' },
+              { key: 'current_month', label: 'This month' },
+              { key: 'last_month', label: 'Last month' },
+            ] as const).map(({ key, label }) => (
+              <Button
+                key={key}
+                size="small"
+                variant={dateFilter === key ? 'contained' : 'outlined'}
+                onClick={() => handleDateFilterChange(key)}
+                sx={{ textTransform: 'none', borderRadius: 999, fontWeight: 600 }}
+              >
+                {label}
+              </Button>
+            ))}
+            <Button
+              size="small"
+              variant={dateFilter === 'custom' ? 'contained' : 'outlined'}
+              onClick={() => handleDateFilterChange('custom')}
+              sx={{ textTransform: 'none', borderRadius: 999, fontWeight: 600 }}
             >
-              <MenuItem value="today">Today</MenuItem>
-              <MenuItem value="yesterday">Yesterday</MenuItem>
-              <MenuItem value="this_week">This Week</MenuItem>
-              <MenuItem value="last_week">Last Week</MenuItem>
-              <MenuItem value="current_month">Current Month</MenuItem>
-              <MenuItem value="last_month">Last Month</MenuItem>
-              <MenuItem value="last_3_months">Last 3 Months</MenuItem>
-              <MenuItem value="this_year">This Year</MenuItem>
-            </Select>
-          </FormControl>
-
-          {/* Payment Method Filter */}
-          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-            <InputLabel>Payment Method</InputLabel>
-            <Select
-              value={paymentMethodFilter}
-              onChange={(e) => setPaymentMethodFilter(e.target.value as any)}
-              label="Payment Method"
-              sx={{ bgcolor: 'white' }}
-            >
-              <MenuItem value="ALL">All</MenuItem>
-              <MenuItem value="CASH">Cash</MenuItem>
-              <MenuItem value="TRANSFER">Online Transfer</MenuItem>
-            </Select>
-          </FormControl>
-
-          {/* Date Fields - Always Visible */}
-          <TextField
-            label="Start Date"
-            type="date"
-            value={tempDateRange.startDate}
-            onChange={(e) => {
-              setTempDateRange(prev => ({ ...prev, startDate: e.target.value }));
-              setDateFilter('custom'); // Mark as custom when manually changed
-            }}
-            InputLabelProps={{ shrink: true }}
-            size="small"
-            sx={{ 
-              minWidth: { xs: '100%', sm: 150 },
-              bgcolor: 'white',
-              '& .MuiOutlinedInput-root': { bgcolor: 'white' }
-            }}
-          />
-          <TextField
-            label="End Date"
-            type="date"
-            value={tempDateRange.endDate}
-            onChange={(e) => {
-              setTempDateRange(prev => ({ ...prev, endDate: e.target.value }));
-              setDateFilter('custom'); // Mark as custom when manually changed
-            }}
-            InputLabelProps={{ shrink: true }}
-            size="small"
-            sx={{ 
-              minWidth: { xs: '100%', sm: 150 },
-              bgcolor: 'white',
-              '& .MuiOutlinedInput-root': { bgcolor: 'white' }
-            }}
-          />
-          <Button
-            variant="contained"
-            size="small"
-            onClick={() => {
-              setDateRange(tempDateRange);
-            }}
-            disabled={dateRange.startDate === tempDateRange.startDate && dateRange.endDate === tempDateRange.endDate}
-            sx={{
-              bgcolor: 'primary.main',
-              '&:hover': { bgcolor: 'primary.dark' },
-              textTransform: 'none',
-              fontWeight: 600,
-              '&.Mui-disabled': {
-                bgcolor: 'grey.300',
-                color: 'grey.500'
-              }
-            }}
-          >
-            Apply
-          </Button>
+              Custom
+            </Button>
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 190 } }}>
+              <InputLabel id="financial-more-ranges-label" shrink>
+                More ranges
+              </InputLabel>
+              <Select
+                labelId="financial-more-ranges-label"
+                label="More ranges"
+                value={
+                  ['today', 'this_week', 'current_month', 'last_month', 'custom'].includes(dateFilter)
+                    ? ''
+                    : dateFilter
+                }
+                displayEmpty
+                renderValue={(selected) => {
+                  if (!selected) {
+                    return (
+                      <Typography variant="body2" component="span" sx={{ color: 'text.secondary' }}>
+                        Optional
+                      </Typography>
+                    );
+                  }
+                  const labels: Record<string, string> = {
+                    yesterday: 'Yesterday',
+                    last_week: 'Last week',
+                    last_3_months: 'Last 3 months',
+                    this_year: 'This year',
+                  };
+                  return labels[selected] ?? selected;
+                }}
+                onChange={(e) => {
+                  const v = e.target.value as string;
+                  if (v) handleDateFilterChange(v);
+                }}
+                sx={{ bgcolor: 'white' }}
+              >
+                <MenuItem value="" disabled sx={{ fontStyle: 'normal', color: 'text.secondary', fontSize: '0.8125rem' }}>
+                  Extra ranges (optional)
+                </MenuItem>
+                <MenuItem value="yesterday">Yesterday</MenuItem>
+                <MenuItem value="last_week">Last week</MenuItem>
+                <MenuItem value="last_3_months">Last 3 months</MenuItem>
+                <MenuItem value="this_year">This year</MenuItem>
+              </Select>
+            </FormControl>
+            <Box sx={{ flexGrow: 1, minWidth: 8 }} />
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 180 } }}>
+              <InputLabel>Payment</InputLabel>
+              <Select
+                value={paymentMethodFilter}
+                onChange={(e) => setPaymentMethodFilter(e.target.value as 'ALL' | 'CASH' | 'TRANSFER')}
+                label="Payment"
+                sx={{ bgcolor: 'white' }}
+              >
+                <MenuItem value="ALL">All methods</MenuItem>
+                <MenuItem value="CASH">Cash</MenuItem>
+                <MenuItem value="TRANSFER">Online transfer</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+          <Collapse in={dateFilter === 'custom'}>
+            <Divider sx={{ my: 1.5 }} />
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}>
+              <TextField
+                label="Start date"
+                type="date"
+                value={tempDateRange.startDate}
+                onChange={(e) => {
+                  setTempDateRange(prev => ({ ...prev, startDate: e.target.value }));
+                  setDateFilter('custom');
+                }}
+                InputLabelProps={{ shrink: true }}
+                size="small"
+                sx={{ 
+                  minWidth: { xs: '100%', sm: 160 },
+                  bgcolor: 'white',
+                  '& .MuiOutlinedInput-root': { bgcolor: 'white' }
+                }}
+              />
+              <TextField
+                label="End date"
+                type="date"
+                value={tempDateRange.endDate}
+                onChange={(e) => {
+                  setTempDateRange(prev => ({ ...prev, endDate: e.target.value }));
+                  setDateFilter('custom');
+                }}
+                InputLabelProps={{ shrink: true }}
+                size="small"
+                sx={{ 
+                  minWidth: { xs: '100%', sm: 160 },
+                  bgcolor: 'white',
+                  '& .MuiOutlinedInput-root': { bgcolor: 'white' }
+                }}
+              />
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => setDateRange(tempDateRange)}
+                disabled={dateRange.startDate === tempDateRange.startDate && dateRange.endDate === tempDateRange.endDate}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  '&.Mui-disabled': { bgcolor: 'grey.300', color: 'grey.500' }
+                }}
+              >
+                Apply dates
+              </Button>
+            </Box>
+          </Collapse>
         </Box>
       </Box>
 
@@ -1543,29 +1565,28 @@ export default function FinancialPage() {
               }
             }}
           >
-            <Tab label="Overview" />
-            <Tab label="Barber Performance" />
-            {/* <Tab label="Service Analysis" /> */}
+            <Tab label="Dashboard" />
+            <Tab label="Staff & payroll" />
+            <Tab label="Services & products" />
             <Tab label="Expenses" />
-            <Tab label="Monthly Summary" />
           </Tabs>
 
           {tabValue === 0 && financialData && (
-            // Overview Tab
             <Box>
-              {/* Daily Overview Section */}
+              <Typography variant="subtitle2" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', fontSize: '0.75rem', mb: 1.5 }}>
+                Today
+              </Typography>
               <Box sx={{ 
                 mb: 4, 
                 p: 3, 
                 borderRadius: 2, 
                 bgcolor: 'background.paper',
                 border: '2px solid #8B0000',
-                position: 'relative'
               }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1, mb: 2 }}>
                   <Typography variant="h6" fontWeight={600} color="text.primary">
-                    Today&apos;s Business Summary
-                        </Typography>
+                    Today&apos;s business summary
+                  </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {new Date().toLocaleDateString('en-MY', { 
                       weekday: 'long', 
@@ -1574,39 +1595,38 @@ export default function FinancialPage() {
                       day: 'numeric',
                       timeZone: 'Asia/Kuala_Lumpur'
                     })}
-                        </Typography>
-                      </Box>
+                  </Typography>
+                </Box>
                 
-                <Grid container spacing={2} sx={{ mb: 2 }}>
-                  <Grid item xs={3}>
-                    <Box sx={{ textAlign: 'center' }}>
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  <Grid item xs={6} md={3}>
+                    <Box sx={{ textAlign: { xs: 'left', md: 'center' } }}>
                       <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                        TODAY&apos;S REVENUE
-                        </Typography>
+                        Revenue
+                      </Typography>
                       <Typography variant="h5" fontWeight={700} color="text.primary">
                         {formatCurrency(calculateTodaysRevenue())}
-                        </Typography>
-                      </Box>
-              </Grid>
-                  <Grid item xs={3}>
-                    <Box sx={{ textAlign: 'center' }}>
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <Box sx={{ textAlign: { xs: 'left', md: 'center' } }}>
                       <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                        TODAY&apos;S CUSTOMERS
-                        </Typography>
+                        Customers
+                      </Typography>
                       <Typography variant="h5" fontWeight={700} color="text.primary">
                         {calculateTodaysCustomers()}
-                        </Typography>
-                      </Box>
-              </Grid>
-                  <Grid item xs={3}>
-                    <Box sx={{ textAlign: 'center' }}>
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <Box sx={{ textAlign: { xs: 'left', md: 'center' } }}>
                       <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                        TODAY&apos;S EXPENSES
-                        </Typography>
+                        Expenses
+                      </Typography>
                       <Typography variant="h5" fontWeight={700} color="text.primary">
                         {(() => {
                           const today = new Date().toISOString().split('T')[0];
-                          // Calculate actual today's expenses from the expenses array
                           const todayExpenses = financialData.expenses
                             ?.filter((exp: any) => {
                               const expenseDate = new Date(exp.date).toISOString().split('T')[0];
@@ -1615,36 +1635,34 @@ export default function FinancialPage() {
                             .reduce((sum: number, exp: any) => sum + exp.amount, 0) || 0;
                           return formatCurrency(getBossCurrentExpenses(today, todayExpenses));
                         })()}
-                        </Typography>
-                      </Box>
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                        STATUS
-                      </Typography>
-                      <Typography variant="h6" fontWeight={700} color={(() => {
-                        const today = new Date().toISOString().split('T')[0];
-                        return isBossDateClosed(today) ? 'text.secondary' : '#10b981';
-                      })()}>
-                        {(() => {
-                          const today = new Date().toISOString().split('T')[0];
-                          return isBossDateClosed(today) ? 'CLOSED' : 'ACTIVE';
-                        })()}
                       </Typography>
                     </Box>
                   </Grid>
-              </Grid>
+                  <Grid item xs={6} md={3}>
+                    <Box sx={{ textAlign: { xs: 'left', md: 'center' }, display: 'flex', flexDirection: 'column', alignItems: { xs: 'flex-start', md: 'center' }, gap: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        Status
+                      </Typography>
+                      {(() => {
+                        const today = new Date().toISOString().split('T')[0];
+                        const closed = isBossDateClosed(today);
+                        return (
+                          <Chip
+                            size="small"
+                            label={closed ? 'Closed' : 'Active'}
+                            sx={{
+                              fontWeight: 700,
+                              bgcolor: closed ? 'action.selected' : 'success.light',
+                              color: closed ? 'text.secondary' : 'success.dark',
+                            }}
+                          />
+                        );
+                      })()}
+                    </Box>
+                  </Grid>
+                </Grid>
 
-                {/* Action Buttons */}
-                <Box sx={{
-                  position: 'absolute',
-                  bottom: 8,
-                  right: 16,
-                  display: 'flex',
-                  gap: 1
-                }}>
-                  {/* Print PDF Button */}
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
                   <Button
                     variant="outlined"
                     size="small"
@@ -1654,19 +1672,11 @@ export default function FinancialPage() {
                       textTransform: 'none',
                       borderColor: '#1976d2',
                       color: '#1976d2',
-                      fontSize: '0.8rem',
-                      px: 1.5,
-                      py: 0.5,
-                      '&:hover': {
-                        borderColor: '#1565c0',
-                        bgcolor: 'rgba(25, 118, 210, 0.04)'
-                      }
+                      '&:hover': { borderColor: '#1565c0', bgcolor: 'rgba(25, 118, 210, 0.04)' },
                     }}
                   >
                     Print PDF
                   </Button>
-                  
-                  {/* Close Daily Account Button */}
                   <Button
                     variant="outlined"
                     size="small"
@@ -1676,25 +1686,18 @@ export default function FinancialPage() {
                       textTransform: 'none',
                       borderColor: '#8B0000',
                       color: '#8B0000',
-                      fontSize: '0.8rem',
-                      px: 1.5,
-                      py: 0.5,
-                      '&:hover': {
-                        borderColor: '#8B0000',
-                        bgcolor: 'rgba(139,0,0,0.1)'
-                      },
-                      '&:disabled': {
-                        borderColor: '#ccc',
-                        color: '#999'
-                      }
+                      '&:hover': { borderColor: '#8B0000', bgcolor: 'rgba(139,0,0,0.08)' },
+                      '&:disabled': { borderColor: '#e0e0e0', color: 'text.disabled' },
                     }}
                   >
-                    Close Daily Account
+                    Close daily account
                   </Button>
                 </Box>
-                      </Box>
+              </Box>
 
-              {/* Period Overview Cards */}
+              <Typography variant="subtitle2" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', fontSize: '0.75rem', mt: 1, mb: 2 }}>
+                Period overview
+              </Typography>
               <Grid container spacing={{ xs: 2, sm: 3 }}>
                 {/* Financial Overview Cards */}
                 <Grid item xs={6} sm={6} md={2.4}>
@@ -1793,88 +1796,15 @@ export default function FinancialPage() {
                 )}
               </Grid>
 
+              <Typography variant="subtitle2" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', fontSize: '0.75rem', mt: 3, mb: 1 }}>
+                Profit and loss
+              </Typography>
               <PeriodProfitLossCard overview={financialData.overview} formatCurrency={formatCurrency} />
-
-              {financialData.productSalesBreakdown && financialData.productSalesBreakdown.length > 0 && (
-                <Card sx={{
-                  mt: 3,
-                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-                  border: 'none',
-                  borderRadius: { xs: 4, sm: 5 },
-                  bgcolor: '#fff'
-                }}>
-                  <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                    <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                      Retail products (walk-in and standalone sales)
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Totals include only sales not linked to an appointment (same basis as period product mix). Shop-wide COGS and retail profit are in the cards above.
-                    </Typography>
-                    <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow sx={{ bgcolor: '#f8fafc' }}>
-                            <TableCell><strong>Product</strong></TableCell>
-                            <TableCell align="right"><strong>Qty</strong></TableCell>
-                            <TableCell align="right"><strong>Revenue</strong></TableCell>
-                            <TableCell align="right"><strong>COGS</strong></TableCell>
-                            <TableCell align="right"><strong>Gross profit</strong></TableCell>
-                            <TableCell align="right"><strong>Margin</strong></TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {financialData.productSalesBreakdown.map((row) => (
-                            <TableRow key={row.name}>
-                              <TableCell>{row.name}</TableCell>
-                              <TableCell align="right">{row.quantity}</TableCell>
-                              <TableCell align="right">{formatCurrency(row.totalRevenue)}</TableCell>
-                              <TableCell align="right">{formatCurrency(row.totalCOGS)}</TableCell>
-                              <TableCell align="right" sx={{ color: row.grossProfit >= 0 ? 'success.main' : 'error.main', fontWeight: 600 }}>
-                                {formatCurrency(row.grossProfit)}
-                              </TableCell>
-                              <TableCell align="right">{row.marginPercent.toFixed(1)}%</TableCell>
-                            </TableRow>
-                          ))}
-                          <TableRow sx={{ bgcolor: '#f1f5f9', fontWeight: 600 }}>
-                            <TableCell><strong>Total</strong></TableCell>
-                            <TableCell align="right">
-                              <strong>
-                                {financialData.productSalesBreakdown.reduce((s, r) => s + r.quantity, 0)}
-                              </strong>
-                            </TableCell>
-                            <TableCell align="right">
-                              <strong>{formatCurrency(financialData.productSalesBreakdown.reduce((s, r) => s + r.totalRevenue, 0))}</strong>
-                            </TableCell>
-                            <TableCell align="right">
-                              <strong>{formatCurrency(financialData.productSalesBreakdown.reduce((s, r) => s + r.totalCOGS, 0))}</strong>
-                            </TableCell>
-                            <TableCell align="right">
-                              <strong>
-                                {formatCurrency(financialData.productSalesBreakdown.reduce((s, r) => s + r.grossProfit, 0))}
-                              </strong>
-                            </TableCell>
-                            <TableCell align="right">
-                              <strong>
-                                {(() => {
-                                  const tr = financialData.productSalesBreakdown.reduce((s, r) => s + r.totalRevenue, 0);
-                                  const gp = financialData.productSalesBreakdown.reduce((s, r) => s + r.grossProfit, 0);
-                                  return tr > 0 ? ((gp / tr) * 100).toFixed(1) : '0.0';
-                                })()}
-                                %
-                              </strong>
-                            </TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </CardContent>
-                </Card>
-              )}
             </Box>
           )}
 
           {tabValue === 1 && financialData && (
-            // Barber Performance Tab
+            <Stack spacing={3}>
             <Card sx={{ 
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
               border: 'none', 
@@ -2019,7 +1949,7 @@ export default function FinancialPage() {
                     </TableHead>
                     <TableBody>
                       {financialData.barberPerformance.map((barber) => (
-                        <TableRow key={barber.id} hover>
+                        <TableRow key={barber.id} hover sx={{ '&:nth-of-type(even)': { bgcolor: 'action.hover' } }}>
                           <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                               <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
@@ -2084,10 +2014,7 @@ export default function FinancialPage() {
                 )}
               </CardContent>
             </Card>
-          )}
 
-          {tabValue === 2 && financialData && (
-            // Service Analysis Tab
             <Card sx={{ 
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
               border: 'none', 
@@ -2098,12 +2025,181 @@ export default function FinancialPage() {
                 <Typography 
                   variant="h6" 
                   fontWeight={600} 
+                  sx={{ mb: 2, fontSize: { xs: '1rem', sm: '1.1rem' } }}
+                >
+                  Staff payroll breakdown
+                </Typography>
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                        <TableCell><strong>Staff member</strong></TableCell>
+                        <TableCell><strong>Commission rate</strong></TableCell>
+                        <TableCell><strong>Total sales</strong></TableCell>
+                        <TableCell><strong>Earnings</strong></TableCell>
+                        <TableCell><strong>Customers</strong></TableCell>
+                        <TableCell><strong>Services</strong></TableCell>
+                        <TableCell><strong>Avg per service</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {financialData.barberPerformance && financialData.barberPerformance.length > 0 ? (
+                        financialData.barberPerformance.map((barber) => (
+                          <TableRow key={barber.id} hover sx={{ '&:nth-of-type(even)': { bgcolor: 'action.hover' } }}>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+                                  {barber.name.charAt(0)}
+                                </Avatar>
+                                <Typography variant="body2" fontWeight={500}>
+                                  {barber.name}
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Chip 
+                                label={`${barber.commissionRate || 0}%`}
+                                color="primary"
+                                size="small"
+                                variant="outlined"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={500}>
+                                {formatCurrency(barber.totalSales)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                                <Typography variant="body2" fontWeight={600} color="success.main">
+                                  {formatCurrency(barber.commissionPaid)}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Cash: {formatCurrency(barber.cashCommissionPaid ?? 0)} · Transfer: {formatCurrency(barber.transferCommissionPaid ?? 0)}
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                            <TableCell>{barber.customerCount}</TableCell>
+                            <TableCell>{barber.appointmentCount}</TableCell>
+                            <TableCell>
+                              <Typography variant="body2" color="text.secondary">
+                                {barber.appointmentCount > 0 
+                                  ? formatCurrency(barber.commissionPaid / barber.appointmentCount)
+                                  : formatCurrency(0)
+                                }
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              No staff data available for the selected period
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {financialData.barberPerformance && financialData.barberPerformance.length > 0 && (
+                        <TableRow sx={{ bgcolor: '#f8f9fa', fontWeight: 600 }}>
+                          <TableCell sx={{ fontWeight: 600 }}>
+                            <Typography variant="body2" fontWeight={600}>
+                              TOTAL
+                            </Typography>
+                          </TableCell>
+                          <TableCell>-</TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>
+                              {formatCurrency(financialData.barberPerformance.reduce((sum, b) => sum + b.totalSales, 0))}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                              <Typography variant="body2" fontWeight={600} color="success.main">
+                                {formatCurrency(financialData.overview.totalCommissionPaid)}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Cash: {formatCurrency(financialData.overview.cashCommissionPaid ?? 0)} · Transfer: {formatCurrency(financialData.overview.transferCommissionPaid ?? 0)}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>
+                              {financialData.barberPerformance.reduce((sum, b) => sum + b.customerCount, 0)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>
+                              {financialData.barberPerformance.reduce((sum, b) => sum + b.appointmentCount, 0)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600} color="text.secondary">
+                              {(() => {
+                                const totalServices = financialData.barberPerformance.reduce((sum, b) => sum + b.appointmentCount, 0);
+                                return totalServices > 0 
+                                  ? formatCurrency(financialData.overview.totalCommissionPaid / totalServices)
+                                  : formatCurrency(0);
+                              })()}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+            </Stack>
+          )}
+
+          {tabValue === 2 && financialData && (
+            <Stack spacing={3}>
+              <Card sx={{ 
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+                border: 'none', 
+                borderRadius: { xs: 4, sm: 5 }, 
+                backgroundColor: '#fff'
+              }}>
+                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                    <Box>
+                      <Typography variant="h6" fontWeight={600}>
+                        Services &amp; products
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Report period: {formatDate(dateRange.startDate)} – {formatDate(dateRange.endDate)}
+                      </Typography>
+                    </Box>
+                    <GradientButton
+                      variant="red"
+                      animated
+                      startIcon={<RestartAltIcon />}
+                      onClick={() => setResetMonthlyOpen(true)}
+                      sx={{ px: { xs: 2, sm: 3 }, py: { xs: 0.8, sm: 1 }, fontSize: { xs: 12, sm: 13 } }}
+                    >
+                      Reset monthly
+                    </GradientButton>
+                  </Box>
+                </CardContent>
+              </Card>
+
+              <Card sx={{ 
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+                border: 'none', 
+                borderRadius: { xs: 4, sm: 5 }, 
+                backgroundColor: '#fff'
+              }}>
+                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                <Typography 
+                  variant="h6" 
+                  fontWeight={600} 
                   sx={{ 
                     mb: { xs: 2, sm: 3 },
                     fontSize: { xs: '1.1rem', sm: '1.25rem' }
                   }}
                 >
-                  Service Breakdown
+                  Service breakdown
                 </Typography>
                 
                 <Grid container spacing={2}>
@@ -2135,10 +2231,232 @@ export default function FinancialPage() {
                 </Grid>
               </CardContent>
             </Card>
+
+              {financialData.productSalesBreakdown && financialData.productSalesBreakdown.length > 0 && (
+                <Card sx={{
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                  border: 'none',
+                  borderRadius: { xs: 4, sm: 5 },
+                  bgcolor: '#fff'
+                }}>
+                  <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                    <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                      Retail products (walk-in and standalone sales)
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Totals include only sales not linked to an appointment (same basis as period product mix). Shop-wide COGS and retail profit are on the Dashboard tab.
+                    </Typography>
+                    <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                            <TableCell><strong>Product</strong></TableCell>
+                            <TableCell align="right"><strong>Qty</strong></TableCell>
+                            <TableCell align="right"><strong>Revenue</strong></TableCell>
+                            <TableCell align="right"><strong>COGS</strong></TableCell>
+                            <TableCell align="right"><strong>Gross profit</strong></TableCell>
+                            <TableCell align="right"><strong>Margin</strong></TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {financialData.productSalesBreakdown.map((row) => (
+                            <TableRow key={row.name} sx={{ '&:nth-of-type(even)': { bgcolor: 'action.hover' } }}>
+                              <TableCell>{row.name}</TableCell>
+                              <TableCell align="right">{row.quantity}</TableCell>
+                              <TableCell align="right">{formatCurrency(row.totalRevenue)}</TableCell>
+                              <TableCell align="right">{formatCurrency(row.totalCOGS)}</TableCell>
+                              <TableCell align="right" sx={{ color: row.grossProfit >= 0 ? 'success.main' : 'error.main', fontWeight: 600 }}>
+                                {formatCurrency(row.grossProfit)}
+                              </TableCell>
+                              <TableCell align="right">{row.marginPercent.toFixed(1)}%</TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow sx={{ bgcolor: '#f1f5f9', fontWeight: 600 }}>
+                            <TableCell><strong>Total</strong></TableCell>
+                            <TableCell align="right">
+                              <strong>
+                                {financialData.productSalesBreakdown.reduce((s, r) => s + r.quantity, 0)}
+                              </strong>
+                            </TableCell>
+                            <TableCell align="right">
+                              <strong>{formatCurrency(financialData.productSalesBreakdown.reduce((s, r) => s + r.totalRevenue, 0))}</strong>
+                            </TableCell>
+                            <TableCell align="right">
+                              <strong>{formatCurrency(financialData.productSalesBreakdown.reduce((s, r) => s + r.totalCOGS, 0))}</strong>
+                            </TableCell>
+                            <TableCell align="right">
+                              <strong>
+                                {formatCurrency(financialData.productSalesBreakdown.reduce((s, r) => s + r.grossProfit, 0))}
+                              </strong>
+                            </TableCell>
+                            <TableCell align="right">
+                              <strong>
+                                {(() => {
+                                  const tr = financialData.productSalesBreakdown.reduce((s, r) => s + r.totalRevenue, 0);
+                                  const gp = financialData.productSalesBreakdown.reduce((s, r) => s + r.grossProfit, 0);
+                                  return tr > 0 ? ((gp / tr) * 100).toFixed(1) : '0.0';
+                                })()}
+                                %
+                              </strong>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card sx={{ 
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
+                border: 'none', 
+                borderRadius: { xs: 4, sm: 5 }, 
+                backgroundColor: '#fff'
+              }}>
+                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                  <Typography 
+                    variant="h6" 
+                    fontWeight={600} 
+                    sx={{ 
+                      mb: { xs: 2, sm: 3 },
+                      fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                    }}
+                  >
+                    Business profitability analysis
+                  </Typography>
+
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                      <Box sx={{ 
+                        p: 3, 
+                        border: '1px solid #e0e0e0', 
+                        borderRadius: 3,
+                        height: '100%'
+                      }}>
+                        <Typography variant="h6" fontWeight={600} gutterBottom color="success.main">
+                          Income, COGS, commissions, and expenses
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
+                          Same figures as the profit and loss table on the Dashboard tab. Product COGS is always shown (use 0 if no retail cost entered).
+                        </Typography>
+                        <Stack spacing={2}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Total income:</Typography>
+                            <Typography variant="body1" fontWeight={600} color="success.main">
+                              {formatCurrency(financialData.overview.totalRevenue)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Product COGS (retail):</Typography>
+                            <Typography variant="body1" fontWeight={600} color="warning.main">
+                              -{formatCurrency(financialData.overview.totalProductCOGS ?? 0)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Staff commissions:</Typography>
+                            <Typography variant="body1" fontWeight={600} color="warning.main">
+                              -{formatCurrency(financialData.overview.totalCommissionPaid)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Business expenses:</Typography>
+                            <Typography variant="body1" fontWeight={600} color="error.main">
+                              -{formatCurrency(financialData.overview.totalExpenses)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            pt: 1,
+                            borderTop: '2px solid #e0e0e0'
+                          }}>
+                            <Typography variant="h6" fontWeight={600}>Net profit:</Typography>
+                            <Typography 
+                              variant="h6" 
+                              fontWeight={700} 
+                              color={financialData.overview.netProfit >= 0 ? 'success.main' : 'error.main'}
+                            >
+                              {formatCurrency(financialData.overview.netProfit)}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </Box>
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                      <Box sx={{ 
+                        p: 3, 
+                        border: '1px solid #e0e0e0', 
+                        borderRadius: 3,
+                        height: '100%'
+                      }}>
+                        <Typography variant="h6" fontWeight={600} gutterBottom color="primary.main">
+                          Key business metrics
+                        </Typography>
+                        <Stack spacing={2}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Net profit margin:</Typography>
+                            <Typography variant="body1" fontWeight={600}>
+                              {(financialData.overview.totalRevenue > 0
+                                ? (financialData.overview.netProfit / financialData.overview.totalRevenue) * 100
+                                : 0
+                              ).toFixed(1)}%
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Product COGS % of income:</Typography>
+                            <Typography variant="body1" fontWeight={600}>
+                              {(financialData.overview.totalRevenue > 0
+                                ? ((financialData.overview.totalProductCOGS ?? 0) / financialData.overview.totalRevenue) * 100
+                                : 0
+                              ).toFixed(1)}%
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Staff commission % of income:</Typography>
+                            <Typography variant="body1" fontWeight={600}>
+                              {(financialData.overview.totalRevenue > 0
+                                ? (financialData.overview.totalCommissionPaid / financialData.overview.totalRevenue) * 100
+                                : 0
+                              ).toFixed(1)}%
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Operating expense % of income:</Typography>
+                            <Typography variant="body1" fontWeight={600}>
+                              {(financialData.overview.totalRevenue > 0
+                                ? (financialData.overview.totalExpenses / financialData.overview.totalRevenue) * 100
+                                : 0
+                              ).toFixed(1)}%
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Income per customer:</Typography>
+                            <Typography variant="body1" fontWeight={600}>
+                              {financialData.overview.totalCustomers > 0
+                                ? formatCurrency(financialData.overview.totalRevenue / financialData.overview.totalCustomers)
+                                : formatCurrency(0)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2">Avg commission per staff:</Typography>
+                            <Typography variant="body1" fontWeight={600}>
+                              {financialData.barberPerformance.length > 0
+                                ? formatCurrency(financialData.overview.totalCommissionPaid / financialData.barberPerformance.length)
+                                : formatCurrency(0)}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Stack>
           )}
 
-          {tabValue === 2 && financialData && (
-            // Expenses Tab
+          {tabValue === 3 && financialData && (
             <Card sx={{ 
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
               border: 'none', 
@@ -2146,16 +2464,31 @@ export default function FinancialPage() {
               backgroundColor: '#fff'
             }}>
               <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                <Typography 
-                  variant="h6" 
-                  fontWeight={600} 
-                  sx={{ 
-                    mb: { xs: 2, sm: 3 },
-                    fontSize: { xs: '1.1rem', sm: '1.25rem' }
-                  }}
-                >
-                  Expenses
-                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Typography 
+                    variant="h6" 
+                    fontWeight={600} 
+                    sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+                  >
+                    Expenses
+                  </Typography>
+                  <GradientButton
+                    variant="red"
+                    animated
+                    startIcon={<AddIcon />}
+                    onClick={() => setExpenseDialogOpen(true)}
+                    sx={{ 
+                      px: { xs: 2, sm: 3 }, 
+                      py: { xs: 1, sm: 1.2 }, 
+                      fontSize: { xs: '0.85rem', sm: '0.9rem' },
+                      fontWeight: 600,
+                      borderRadius: 2,
+                      textTransform: 'none',
+                    }}
+                  >
+                    Add expense
+                  </GradientButton>
+                </Box>
                 
                 {isMobile ? (
                   // Mobile Card Layout
@@ -2223,7 +2556,7 @@ export default function FinancialPage() {
                     </TableHead>
                     <TableBody>
                       {financialData.expenses.map((expense) => (
-                        <TableRow key={expense.id} hover>
+                        <TableRow key={expense.id} hover sx={{ '&:nth-of-type(even)': { bgcolor: 'action.hover' } }}>
                           <TableCell>{formatDate(expense.date)}</TableCell>
                           <TableCell>
                             <Chip 
@@ -2258,469 +2591,6 @@ export default function FinancialPage() {
             </Card>
           )}
 
-          {tabValue === 3 && (
-            // Monthly Summary Tab
-            <Box>
-
-              {!financialData ? (
-                <Card sx={{ 
-                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-                  border: 'none', 
-                  borderRadius: { xs: 4, sm: 5 }, 
-                  backgroundColor: '#fff',
-                  mb: 3
-                }}>
-                  <CardContent sx={{ p: { xs: 2, sm: 3 }, textAlign: 'center' }}>
-                    <Typography variant="h6" color="text.secondary" gutterBottom>
-                      No Data Available
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {loading ? 'Loading financial data...' : 'No financial data found for the selected period. Try adjusting your date range or ensure there are completed appointments.'}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              ) : (
-                <>
-                  {/* Monthly Payroll Summary */}
-                  <Card sx={{ 
-                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-                    border: 'none', 
-                    borderRadius: { xs: 4, sm: 5 }, 
-                    backgroundColor: '#fff',
-                    mb: 3
-                  }}>
-                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    mb: { xs: 2, sm: 3 }
-                  }}>
-                      <Typography 
-                      variant="h6" 
-                      fontWeight={600} 
-                        sx={{ 
-                        fontSize: { xs: '1.1rem', sm: '1.25rem' }
-                      }}
-                    >
-                      Monthly Payroll Summary
-                      </Typography>
-                    <GradientButton
-                      variant="red"
-                      animated
-                      startIcon={<RestartAltIcon />}
-                      onClick={() => setResetMonthlyOpen(true)}
-                        sx={{ 
-                        px: { xs: 2, sm: 3 }, 
-                        py: { xs: 0.8, sm: 1 }, 
-                        fontSize: { xs: 12, sm: 13 }
-                        }}
-                      >
-                      Reset Monthly
-                    </GradientButton>
-                    </Box>
-
-                  {/* Date Range Display */}
-                  <Box sx={{ mb: 3, p: 2, bgcolor: '#f8f9fa', borderRadius: 2 }}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Report Period
-                    </Typography>
-                    <Typography variant="body1" fontWeight={500}>
-                      {formatDate(dateRange.startDate)} - {formatDate(dateRange.endDate)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Last updated: {formatDateTime(new Date().toISOString())}
-                    </Typography>
-                  </Box>
-
-                  <PeriodProfitLossCard
-                    overview={financialData.overview}
-                    formatCurrency={formatCurrency}
-                    cardSx={{ mt: 0, mb: 3 }}
-                  />
-
-                  {/* Summary Cards */}
-                  <Grid container spacing={3} sx={{ mb: 4 }}>
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Card sx={{ 
-                        p: 2, 
-                        textAlign: 'center',
-                        border: '2px solid #10b981',
-                        borderRadius: 3
-                      }}>
-                        <Typography variant="h4" fontWeight={700} color="#10b981">
-                          {formatCurrency(financialData.overview.totalCommissionPaid)}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Total Staff Earnings
-                        </Typography>
-              </Card>
-            </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ 
-                        p: 2, 
-                        textAlign: 'center',
-                        border: '2px solid #3b82f6',
-                        borderRadius: 3
-                      }}>
-                        <Typography variant="h4" fontWeight={700} color="#3b82f6">
-                          {financialData.barberPerformance.length}
-                      </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Active Staff
-                        </Typography>
-                      </Card>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Card sx={{ 
-                        p: 2, 
-                        textAlign: 'center',
-                        border: '2px solid #f59e0b',
-                        borderRadius: 3
-                      }}>
-                        <Typography variant="h4" fontWeight={700} color="#f59e0b">
-                          {formatCurrency(financialData.overview.totalRevenue)}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Total Revenue
-                        </Typography>
-                      </Card>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Card sx={{ 
-                        p: 2, 
-                        textAlign: 'center',
-                        border: '2px solid #8b5cf6',
-                        borderRadius: 3
-                      }}>
-                        <Typography variant="h4" fontWeight={700} color="#8b5cf6">
-                          {(financialData.overview.totalRevenue > 0
-                            ? (financialData.overview.totalCommissionPaid / financialData.overview.totalRevenue) * 100
-                            : 0
-                          ).toFixed(1)}%
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Commission % of income
-                        </Typography>
-                      </Card>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Card sx={{
-                        p: 2,
-                        textAlign: 'center',
-                        border: '2px solid #b45309',
-                        borderRadius: 3,
-                      }}>
-                        <Typography variant="h4" fontWeight={700} color="#b45309">
-                          {formatCurrency(financialData.overview.totalProductCOGS ?? 0)}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Product COGS
-                        </Typography>
-                      </Card>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Card sx={{
-                        p: 2,
-                        textAlign: 'center',
-                        border: `2px solid ${financialData.overview.netProfit >= 0 ? '#059669' : '#dc2626'}`,
-                        borderRadius: 3,
-                      }}>
-                        <Typography variant="h4" fontWeight={700} color={financialData.overview.netProfit >= 0 ? '#059669' : '#dc2626'}>
-                          {formatCurrency(financialData.overview.netProfit)}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Net profit (after COGS, commissions, expenses)
-                        </Typography>
-                      </Card>
-                    </Grid>
-                  </Grid>
-
-                  {/* Staff Payroll Table */}
-                      <Typography 
-                    variant="h6" 
-                    fontWeight={600} 
-                    sx={{ mb: 2, fontSize: { xs: '1rem', sm: '1.1rem' } }}
-                  >
-                    Staff Payroll Breakdown
-                      </Typography>
-                  
-                  <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-                    <Table>
-                      <TableHead>
-                        <TableRow sx={{ bgcolor: '#f8f9fa' }}>
-                          <TableCell><strong>Staff Member</strong></TableCell>
-                          <TableCell><strong>Commission Rate</strong></TableCell>
-                          <TableCell><strong>Total Sales</strong></TableCell>
-                          <TableCell><strong>Earnings</strong></TableCell>
-                          <TableCell><strong>Customers</strong></TableCell>
-                          <TableCell><strong>Services</strong></TableCell>
-                          <TableCell><strong>Avg per Service</strong></TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {financialData.barberPerformance && financialData.barberPerformance.length > 0 ? (
-                          financialData.barberPerformance.map((barber) => (
-                            <TableRow key={barber.id} hover>
-                              <TableCell>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                  <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                                    {barber.name.charAt(0)}
-                                  </Avatar>
-                                  <Typography variant="body2" fontWeight={500}>
-                                    {barber.name}
-                                  </Typography>
-                                </Box>
-                              </TableCell>
-                              <TableCell>
-                                <Chip 
-                                  label={`${barber.commissionRate || 0}%`}
-                                  color="primary"
-                                  size="small"
-                                  variant="outlined"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Typography variant="body2" fontWeight={500}>
-                                  {formatCurrency(barber.totalSales)}
-                                </Typography>
-                              </TableCell>
-                              <TableCell>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-                                  <Typography variant="body2" fontWeight={600} color="success.main">
-                                    {formatCurrency(barber.commissionPaid)}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    Cash: {formatCurrency(barber.cashCommissionPaid ?? 0)} · Transfer: {formatCurrency(barber.transferCommissionPaid ?? 0)}
-                                  </Typography>
-                                </Box>
-                              </TableCell>
-                              <TableCell>{barber.customerCount}</TableCell>
-                              <TableCell>{barber.appointmentCount}</TableCell>
-                              <TableCell>
-                                <Typography variant="body2" color="text.secondary">
-                                  {barber.appointmentCount > 0 
-                                    ? formatCurrency(barber.commissionPaid / barber.appointmentCount)
-                                    : formatCurrency(0)
-                                  }
-                                </Typography>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
-                              <Typography variant="body2" color="text.secondary">
-                                No staff data available for the selected period
-                              </Typography>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        {/* Total Row */}
-                        {financialData.barberPerformance && financialData.barberPerformance.length > 0 && (
-                          <TableRow sx={{ bgcolor: '#f8f9fa', fontWeight: 600 }}>
-                            <TableCell sx={{ fontWeight: 600 }}>
-                              <Typography variant="body2" fontWeight={600}>
-                                TOTAL
-                              </Typography>
-                            </TableCell>
-                            <TableCell>-</TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={600}>
-                                {formatCurrency(financialData.barberPerformance.reduce((sum, b) => sum + b.totalSales, 0))}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-                                <Typography variant="body2" fontWeight={600} color="success.main">
-                                  {formatCurrency(financialData.overview.totalCommissionPaid)}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  Cash: {formatCurrency(financialData.overview.cashCommissionPaid ?? 0)} · Transfer: {formatCurrency(financialData.overview.transferCommissionPaid ?? 0)}
-                                </Typography>
-                              </Box>
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={600}>
-                                {financialData.barberPerformance.reduce((sum, b) => sum + b.customerCount, 0)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={600}>
-                                {financialData.barberPerformance.reduce((sum, b) => sum + b.appointmentCount, 0)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={600} color="text.secondary">
-                                {(() => {
-                                  const totalServices = financialData.barberPerformance.reduce((sum, b) => sum + b.appointmentCount, 0);
-                                  return totalServices > 0 
-                                    ? formatCurrency(financialData.overview.totalCommissionPaid / totalServices)
-                                    : formatCurrency(0);
-                                })()}
-                              </Typography>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </CardContent>
-              </Card>
-
-              {/* Business Profitability Analysis */}
-              <Card sx={{ 
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-                border: 'none', 
-                borderRadius: { xs: 4, sm: 5 }, 
-                backgroundColor: '#fff'
-              }}>
-                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                      <Typography 
-                    variant="h6" 
-                    fontWeight={600} 
-                        sx={{ 
-                      mb: { xs: 2, sm: 3 },
-                      fontSize: { xs: '1.1rem', sm: '1.25rem' }
-                    }}
-                  >
-                    Business Profitability Analysis
-                      </Typography>
-
-                  <Grid container spacing={3}>
-                    {/* Revenue Breakdown */}
-                    <Grid item xs={12} md={6}>
-                      <Box sx={{ 
-                        p: 3, 
-                        border: '1px solid #e0e0e0', 
-                        borderRadius: 3,
-                        height: '100%'
-                      }}>
-                        <Typography variant="h6" fontWeight={600} gutterBottom color="success.main">
-                          Income, COGS, commissions, and expenses
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
-                          Same figures as the Profit and loss table on Overview / this tab. Product COGS is always shown (use 0 if no retail cost entered).
-                        </Typography>
-                        <Stack spacing={2}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Total income:</Typography>
-                            <Typography variant="body1" fontWeight={600} color="success.main">
-                              {formatCurrency(financialData.overview.totalRevenue)}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Product COGS (retail):</Typography>
-                            <Typography variant="body1" fontWeight={600} color="warning.main">
-                              -{formatCurrency(financialData.overview.totalProductCOGS ?? 0)}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Staff commissions:</Typography>
-                            <Typography variant="body1" fontWeight={600} color="warning.main">
-                              -{formatCurrency(financialData.overview.totalCommissionPaid)}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Business expenses:</Typography>
-                            <Typography variant="body1" fontWeight={600} color="error.main">
-                              -{formatCurrency(financialData.overview.totalExpenses)}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
-                            alignItems: 'center',
-                            pt: 1,
-                            borderTop: '2px solid #e0e0e0'
-                          }}>
-                            <Typography variant="h6" fontWeight={600}>Net Profit:</Typography>
-                      <Typography 
-                              variant="h6" 
-                              fontWeight={700} 
-                              color={financialData.overview.netProfit >= 0 ? 'success.main' : 'error.main'}
-                            >
-                              {formatCurrency(financialData.overview.netProfit)}
-                      </Typography>
-                    </Box>
-                        </Stack>
-                      </Box>
-                    </Grid>
-
-                    {/* Key Metrics */}
-                    <Grid item xs={12} md={6}>
-                      <Box sx={{ 
-                        p: 3, 
-                        border: '1px solid #e0e0e0', 
-                        borderRadius: 3,
-                        height: '100%'
-                      }}>
-                        <Typography variant="h6" fontWeight={600} gutterBottom color="primary.main">
-                          Key Business Metrics
-                        </Typography>
-                        <Stack spacing={2}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Net profit margin:</Typography>
-                            <Typography variant="body1" fontWeight={600}>
-                              {(financialData.overview.totalRevenue > 0
-                                ? (financialData.overview.netProfit / financialData.overview.totalRevenue) * 100
-                                : 0
-                              ).toFixed(1)}%
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Product COGS % of income:</Typography>
-                            <Typography variant="body1" fontWeight={600}>
-                              {(financialData.overview.totalRevenue > 0
-                                ? ((financialData.overview.totalProductCOGS ?? 0) / financialData.overview.totalRevenue) * 100
-                                : 0
-                              ).toFixed(1)}%
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Staff commission % of income:</Typography>
-                            <Typography variant="body1" fontWeight={600}>
-                              {(financialData.overview.totalRevenue > 0
-                                ? (financialData.overview.totalCommissionPaid / financialData.overview.totalRevenue) * 100
-                                : 0
-                              ).toFixed(1)}%
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Operating expense % of income:</Typography>
-                            <Typography variant="body1" fontWeight={600}>
-                              {(financialData.overview.totalRevenue > 0
-                                ? (financialData.overview.totalExpenses / financialData.overview.totalRevenue) * 100
-                                : 0
-                              ).toFixed(1)}%
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Income per customer:</Typography>
-                            <Typography variant="body1" fontWeight={600}>
-                              {financialData.overview.totalCustomers > 0
-                                ? formatCurrency(financialData.overview.totalRevenue / financialData.overview.totalCustomers)
-                                : formatCurrency(0)}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">Avg commission per staff:</Typography>
-                            <Typography variant="body1" fontWeight={600}>
-                              {financialData.barberPerformance.length > 0
-                                ? formatCurrency(financialData.overview.totalCommissionPaid / financialData.barberPerformance.length)
-                                : formatCurrency(0)}
-                            </Typography>
-                          </Box>
-                  </Stack>
-                      </Box>
-                    </Grid>
-                  </Grid>
-                  </CardContent>
-                  </Card>
-                </>
-              )}
-            </Box>
-          )}
         </Box>
       ) : (
         // Staff View
@@ -2904,18 +2774,43 @@ export default function FinancialPage() {
                     </Grid>
             </Grid>
 
-                  {/* Today&apos;s Summary & Close Daily Account */}
+                  <Box sx={{ mb: 3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.75, flexWrap: 'wrap', gap: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        Progress to monthly target
+                      </Typography>
+                      <Typography variant="caption" fontWeight={600} color="text.primary">
+                        {formatCurrency(staffData.summary.totalEarnings)} / {formatCurrency(monthlyTarget)}
+                        {monthlyTarget > 0
+                          ? ` (${Math.min(100, Math.round((staffData.summary.totalEarnings / monthlyTarget) * 100))}%)`
+                          : ''}
+                      </Typography>
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={monthlyTarget > 0 ? Math.min(100, (staffData.summary.totalEarnings / monthlyTarget) * 100) : 0}
+                      sx={{
+                        height: 10,
+                        borderRadius: 1,
+                        bgcolor: 'grey.200',
+                        '& .MuiLinearProgress-bar': { borderRadius: 1, bgcolor: '#8B0000' },
+                      }}
+                    />
+                  </Box>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  {/* Today + close daily (same card as monthly projection) */}
                   <Box sx={{ 
-                    mb: 3, 
-                    p: 3, 
+                    p: 2.5, 
                     borderRadius: 2, 
-                    bgcolor: 'background.paper',
-                    border: '1px solid #e0e0e0',
-                    position: 'relative'
+                    bgcolor: 'grey.50',
+                    border: '1px solid',
+                    borderColor: 'divider',
                   }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6" fontWeight={600} color="text.primary">
-                        Today&apos;s Account Summary
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                      <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                        Today&apos;s account
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {new Date().toLocaleDateString('en-MY', { 
@@ -2929,57 +2824,57 @@ export default function FinancialPage() {
                     </Box>
                     
                     <Grid container spacing={2} sx={{ mb: 2 }}>
-                      <Grid item xs={4}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                            TODAY&apos;S CUSTOMERS
-                          </Typography>
-                          <Typography variant="h5" fontWeight={700} color="text.primary">
-                            {(() => {
-                              const today = new Date().toISOString().split('T')[0];
-                              const todayData = staffData.earningsHistory.find(day => day.date === today);
-                              return todayData ? getCurrentCustomers(today, todayData.customers) : 0;
-                            })()}
-                          </Typography>
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                          Today&apos;s customers
+                        </Typography>
+                        <Typography variant="h5" fontWeight={700} color="text.primary">
+                          {(() => {
+                            const today = new Date().toISOString().split('T')[0];
+                            const todayData = staffData.earningsHistory.find(day => day.date === today);
+                            return todayData ? getCurrentCustomers(today, todayData.customers) : 0;
+                          })()}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                          Today&apos;s earnings
+                        </Typography>
+                        <Typography variant="h5" fontWeight={700} color="text.primary">
+                          {(() => {
+                            const today = new Date().toISOString().split('T')[0];
+                            const todayData = staffData.earningsHistory.find(day => day.date === today);
+                            return formatCurrency(todayData ? getCurrentEarnings(today, todayData.totalEarnings) : 0);
+                          })()}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                          Status
+                        </Typography>
+                        <Box sx={{ mt: 0.5 }}>
+                          {(() => {
+                            const today = new Date().toISOString().split('T')[0];
+                            const todayData = staffData.earningsHistory.find(day => day.date === today);
+                            const currentEarnings = todayData ? getCurrentEarnings(today, todayData.totalEarnings) : 0;
+                            const active = currentEarnings > 0;
+                            return (
+                              <Chip
+                                size="small"
+                                label={active ? 'Active' : 'No work'}
+                                sx={{
+                                  fontWeight: 700,
+                                  bgcolor: active ? 'success.light' : 'action.selected',
+                                  color: active ? 'success.dark' : 'text.secondary',
+                                }}
+                              />
+                            );
+                          })()}
                         </Box>
                       </Grid>
-                      <Grid item xs={4}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                            TODAY&apos;S EARNINGS
-                          </Typography>
-                          <Typography variant="h5" fontWeight={700} color="text.primary">
-                            {(() => {
-                              const today = new Date().toISOString().split('T')[0];
-                              const todayData = staffData.earningsHistory.find(day => day.date === today);
-                              return formatCurrency(todayData ? getCurrentEarnings(today, todayData.totalEarnings) : 0);
-                            })()}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={4}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                            STATUS
-                          </Typography>
-                          <Typography variant="h6" fontWeight={700} color="text.secondary">
-                            {(() => {
-                              const today = new Date().toISOString().split('T')[0];
-                              const todayData = staffData.earningsHistory.find(day => day.date === today);
-                              const currentEarnings = todayData ? getCurrentEarnings(today, todayData.totalEarnings) : 0;
-                              return currentEarnings > 0 ? 'ACTIVE' : 'NO WORK';
-                            })()}
-                          </Typography>
-                        </Box>
-                      </Grid>
-            </Grid>
+                    </Grid>
 
-                    {/* Close Daily Account Button - Bottom Right */}
-                    <Box sx={{ 
-                      position: 'absolute', 
-                      bottom: 16, 
-                      right: 16 
-                    }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
                       <Button
                         variant="outlined"
                         size="small"
@@ -2990,16 +2885,9 @@ export default function FinancialPage() {
                           const currentEarnings = todayData ? getCurrentEarnings(today, todayData.totalEarnings) : 0;
                           return currentEarnings === 0;
                         })()}
-                        sx={{ 
-                          px: 2, 
-                          py: 0.5, 
-                          fontSize: 12,
-                          fontWeight: 500,
-                          borderRadius: 1,
-                          textTransform: 'none'
-                        }}
+                        sx={{ textTransform: 'none', borderColor: '#8B0000', color: '#8B0000' }}
                       >
-                        Close Daily
+                        Close daily
                       </Button>
                     </Box>
                   </Box>
@@ -3070,17 +2958,20 @@ export default function FinancialPage() {
                     variant="h6" 
                     fontWeight={600} 
                     sx={{ 
-                      mb: { xs: 2, sm: 3 },
+                      mb: 0.5,
                       fontSize: { xs: '1.1rem', sm: '1.25rem' }
                     }}
                   >
-                    Earnings History
+                    Earnings history
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: { xs: 2, sm: 3 } }}>
+                    Period: {formatDate(dateRange.startDate)} – {formatDate(dateRange.endDate)} · Showing last 10 days with data
                   </Typography>
                   
                   <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
                     <Table>
                       <TableHead>
-                        <TableRow>
+                        <TableRow sx={{ bgcolor: '#f8fafc' }}>
                           <TableCell><strong>Date</strong></TableCell>
                           <TableCell><strong>Customers</strong></TableCell>
                           <TableCell><strong>Total Earnings</strong></TableCell>
@@ -3088,7 +2979,7 @@ export default function FinancialPage() {
                       </TableHead>
                       <TableBody>
                         {staffData.earningsHistory.slice(0, 10).map((day, index) => (
-                          <TableRow key={index} hover>
+                          <TableRow key={index} hover sx={{ '&:nth-of-type(even)': { bgcolor: 'action.hover' } }}>
                             <TableCell>{formatDate(day.date)}</TableCell>
                             <TableCell>{day.customers}</TableCell>
                             <TableCell>

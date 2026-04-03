@@ -58,7 +58,7 @@ export default function PeriodProfitLossCard({
           {title}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Track retail COGS with staff commissions and business expenses. Net profit matches: total income minus product COGS, minus commissions, minus recorded expenses.
+          Track retail COGS, staff commissions, and business expenses. Net profit matches: total income minus product COGS, minus commissions, minus recorded expenses.
         </Typography>
 
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
