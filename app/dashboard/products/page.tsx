@@ -24,6 +24,7 @@ interface Package {
   hasVariablePricing?: boolean;
   priceOptions?: Array<{ label: string; price: number }>;
   createdAt: string;
+  updatedAt?: string;
 }
 
 interface StaffCommissionAssignee {
@@ -33,10 +34,10 @@ interface StaffCommissionAssignee {
 }
 
 // Helper function to get full image URL
-const getImageUrl = (imageUrl?: string | null): string | undefined => {
+const getImageUrl = (imageUrl?: string | null, version?: string): string | undefined => {
   if (!imageUrl) return undefined;
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
-  return `${baseUrl}${imageUrl}`;
+  return version ? `${baseUrl}${imageUrl}?v=${encodeURIComponent(version)}` : `${baseUrl}${imageUrl}`;
 };
 
 export default function ProductsPage() {
@@ -431,6 +432,7 @@ export default function ProductsPage() {
 
   const handleEdit = (pkg: Package) => {
     console.log('Opening edit modal for package:', pkg);
+    setPackageImage(null);
     setEditingPackage(pkg);
     setName(pkg.name);
     setDesc(pkg.description);
@@ -709,7 +711,7 @@ export default function ProductsPage() {
                 <ProductCard 
                   title={pkg.name} 
                   price={`RM${pkg.price}`} 
-                  imageSrc={getImageUrl(pkg.imageUrl)}
+                  imageSrc={getImageUrl(pkg.imageUrl, pkg.updatedAt)}
                   isActive={pkg.isActive}
                   onClick={() => handleCardClick(pkg)}
                   onEdit={userRole === 'Boss' ? () => handleEdit(pkg) : undefined}
@@ -873,10 +875,10 @@ export default function ProductsPage() {
         <Box sx={{ 
           position: 'relative',
           height: 200,
-          backgroundImage: getImageUrl(selectedPackage?.imageUrl) ? `url(${getImageUrl(selectedPackage?.imageUrl)})` : 'none',
+          backgroundImage: getImageUrl(selectedPackage?.imageUrl, selectedPackage?.updatedAt) ? `url(${getImageUrl(selectedPackage?.imageUrl, selectedPackage?.updatedAt)})` : 'none',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          backgroundColor: getImageUrl(selectedPackage?.imageUrl) ? 'transparent' : '#1a1a1a',
+          backgroundColor: getImageUrl(selectedPackage?.imageUrl, selectedPackage?.updatedAt) ? 'transparent' : '#1a1a1a',
           display: 'flex',
           alignItems: 'flex-end',
           '&::before': {
@@ -886,11 +888,11 @@ export default function ProductsPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            background: getImageUrl(selectedPackage?.imageUrl) 
+            background: getImageUrl(selectedPackage?.imageUrl, selectedPackage?.updatedAt) 
               ? 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.7) 100%)'
               : 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%)',
-            backgroundSize: getImageUrl(selectedPackage?.imageUrl) ? 'auto' : '200% 200%',
-            animation: getImageUrl(selectedPackage?.imageUrl) ? 'none' : 'gradientShift 3s ease infinite',
+            backgroundSize: getImageUrl(selectedPackage?.imageUrl, selectedPackage?.updatedAt) ? 'auto' : '200% 200%',
+            animation: getImageUrl(selectedPackage?.imageUrl, selectedPackage?.updatedAt) ? 'none' : 'gradientShift 3s ease infinite',
             '@keyframes gradientShift': {
               '0%': { backgroundPosition: '0% 50%' },
               '50%': { backgroundPosition: '100% 50%' },
@@ -931,7 +933,7 @@ export default function ProductsPage() {
             alignItems: 'flex-start',
             gap: 2
           }}>
-            {!getImageUrl(selectedPackage?.imageUrl) && (
+            {!getImageUrl(selectedPackage?.imageUrl, selectedPackage?.updatedAt) && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
                 <ContentCutIcon sx={{ fontSize: 48, opacity: 0.9, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
                 <Typography 
@@ -953,7 +955,7 @@ export default function ProductsPage() {
               sx={{ 
                 fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
                 textShadow: '0 2px 4px rgba(0,0,0,0.5)',
-                mb: getImageUrl(selectedPackage?.imageUrl) ? 1 : 0
+                mb: getImageUrl(selectedPackage?.imageUrl, selectedPackage?.updatedAt) ? 1 : 0
               }}
             >
               {selectedPackage?.name}
@@ -1542,6 +1544,25 @@ export default function ProductsPage() {
               <Typography variant="h6" fontWeight={600} color="text.primary" sx={{ mb: 1 }}>
                 Update Package Image
               </Typography>
+              {editingPackage?.imageUrl && !packageImage && (
+                <Box sx={{ display: 'grid', gap: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Current image
+                  </Typography>
+                  <Box
+                    component="img"
+                    src={getImageUrl(editingPackage.imageUrl, editingPackage.updatedAt)}
+                    alt={editingPackage.name}
+                    sx={{
+                      width: '100%',
+                      maxHeight: 180,
+                      objectFit: 'cover',
+                      borderRadius: 2,
+                      border: '1px solid #e5e7eb'
+                    }}
+                  />
+                </Box>
+              )}
               <input 
                 type="file" 
                 accept="image/*" 

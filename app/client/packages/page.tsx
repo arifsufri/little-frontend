@@ -37,10 +37,10 @@ import LoyaltyFlipCard from '../../../components/client/LoyaltyFlipCard';
 import { apiGet, apiPost } from '../../../src/utils/axios';
 
 // Helper function to get full image URL
-const getImageUrl = (imageUrl?: string | null): string | undefined => {
+const getImageUrl = (imageUrl?: string | null, version?: string): string | undefined => {
   if (!imageUrl) return undefined;
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
-  return `${baseUrl}${imageUrl}`;
+  return version ? `${baseUrl}${imageUrl}?v=${encodeURIComponent(version)}` : `${baseUrl}${imageUrl}`;
 };
 
 /** Toggle to show the "Choose Your Barber" block in the booking dialog. */
@@ -57,6 +57,7 @@ interface Package {
   imageUrl?: string;
   isActive: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 interface Barber {
@@ -166,7 +167,9 @@ export default function ClientPackagesPage() {
       ]);
       
       // Filter to only show active packages for clients
-      const activePackages = (packagesResponse.data || []).filter(pkg => pkg.isActive);
+      const activePackages = (packagesResponse.data || [])
+        .filter(pkg => pkg.isActive)
+        .sort((a, b) => b.price - a.price);
       setPackages(activePackages);
       
       // Filter out Boss role from barber selection
@@ -482,7 +485,7 @@ export default function ClientPackagesPage() {
               <ProductCard 
                 title={pkg.name} 
                 price={`RM${pkg.price}`} 
-                imageSrc={getImageUrl(pkg.imageUrl)} 
+                imageSrc={getImageUrl(pkg.imageUrl, pkg.updatedAt)} 
                 onClick={() => handleCardClick(pkg)} 
               />
                 </Box>
@@ -555,10 +558,10 @@ export default function ClientPackagesPage() {
             <Box sx={{ 
               position: 'relative',
               height: 200,
-              backgroundImage: getImageUrl(selectedPackage.imageUrl) ? `url(${getImageUrl(selectedPackage.imageUrl)})` : 'none',
+              backgroundImage: getImageUrl(selectedPackage.imageUrl, selectedPackage.updatedAt) ? `url(${getImageUrl(selectedPackage.imageUrl, selectedPackage.updatedAt)})` : 'none',
               backgroundSize: 'cover',
               backgroundPosition: 'center',
-              backgroundColor: getImageUrl(selectedPackage.imageUrl) ? 'transparent' : '#1a1a1a',
+              backgroundColor: getImageUrl(selectedPackage.imageUrl, selectedPackage.updatedAt) ? 'transparent' : '#1a1a1a',
               display: 'flex',
               alignItems: 'flex-end',
               '&::before': {
@@ -568,11 +571,11 @@ export default function ClientPackagesPage() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                background: getImageUrl(selectedPackage.imageUrl)
+                background: getImageUrl(selectedPackage.imageUrl, selectedPackage.updatedAt)
                   ? 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.7) 100%)'
                   : 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%)',
-                backgroundSize: getImageUrl(selectedPackage.imageUrl) ? 'auto' : '200% 200%',
-                animation: getImageUrl(selectedPackage.imageUrl) ? 'none' : 'gradientShift 3s ease infinite',
+                backgroundSize: getImageUrl(selectedPackage.imageUrl, selectedPackage.updatedAt) ? 'auto' : '200% 200%',
+                animation: getImageUrl(selectedPackage.imageUrl, selectedPackage.updatedAt) ? 'none' : 'gradientShift 3s ease infinite',
                 '@keyframes gradientShift': {
                   '0%': { backgroundPosition: '0% 50%' },
                   '50%': { backgroundPosition: '100% 50%' },
@@ -610,7 +613,7 @@ export default function ClientPackagesPage() {
               
               {/* Title */}
               <Box sx={{ position: 'relative', zIndex: 2, p: 3, width: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {!getImageUrl(selectedPackage.imageUrl) && (
+                {!getImageUrl(selectedPackage.imageUrl, selectedPackage.updatedAt) && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
                     <ContentCutIcon sx={{ fontSize: 40, opacity: 0.9, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
                     <Typography 
@@ -632,7 +635,7 @@ export default function ClientPackagesPage() {
                   fontWeight={800} 
                   color="white" 
                   sx={{ 
-                    mb: getImageUrl(selectedPackage.imageUrl) ? 1 : 0, 
+                    mb: getImageUrl(selectedPackage.imageUrl, selectedPackage.updatedAt) ? 1 : 0, 
                     textShadow: '0 2px 8px rgba(0,0,0,0.6)',
                     fontFamily: '"Inter", "Manrope", sans-serif',
                     letterSpacing: '0.5px'
