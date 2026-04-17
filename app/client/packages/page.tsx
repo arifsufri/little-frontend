@@ -42,6 +42,9 @@ const getImageUrl = (imageUrl?: string | null): string | undefined => {
   return `${baseUrl}${imageUrl}`;
 };
 
+/** Toggle to show the "Choose Your Barber" block in the booking dialog. */
+const SHOW_BARBER_SELECTION = false;
+
 interface Package {
   id: number;
   name: string;
@@ -620,46 +623,48 @@ export default function ClientPackagesPage() {
                 </Alert>
               )}
 
-              {/* Barber Selection */}
-              <Box sx={{ mb: 3 }}>
-                <Typography 
-                  variant="h6" 
-                  fontWeight={700} 
-                  sx={{ 
-                    mb: 2,
-                    fontFamily: '"Inter", "Manrope", sans-serif',
-                    letterSpacing: '0.3px'
-                  }}
-                >
-                  Choose Your Barber
-                </Typography>
-                <FormControl 
-                  fullWidth 
-                  size="small"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
+              {/* Barber Selection — hidden until SHOW_BARBER_SELECTION is true */}
+              {SHOW_BARBER_SELECTION && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography 
+                    variant="h6" 
+                    fontWeight={700} 
+                    sx={{ 
+                      mb: 2,
                       fontFamily: '"Inter", "Manrope", sans-serif',
-                    }
-                  }}
-                >
-                  <InputLabel>Select Barber (Optional)</InputLabel>
-                  <Select
-                    value={selectedBarber}
-                    onChange={(e) => setSelectedBarber(e.target.value as number | '')}
-                    label="Select Barber (Optional)"
+                      letterSpacing: '0.3px'
+                    }}
                   >
-                    <MenuItem value="">
-                      <em>Any Available Barber</em>
-                    </MenuItem>
-                    {barbers.map((barber) => (
-                      <MenuItem key={barber.id} value={barber.id}>
-                        {barber.name}
+                    Choose Your Barber
+                  </Typography>
+                  <FormControl 
+                    fullWidth 
+                    size="small"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2,
+                        fontFamily: '"Inter", "Manrope", sans-serif',
+                      }
+                    }}
+                  >
+                    <InputLabel>Select Barber (Optional)</InputLabel>
+                    <Select
+                      value={selectedBarber}
+                      onChange={(e) => setSelectedBarber(e.target.value as number | '')}
+                      label="Select Barber (Optional)"
+                    >
+                      <MenuItem value="">
+                        <em>Any Available Barber</em>
                       </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
+                      {barbers.map((barber) => (
+                        <MenuItem key={barber.id} value={barber.id}>
+                          {barber.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              )}
 
               {/* Additional Services - Dropdown with Checkboxes */}
               {getAvailableAdditionalServices().length > 0 && (
