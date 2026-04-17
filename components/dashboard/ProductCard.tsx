@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Card, CardContent, Box, Typography, IconButton, Menu, MenuItem, Chip } from '@mui/material';
+import { Card, CardContent, Box, Typography, IconButton, Menu, MenuItem } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -178,24 +178,23 @@ export default function ProductCard({
               </Box>
             </Box>
           )}
-          {/* Status Chip */}
-          <Chip
-            label={isActive ? 'Active' : 'Inactive'}
-            size="small"
+          {/* Status: dot only (green = active, muted red = inactive on dashboard) */}
+          <Box
+            component="span"
+            role="img"
+            aria-label={isActive ? 'Active' : 'Inactive'}
+            title={isActive ? 'Active' : 'Inactive'}
             sx={{
               position: 'absolute',
-              top: 8,
-              left: 8,
+              top: 10,
+              left: 10,
               zIndex: 3,
-              backgroundColor: isActive ? '#ecfdf5' : '#fef2f2',
-              color: isActive ? '#047857' : '#b91c1c',
-              border: '1px solid',
-              borderColor: isActive ? '#6ee7b7' : '#fca5a5',
-              fontWeight: 700,
-              fontSize: '0.72rem',
-              '& .MuiChip-label': {
-                px: 1
-              }
+              width: { xs: 9, sm: 10 },
+              height: { xs: 9, sm: 10 },
+              borderRadius: '50%',
+              bgcolor: isActive ? '#22c55e' : '#f87171',
+              boxShadow: '0 0 0 2px rgba(255,255,255,0.92)',
+              border: '1px solid rgba(0,0,0,0.06)',
             }}
           />
         </Box>

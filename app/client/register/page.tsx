@@ -16,7 +16,7 @@ import {
   CircularProgress
 } from '@mui/material';
 import { z } from 'zod';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { apiPost } from '../../../src/utils/axios';
 
@@ -24,8 +24,10 @@ import { apiPost } from '../../../src/utils/axios';
 const RegisterSchema = z.object({
   fullName: z
     .string()
+    .trim()
     .min(1, 'Name is required')
-    .min(2, 'Name must be at least 2 characters'),
+    .min(2, 'Name must be at least 2 characters')
+    .refine((s) => !/[0-9]/.test(s), 'Name cannot contain numbers'),
   phoneNumber: z
     .string()
     .regex(/^01[0-9]{8,9}$/, 'Phone number must be in Malaysian format (01XXXXXXXX)')
@@ -41,10 +43,13 @@ export default function ClientRegisterPage() {
   const [showLoginPrompt, setShowLoginPrompt] = React.useState(false);
   
   const {
-    register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<RegisterForm>({ resolver: zodResolver(RegisterSchema) });
+  } = useForm<RegisterForm>({
+    resolver: zodResolver(RegisterSchema),
+    defaultValues: { fullName: '', phoneNumber: '' },
+  });
 
   React.useEffect(() => {
     document.documentElement.classList.add('auth-locked');
@@ -201,25 +206,52 @@ export default function ClientRegisterPage() {
               )}
 
               <Box component="form" onSubmit={handleSubmit(onSubmit)} mt={{ xs: 2, sm: 3 }}>
-                <TextField
-                  label="Full Name"
-                  placeholder="Enter your full name"
-                  fullWidth
-                  size="small"
-                  {...register("fullName")}
-                  error={!!errors.fullName}
-                  helperText={errors.fullName?.message || "Enter your full name"}
-                  sx={{ mb: 2 }}
+                <Controller
+                  name="fullName"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      label="Full Name"
+                      placeholder="Enter your full name"
+                      fullWidth
+                      size="small"
+                      value={field.value}
+                      onChange={(e) => {
+                        const noDigits = e.target.value.replace(/[0-9]/g, '');
+                        field.onChange(noDigits);
+                      }}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      inputRef={field.ref}
+                      error={!!errors.fullName}
+                      helperText={errors.fullName?.message || 'Letters and spaces only — numbers are not allowed'}
+                      sx={{ mb: 2 }}
+                    />
+                  )}
                 />
-                
-                <TextField
-                  label="Phone Number"
-                  placeholder="01XXXXXXXX"
-                  fullWidth
-                  size="small"
-                  {...register("phoneNumber")}
-                  error={!!errors.phoneNumber}
-                  helperText={errors.phoneNumber?.message || "Malaysian format: 01XXXXXXXX"}
+
+                <Controller
+                  name="phoneNumber"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      label="Phone Number"
+                      placeholder="01XXXXXXXX"
+                      fullWidth
+                      size="small"
+                      value={field.value}
+                      onChange={(e) => {
+                        const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 11);
+                        field.onChange(digitsOnly);
+                      }}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      inputRef={field.ref}
+                      error={!!errors.phoneNumber}
+                      helperText={errors.phoneNumber?.message || 'Numbers only — Malaysian format: 01XXXXXXXX'}
+                      inputProps={{ inputMode: 'numeric', autoComplete: 'tel' }}
+                    />
+                  )}
                 />
                 
                 <Button

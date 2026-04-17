@@ -51,9 +51,21 @@ export default function LoyaltyFlipCard({ progress }: LoyaltyFlipCardProps) {
               justifyContent: 'space-between'
             }}
           >
-            <Typography sx={{ letterSpacing: 2, fontSize: { xs: 12, sm: 14 }, opacity: 0.82 }}>
-              LITTLE BARBERSHOP
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box
+                component="img"
+                src="/images/icon-192.png"
+                alt="Little Barbershop"
+                sx={{
+                  width: { xs: 40, sm: 52 },
+                  height: { xs: 40, sm: 52 },
+                  objectFit: 'contain',
+                  // Best-effort visual cleanup for dark background in source PNG.
+                  mixBlendMode: 'screen',
+                  filter: 'brightness(1.2) contrast(1.25)',
+                }}
+              />
+            </Box>
             <Box>
               <Typography sx={{ fontSize: { xs: 20, sm: 28 }, fontWeight: 800, lineHeight: 1.1 }}>
                 LOYALTY CARD
@@ -93,7 +105,9 @@ export default function LoyaltyFlipCard({ progress }: LoyaltyFlipCardProps) {
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
                 gap: { xs: 1.25, sm: 1.5 },
-                py: { xs: 1, sm: 1.25 }
+                py: { xs: 1, sm: 1.25 },
+                alignItems: 'center',
+                justifyItems: 'center'
               }}
             >
               {Array.from({ length: 6 }).map((_, idx) => {
@@ -102,19 +116,37 @@ export default function LoyaltyFlipCard({ progress }: LoyaltyFlipCardProps) {
                   <Box
                     key={idx}
                     sx={{
-                      height: { xs: 42, sm: 52 },
+                      width: '100%',
+                      maxWidth: { xs: 70, sm: 88 },
+                      aspectRatio: '1',
                       borderRadius: '50%',
-                      border: '2px solid',
-                      borderColor: filled ? '#ef4444' : 'rgba(255,255,255,0.75)',
-                      bgcolor: filled ? 'rgba(239,68,68,0.88)' : 'rgba(255,255,255,0.12)',
+                      border: '1.5px solid rgba(255,255,255,0.85)',
+                      bgcolor: filled ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.08)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      overflow: 'hidden',
+                      boxShadow: 'none',
                       fontWeight: 800,
-                      fontSize: { xs: 13, sm: 15 }
+                      fontSize: { xs: 14, sm: 16 }
                     }}
                   >
-                    {idx + 1}
+                    {filled ? (
+                      <Box
+                        component="img"
+                        src="/images/icon-192.png"
+                        alt=""
+                        sx={{
+                          width: '78%',
+                          height: '78%',
+                          objectFit: 'contain',
+                          mixBlendMode: 'screen',
+                          filter: 'brightness(1.15) contrast(1.2)',
+                        }}
+                      />
+                    ) : (
+                      idx + 1
+                    )}
                   </Box>
                 );
               })}

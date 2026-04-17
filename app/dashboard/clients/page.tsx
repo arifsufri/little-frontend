@@ -51,7 +51,9 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import AddIcon from '@mui/icons-material/Add';
+import useSWR from 'swr';
 import { apiGet, apiPost, apiDelete, apiPatch } from '../../../src/utils/axios';
+import { useSocketSWRInvalidate } from '../../../src/hooks/useSocketSWRInvalidate';
 import GradientButton from '../../../components/GradientButton';
 
 interface Client {
@@ -81,8 +83,6 @@ export default function ClientsPage() {
   const { userRole } = useUserRole();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [clients, setClients] = React.useState<Client[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('all');
   const [createClientOpen, setCreateClientOpen] = React.useState(false);
@@ -103,51 +103,39 @@ export default function ClientsPage() {
   
   const PAGE_SIZE = 30;
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [listMeta, setListMeta] = React.useState<{
-    total: number;
-    totalPages: number;
-  } | null>(null);
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
   React.useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350);
     return () => clearTimeout(t);
   }, [searchTerm]);
 
-  const fetchClients = React.useCallback(async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        page: String(currentPage),
-        limit: String(PAGE_SIZE),
-      });
-      if (debouncedSearch) params.set('search', debouncedSearch);
-      if (statusFilter !== 'all') params.set('statusFilter', statusFilter);
-      const response = await apiGet<{
+  const clientsQueryString = React.useMemo(() => {
+    const params = new URLSearchParams({
+      page: String(currentPage),
+      limit: String(PAGE_SIZE),
+    });
+    if (debouncedSearch) params.set('search', debouncedSearch);
+    if (statusFilter !== 'all') params.set('statusFilter', statusFilter);
+    return params.toString();
+  }, [currentPage, PAGE_SIZE, debouncedSearch, statusFilter]);
+
+  const { data: clientsSwr, mutate: mutateClients, isLoading: loading } = useSWR(
+    ['swr:clients', clientsQueryString],
+    async ([, qs]) =>
+      apiGet<{
         success: boolean;
         data: Client[];
         meta?: { total: number; totalPages: number };
-      }>(`/clients?${params.toString()}`);
-      setClients(response.data || []);
-      if (response.meta) {
-        setListMeta({
-          total: response.meta.total,
-          totalPages: response.meta.totalPages,
-        });
-      } else {
-        setListMeta(null);
-      }
-    } catch (error) {
-      console.error('Error fetching clients:', error);
-      setClients([]);
-      setListMeta(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, debouncedSearch, statusFilter, PAGE_SIZE]);
+      }>(`/clients?${qs}`),
+    { revalidateOnFocus: true }
+  );
 
-  React.useEffect(() => {
-    fetchClients();
-  }, [fetchClients]);
+  const clients = clientsSwr?.data ?? [];
+  const listMeta = clientsSwr?.meta
+    ? { total: clientsSwr.meta.total, totalPages: clientsSwr.meta.totalPages }
+    : null;
+
+  useSocketSWRInvalidate();
 
   const handleCreateClient = async () => {
     try {
@@ -172,8 +160,7 @@ export default function ClientsPage() {
         phoneNumber: ''
       });
       
-      // Refresh clients list
-      fetchClients();
+      void mutateClients();
       
       setSnackbar({
         open: true,
@@ -203,7 +190,7 @@ export default function ClientsPage() {
       await apiDelete(`/clients/${clientToDelete.id}`);
       setDeleteDialogOpen(false);
       setClientToDelete(null);
-      fetchClients();
+      void mutateClients();
       setSnackbar({
         open: true,
         message: 'Client deleted successfully!',
@@ -239,7 +226,7 @@ export default function ClientsPage() {
       });
       setLoyaltyDialogOpen(false);
       setClientToEditLoyalty(null);
-      fetchClients();
+      void mutateClients();
       setSnackbar({
         open: true,
         message: 'Loyalty progress updated successfully',
@@ -295,6 +282,7 @@ export default function ClientsPage() {
       : getTotalSpent(client.appointments || []);
 
   const getLoyaltyProgress = (client: Client) => client.loyaltyProgress ?? 0;
+  const isGuestClient = (client: Client) => !client.phoneNumber;
   const renderLoyaltyCircle = (progress: number, size: number = 34) => {
     const safeProgress = Math.max(0, Math.min(progress, 6));
     const value = (safeProgress / 6) * 100;
@@ -577,14 +565,26 @@ export default function ClientsPage() {
                         }
                       }}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2, gap: 1.25 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, minWidth: 0 }}>
                           <Avatar sx={{ width: 48, height: 48, bgcolor: 'primary.main', fontSize: '1.2rem' }}>
                             {client.fullName.charAt(0)}
                           </Avatar>
                           <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                              <Typography variant="h6" fontWeight={600}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25, mb: 0.75, minWidth: 0 }}>
+                              <Typography
+                                variant="h6"
+                                fontWeight={600}
+                                sx={{
+                                  width: '100%',
+                                  minWidth: 0,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  lineHeight: 1.15,
+                                }}
+                                title={client.fullName}
+                              >
                                 {client.fullName}
                               </Typography>
                               <Typography variant="caption" color="primary" fontWeight={600}>
@@ -609,9 +609,13 @@ export default function ClientsPage() {
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                {renderLoyaltyCircle(getLoyaltyProgress(client), 32)}
-                              </Box>
+                              {!isGuestClient(client) ? (
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                  {renderLoyaltyCircle(getLoyaltyProgress(client), 32)}
+                                </Box>
+                              ) : (
+                                <Chip size="small" label="Guest" variant="outlined" />
+                              )}
                               {latestAppointment ? (
                                 <Chip 
                                   label={latestAppointment.status}
@@ -633,7 +637,7 @@ export default function ClientsPage() {
                             </Box>
                           </Box>
                         </Box>
-                        <Box sx={{ display: 'flex', gap: 0.75 }}>
+                        <Box sx={{ display: 'flex', gap: 0.75, flexShrink: 0 }}>
                           <Tooltip title="View Details">
                             <IconButton
                               size="small"
@@ -651,7 +655,7 @@ export default function ClientsPage() {
                               <VisibilityIcon sx={{ fontSize: 18 }} />
                             </IconButton>
                           </Tooltip>
-                          {(userRole === 'Boss') && (
+                          {(userRole === 'Boss' && !isGuestClient(client)) && (
                             <Tooltip title="Edit Loyalty Progress">
                               <IconButton
                                 size="small"
@@ -790,9 +794,13 @@ export default function ClientsPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              {renderLoyaltyCircle(getLoyaltyProgress(client), 34)}
-                            </Box>
+                            {!isGuestClient(client) ? (
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                {renderLoyaltyCircle(getLoyaltyProgress(client), 34)}
+                              </Box>
+                            ) : (
+                              <Chip size="small" label="Guest" variant="outlined" />
+                            )}
                           </TableCell>
                           <TableCell>
                             <Box sx={{ display: 'flex', gap: 0.75 }}>
@@ -813,7 +821,7 @@ export default function ClientsPage() {
                                   <VisibilityIcon sx={{ fontSize: 18 }} />
                                 </IconButton>
                               </Tooltip>
-                              {(userRole === 'Boss') && (
+                              {(userRole === 'Boss' && !isGuestClient(client)) && (
                                 <Tooltip title="Edit Loyalty Progress">
                                   <IconButton
                                     size="small"

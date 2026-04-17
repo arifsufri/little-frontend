@@ -26,15 +26,19 @@ import {
   Divider,
   Chip,
   ListItemText,
-  TextField
+  TextField,
+  Avatar,
+  Tooltip,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import LogoutIcon from '@mui/icons-material/Logout';
-import PersonIcon from '@mui/icons-material/Person';
 import ContentCutIcon from '@mui/icons-material/ContentCut';
 import ProductCard from '../../../components/dashboard/ProductCard';
 import LoyaltyFlipCard from '../../../components/client/LoyaltyFlipCard';
+import useSWR from 'swr';
 import { apiGet, apiPost } from '../../../src/utils/axios';
+import { useSocketSWRInvalidate } from '../../../src/hooks/useSocketSWRInvalidate';
+import { motion, useReducedMotion } from 'framer-motion';
 
 // Helper function to get full image URL
 const getImageUrl = (imageUrl?: string | null, version?: string): string | undefined => {
@@ -71,23 +75,22 @@ interface Client {
   id: number;
   clientId: string;
   fullName: string;
-  phoneNumber: string;
+  phoneNumber: string | null;
   loyaltyProgress?: number;
   loyaltyCycleCount?: number;
 }
 
+const easeOut = [0.22, 1, 0.36, 1] as const;
+
 export default function ClientPackagesPage() {
   const router = useRouter();
-  const [packages, setPackages] = React.useState<Package[]>([]);
-  const [barbers, setBarbers] = React.useState<Barber[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const prefersReducedMotion = useReducedMotion();
   const [selectedPackage, setSelectedPackage] = React.useState<Package | null>(null);
   const [clientData, setClientData] = React.useState<Client | null>(null);
   const [booking, setBooking] = React.useState(false);
   const [bookingSuccess, setBookingSuccess] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-  const [loyaltyProgress, setLoyaltyProgress] = React.useState(0);
-  
+
   // Guest name popup state
   const [isGuest, setIsGuest] = React.useState(false);
   const [showGuestNameDialog, setShowGuestNameDialog] = React.useState(false);
@@ -99,6 +102,74 @@ export default function ClientPackagesPage() {
   const [selectedBarber, setSelectedBarber] = React.useState<number | ''>('');
   const [additionalServices, setAdditionalServices] = React.useState<number[]>([]);
   const [totalPrice, setTotalPrice] = React.useState(0);
+
+  const { data: packagesPortal, isLoading: loading } = useSWR(
+    ['swr:packages', 'client-portal'],
+    async () => {
+      const [packagesResponse, barbersResponse] = await Promise.all([
+        apiGet<{ success: boolean; data: Package[] }>('/packages'),
+        apiGet<{ success: boolean; data: Barber[] }>('/users/barbers'),
+      ]);
+      const activePackages = (packagesResponse.data || [])
+        .filter((pkg) => pkg.isActive)
+        .sort((a, b) => b.price - a.price);
+      const staffBarbers = (barbersResponse.data || []).filter((barber) => barber.role !== 'Boss');
+      return { packages: activePackages, barbers: staffBarbers };
+    },
+    { revalidateOnFocus: true }
+  );
+
+  const packages = packagesPortal?.packages ?? [];
+  const barbers = packagesPortal?.barbers ?? [];
+
+  const loyaltySwrKey = clientData?.id
+    ? (['swr:clients', 'loyalty', clientData.id] as const)
+    : null;
+
+  const { data: loyaltyResponse } = useSWR(
+    loyaltySwrKey,
+    async ([, , id]) =>
+      apiGet<{
+        success: boolean;
+        data: {
+          loyaltyProgress: number;
+          loyaltyCycleCount?: number;
+          phoneNumber?: string | null;
+          fullName?: string;
+          clientId?: string;
+        };
+      }>(`/clients/${id}/loyalty`),
+    { revalidateOnFocus: true }
+  );
+
+  const loyaltyProgress =
+    loyaltyResponse?.success && loyaltyResponse.data
+      ? loyaltyResponse.data.loyaltyProgress ?? 0
+      : clientData?.loyaltyProgress ?? 0;
+
+  useSocketSWRInvalidate();
+
+  // Staff may have linked a phone at checkout — merge server profile into session when SWR loyalty loads.
+  React.useEffect(() => {
+    if (!loyaltyResponse?.success || !loyaltyResponse.data || !clientData) return;
+    const d = loyaltyResponse.data;
+    if (!d.phoneNumber || clientData.phoneNumber) return;
+    setIsGuest(false);
+    localStorage.removeItem('isGuest');
+    setClientData((prev) => {
+      if (!prev) return prev;
+      const next: Client = {
+        ...prev,
+        phoneNumber: d.phoneNumber ?? prev.phoneNumber,
+        loyaltyProgress: d.loyaltyProgress ?? prev.loyaltyProgress,
+        loyaltyCycleCount: d.loyaltyCycleCount ?? prev.loyaltyCycleCount,
+        fullName: d.fullName ?? prev.fullName,
+        clientId: d.clientId ?? prev.clientId,
+      };
+      localStorage.setItem('clientData', JSON.stringify(next));
+      return next;
+    });
+  }, [loyaltyResponse, clientData]);
 
   // Check if client is logged in or is a guest
   React.useEffect(() => {
@@ -135,54 +206,6 @@ export default function ClientPackagesPage() {
       }
     }
   }, [router]);
-
-  // Fetch packages on component mount
-  React.useEffect(() => {
-    fetchPackages();
-  }, []);
-
-  React.useEffect(() => {
-    const fetchLoyaltyStatus = async () => {
-      if (!clientData?.id) return;
-      try {
-        const response = await apiGet<{
-          success: boolean;
-          data: { loyaltyProgress: number };
-        }>(`/clients/${clientData.id}/loyalty`);
-        if (response.success) {
-          setLoyaltyProgress(response.data.loyaltyProgress ?? 0);
-        }
-      } catch (error) {
-        setLoyaltyProgress(clientData.loyaltyProgress ?? 0);
-      }
-    };
-    fetchLoyaltyStatus();
-  }, [clientData]);
-
-  const fetchPackages = async () => {
-    try {
-      const [packagesResponse, barbersResponse] = await Promise.all([
-        apiGet<{ success: boolean; data: Package[] }>('/packages'),
-        apiGet<{ success: boolean; data: Barber[] }>('/users/barbers')
-      ]);
-      
-      // Filter to only show active packages for clients
-      const activePackages = (packagesResponse.data || [])
-        .filter(pkg => pkg.isActive)
-        .sort((a, b) => b.price - a.price);
-      setPackages(activePackages);
-      
-      // Filter out Boss role from barber selection
-      const staffBarbers = (barbersResponse.data || []).filter((barber: any) => barber.role !== 'Boss');
-      setBarbers(staffBarbers);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      setPackages([]);
-      setBarbers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Calculate total price when services change
   React.useEffect(() => {
@@ -395,102 +418,312 @@ export default function ClientPackagesPage() {
       {/* Main Content - Only show if client data exists */}
       {clientData && (
         <>
-          {/* Header */}
-      <AppBar 
-        position="sticky" 
-        sx={{ 
-          background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
-          color: 'black', 
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          borderBottom: '1px solid rgba(0,0,0,0.05)'
-        }}
-      >
-        <Toolbar sx={{ py: 1 }}>
-          <Box 
-            component="img" 
-            src="/images/LITTLE-BARBERSHOP-LOGO.svg" 
-            alt="Logo" 
-            sx={{ height: { xs: 48, sm: 56 }, mr: 2 }} 
-          />
-          <Box sx={{ flexGrow: 1 }} />
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 1,
-              px: 2,
-              py: 0.5,
-              borderRadius: 2,
-              bgcolor: 'rgba(0,0,0,0.03)'
-            }}>
-              <PersonIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  fontWeight: 500,
-                  fontFamily: '"Inter", "Manrope", sans-serif'
+          {/* Ambient background (exclusive feel, subtle motion) */}
+          <Box
+            aria-hidden
+            sx={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 0,
+              pointerEvents: 'none',
+              overflow: 'hidden',
+              bgcolor: '#f4f4f7',
+            }}
+          >
+            {!prefersReducedMotion ? (
+              <>
+                <motion.div
+                  style={{
+                    position: 'absolute',
+                    width: 'min(120vw, 820px)',
+                    height: 'min(120vw, 820px)',
+                    borderRadius: '50%',
+                    background:
+                      'radial-gradient(circle, rgba(185, 28, 28, 0.14) 0%, rgba(185, 28, 28, 0) 68%)',
+                    top: '-18%',
+                    left: '-28%',
+                    filter: 'blur(48px)',
+                  }}
+                  animate={{ x: [0, 24, 0], y: [0, 18, 0] }}
+                  transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                <motion.div
+                  style={{
+                    position: 'absolute',
+                    width: 'min(100vw, 640px)',
+                    height: 'min(100vw, 640px)',
+                    borderRadius: '50%',
+                    background:
+                      'radial-gradient(circle, rgba(127, 29, 29, 0.1) 0%, rgba(127, 29, 29, 0) 68%)',
+                    bottom: '-12%',
+                    right: '-22%',
+                    filter: 'blur(48px)',
+                  }}
+                  animate={{ x: [0, -20, 0], y: [0, -14, 0] }}
+                  transition={{ duration: 24, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+                />
+                <motion.div
+                  style={{
+                    position: 'absolute',
+                    width: 'min(80vw, 420px)',
+                    height: 'min(80vw, 420px)',
+                    borderRadius: '50%',
+                    background:
+                      'radial-gradient(circle, rgba(254, 202, 202, 0.35) 0%, transparent 65%)',
+                    top: '42%',
+                    left: '50%',
+                    filter: 'blur(36px)',
+                  }}
+                  animate={{
+                    x: '-50%',
+                    opacity: [0.45, 0.75, 0.45],
+                    scale: [1, 1.06, 1],
+                  }}
+                  transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              </>
+            ) : (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  background:
+                    'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(185,28,28,0.08), transparent 55%), radial-gradient(ellipse 70% 45% at 100% 100%, rgba(127,29,29,0.06), transparent 50%)',
                 }}
-              >
-              {clientData.fullName}
-            </Typography>
-            </Box>
-            <Button 
-              startIcon={<LogoutIcon />}
-              onClick={handleLogout}
-              variant="outlined"
-              size="small"
+              />
+            )}
+            <Box
               sx={{
-                borderColor: 'rgba(0,0,0,0.2)',
-                color: 'text.primary',
-                fontWeight: 600,
-                fontFamily: '"Inter", "Manrope", sans-serif',
-                textTransform: 'none',
-                borderRadius: 2,
-                px: 2,
-                '&:hover': {
-                  borderColor: 'rgba(0,0,0,0.3)',
-                  bgcolor: 'rgba(0,0,0,0.05)'
-                }
+                position: 'absolute',
+                inset: 0,
+                opacity: 0.4,
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.028'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
               }}
-            >
-              Logout
-            </Button>
+            />
           </Box>
-        </Toolbar>
-      </AppBar>
 
-      {/* Main Content */}
-      <Box sx={{ 
-        minHeight: 'calc(100vh - 64px)',
-        background: 'linear-gradient(180deg, #fafafa 0%, #ffffff 100%)',
-        pb: 6
-      }}>
-        <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 5 } }}>
-        <Box sx={{ mb: { xs: 2.5, sm: 3.5 } }}>
-          <LoyaltyFlipCard progress={loyaltyProgress} />
-        </Box>
-        {/* Packages Grid */}
-          <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ m: 0, width: '100%' }}>
-          {packages && packages.length > 0 ? packages.map((pkg) => (
-              <Grid item xs={6} sm={6} md={4} lg={3} xl={3} key={pkg.id}>
+          {/* Header */}
+          <AppBar
+            position="sticky"
+            component={motion.div}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: -14 }}
+            animate={prefersReducedMotion ? false : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, ease: easeOut }}
+            elevation={0}
+            sx={{
+              zIndex: 10,
+              background: 'rgba(255, 255, 255, 0.78)',
+              backdropFilter: 'blur(14px)',
+              WebkitBackdropFilter: 'blur(14px)',
+              color: 'black',
+              boxShadow: '0 4px 24px rgba(15, 23, 42, 0.06)',
+              borderBottom: '1px solid rgba(185, 28, 28, 0.08)',
+              position: 'relative',
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 2,
+                background:
+                  'linear-gradient(90deg, transparent 0%, rgba(185,28,28,0.25) 20%, rgba(185,28,28,0.45) 50%, rgba(185,28,28,0.25) 80%, transparent 100%)',
+                opacity: 0.9,
+              },
+            }}
+          >
+            <Toolbar sx={{ py: 1.25, position: 'relative', zIndex: 1 }}>
+              <Box
+                component={motion.div}
+                initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.92 }}
+                animate={prefersReducedMotion ? false : { opacity: 1, scale: 1 }}
+                transition={{ duration: 0.45, ease: easeOut, delay: 0.05 }}
+              >
+                <Box
+                  component="img"
+                  src="/images/LITTLE-BARBERSHOP-LOGO.svg"
+                  alt="Logo"
+                  sx={{ height: { xs: 48, sm: 56 }, mr: 2, display: 'block' }}
+                />
+              </Box>
+              <Box sx={{ flexGrow: 1 }} />
+              <Box
+                component={motion.div}
+                initial={prefersReducedMotion ? false : { opacity: 0, x: 14 }}
+                animate={prefersReducedMotion ? false : { opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, ease: easeOut, delay: 0.12 }}
+                sx={{ display: 'flex', alignItems: 'stretch' }}
+              >
                 <Box
                   sx={{
-                    height: '100%',
-                    transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                    }
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: { xs: 1.25, sm: 1.75 },
+                    pl: { xs: 1.25, sm: 1.75 },
+                    pr: { xs: 1, sm: 1.5 },
+                    py: { xs: 0.75, sm: 1 },
+                    borderRadius: 2.5,
+                    border: '1px solid rgba(15, 23, 42, 0.08)',
+                    background:
+                      'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255, 250, 250, 0.92) 100%)',
+                    boxShadow:
+                      '0 4px 18px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255,255,255,0.9)',
                   }}
                 >
-              <ProductCard 
-                title={pkg.name} 
-                price={`RM${pkg.price}`} 
-                imageSrc={getImageUrl(pkg.imageUrl, pkg.updatedAt)} 
-                onClick={() => handleCardClick(pkg)} 
-              />
+                  <Avatar
+                    sx={{
+                      width: { xs: 38, sm: 44 },
+                      height: { xs: 38, sm: 44 },
+                      fontSize: { xs: '0.95rem', sm: '1.05rem' },
+                      fontWeight: 800,
+                      fontFamily: '"Inter", "Manrope", sans-serif',
+                      color: '#fff',
+                      background: 'linear-gradient(145deg, #dc2626 0%, #991b1b 55%, #7f1d1d 100%)',
+                      boxShadow: '0 2px 10px rgba(185, 28, 28, 0.35)',
+                      border: '2px solid rgba(255,255,255,0.85)',
+                    }}
+                  >
+                    {(clientData.fullName?.trim().charAt(0) || '?').toUpperCase()}
+                  </Avatar>
+                  <Box sx={{ minWidth: 0, pr: { xs: 0.5, sm: 1 } }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: 'block',
+                        fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        fontSize: '0.62rem',
+                        lineHeight: 1.2,
+                        color: 'text.secondary',
+                        fontFamily: '"Inter", "Manrope", sans-serif',
+                      }}
+                    >
+                      {isGuest ? 'Guest visit' : 'Member'}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 700,
+                        fontFamily: '"Inter", "Manrope", sans-serif',
+                        color: 'text.primary',
+                        lineHeight: 1.25,
+                        mt: 0.25,
+                        maxWidth: { xs: 100, sm: 200, md: 260 },
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {clientData.fullName}
+                    </Typography>
+                  </Box>
+                  <Divider
+                    orientation="vertical"
+                    flexItem
+                    sx={{ borderColor: 'rgba(15, 23, 42, 0.1)', alignSelf: 'stretch', my: 0.5 }}
+                  />
+                  <Tooltip title="Sign out of your session">
+                    <Button
+                      onClick={handleLogout}
+                      size="small"
+                      sx={{
+                        alignSelf: 'stretch',
+                        minWidth: { xs: 44, sm: 'auto' },
+                        px: { xs: 1, sm: 1.75 },
+                        py: 0.5,
+                        borderRadius: 1.5,
+                        mr: { xs: 0.75, sm: 1 },
+                        textTransform: 'none',
+                        fontWeight: 700,
+                        fontFamily: '"Inter", "Manrope", sans-serif',
+                        fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                        color: '#64748b',
+                        bgcolor: 'transparent',
+                        gap: 0.75,
+                        '&:hover': {
+                          bgcolor: 'rgba(220, 38, 38, 0.09)',
+                          color: '#b91c1c',
+                        },
+                      }}
+                    >
+                      <LogoutIcon sx={{ fontSize: { xs: 20, sm: 20 } }} />
+                      <Box
+                        component="span"
+                        sx={{ display: { xs: 'none', sm: 'inline' } }}
+                      >
+                        Sign out
+                      </Box>
+                    </Button>
+                  </Tooltip>
                 </Box>
-            </Grid>
-          )) : (
+              </Box>
+            </Toolbar>
+          </AppBar>
+
+          {/* Main Content */}
+          <Box
+            sx={{
+              position: 'relative',
+              zIndex: 1,
+              minHeight: 'calc(100vh - 64px)',
+              background:
+                'linear-gradient(180deg, rgba(250, 250, 252, 0.55) 0%, rgba(255, 255, 255, 0.35) 45%, rgba(255, 255, 255, 0.5) 100%)',
+              pb: 6,
+            }}
+          >
+            <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 5 } }}>
+              {(!isGuest || Boolean(clientData?.phoneNumber)) && (
+                <Box
+                  component={motion.div}
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 22 }}
+                  animate={prefersReducedMotion ? false : { opacity: 1, y: 0 }}
+                  transition={{ duration: 0.55, ease: easeOut, delay: 0.08 }}
+                  sx={{ mb: { xs: 2.5, sm: 3.5 } }}
+                >
+                  <LoyaltyFlipCard progress={loyaltyProgress} />
+                </Box>
+              )}
+              {/* Packages Grid */}
+              <Grid
+                component={motion.div}
+                initial={prefersReducedMotion ? false : { opacity: 0 }}
+                animate={prefersReducedMotion ? false : { opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.15 }}
+                container
+                spacing={{ xs: 2, sm: 3 }}
+                sx={{ m: 0, width: '100%' }}
+              >
+                {packages && packages.length > 0 ? (
+                  packages.map((pkg, index) => (
+                    <Grid item xs={6} sm={6} md={4} lg={3} xl={3} key={pkg.id}>
+                      <Box
+                        component={motion.div}
+                        initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+                        animate={prefersReducedMotion ? false : { opacity: 1, y: 0 }}
+                        transition={{
+                          duration: 0.45,
+                          ease: easeOut,
+                          delay: prefersReducedMotion ? 0 : 0.06 * index,
+                        }}
+                        sx={{
+                          height: '100%',
+                          transition: 'transform 0.22s ease, box-shadow 0.22s ease',
+                          '&:hover': {
+                            transform: 'translateY(-5px)',
+                          },
+                        }}
+                      >
+                        <ProductCard
+                          title={pkg.name}
+                          price={`RM${pkg.price}`}
+                          imageSrc={getImageUrl(pkg.imageUrl, pkg.updatedAt)}
+                          onClick={() => handleCardClick(pkg)}
+                        />
+                      </Box>
+                    </Grid>
+                  ))
+                ) : (
             loading ? (
               <Grid item xs={12}>
                   <Box sx={{ 

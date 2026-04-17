@@ -40,6 +40,7 @@ import {
   Alert,
   Pagination,
   Autocomplete,
+  CircularProgress,
   Collapse,
   Divider,
 } from '@mui/material';
@@ -69,8 +70,12 @@ import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import { apiGet, apiPost, apiPut, apiDelete } from '../../../src/utils/axios';
-import { getSocket, disconnectSocket } from '../../../src/utils/socket';
+import PersonOffIcon from '@mui/icons-material/PersonOff';
+import RestoreIcon from '@mui/icons-material/Restore';
+import useSWR from 'swr';
+import { apiGet, apiPost, apiPut, apiDelete, apiPatch } from '../../../src/utils/axios';
+import { buildAppointmentsQueryString } from '../../../src/lib/appointments-query';
+import { useSocketSWRInvalidate } from '../../../src/hooks/useSocketSWRInvalidate';
 import jsPDF from 'jspdf';
 
 interface Package {
@@ -116,7 +121,9 @@ interface Appointment {
   client: {
     clientId: string;
     fullName: string;
-    phoneNumber: string;
+    phoneNumber: string | null;
+    loyaltyProgress?: number;
+    loyaltyCycleCount?: number;
   };
   package: {
     name: string;
@@ -148,12 +155,63 @@ function formatClientPickerLabel(option: {
   return `${option.fullName ?? ''} - ${option.clientId ?? ''} - ${phone}`;
 }
 
+function AppointmentLoyaltyIndicator({
+  progress,
+  size = 26,
+}: {
+  progress?: number;
+  size?: number;
+}) {
+  const safe = Math.max(0, Math.min(progress ?? 0, 6));
+  const value = (safe / 6) * 100;
+  return (
+    <Tooltip title={`Loyalty: ${safe}/6 stamps`} arrow>
+      <Box
+        sx={{
+          position: 'relative',
+          width: size,
+          height: size,
+          flexShrink: 0,
+          display: 'inline-flex',
+          verticalAlign: 'middle',
+        }}
+      >
+        <CircularProgress
+          variant="determinate"
+          value={100}
+          size={size}
+          thickness={4}
+          sx={{ color: '#fee2e2', position: 'absolute', inset: 0 }}
+        />
+        <CircularProgress
+          variant="determinate"
+          value={value}
+          size={size}
+          thickness={4}
+          sx={{ color: '#ef4444', position: 'absolute', inset: 0 }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Typography sx={{ fontSize: size <= 26 ? 9 : 10, fontWeight: 700, color: '#374151', lineHeight: 1 }}>
+            {safe}/6
+          </Typography>
+        </Box>
+      </Box>
+    </Tooltip>
+  );
+}
+
 export default function AppointmentsPage() {
   const { userRole } = useUserRole();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [appointments, setAppointments] = React.useState<Appointment[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [selectedAppointment, setSelectedAppointment] = React.useState<Appointment | null>(null);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -167,6 +225,8 @@ export default function AppointmentsPage() {
   const [customPackages, setCustomPackages] = React.useState<CustomPackage[]>([]);
   const [finalPrice, setFinalPrice] = React.useState<number>(0);
   const [paymentMethod, setPaymentMethod] = React.useState<'CASH' | 'TRANSFER' | ''>('');
+  /** When completing a walk-in guest (no phone), staff can attach a Malaysian mobile so they become a member and earn loyalty. */
+  const [guestCompletionPhone, setGuestCompletionPhone] = React.useState('');
   const [retailProducts, setRetailProducts] = React.useState<any[]>([]);
   const [selectedProducts, setSelectedProducts] = React.useState<{productId: number, quantity: number}[]>([]);
   const [selectedPriceOption, setSelectedPriceOption] = React.useState<number | null>(null);
@@ -272,13 +332,6 @@ export default function AppointmentsPage() {
   // Pagination — server-side (see PAGE_SIZE + listMeta)
   const [currentPage, setCurrentPage] = React.useState(1);
   const PAGE_SIZE = 50;
-  const [listMeta, setListMeta] = React.useState<{
-    total: number;
-    totalPages: number;
-    statusCounts: Record<string, number>;
-    completedFinalPriceSum: number;
-    todayTotal: number;
-  } | null>(null);
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
   React.useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350);
@@ -289,13 +342,61 @@ export default function AppointmentsPage() {
     packageId: '',
     barberId: ''
   });
+  const [createClientNameDraft, setCreateClientNameDraft] = React.useState('');
+  const [updatingCreateClientName, setUpdatingCreateClientName] = React.useState(false);
   const [newClientPhoneNumber, setNewClientPhoneNumber] = React.useState<string>('');
   const [editClientPhoneNumber, setEditClientPhoneNumber] = React.useState<string>('');
   const [newAdditionalPackages, setNewAdditionalPackages] = React.useState<number[]>([]);
 
+  const appointmentsQueryString = React.useMemo(
+    () =>
+      buildAppointmentsQueryString({
+        currentPage,
+        pageSize: PAGE_SIZE,
+        statusFilter,
+        staffFilter,
+        dateFilter,
+        debouncedSearch,
+        customDate,
+      }),
+    [currentPage, PAGE_SIZE, statusFilter, staffFilter, dateFilter, debouncedSearch, customDate]
+  );
+
+  const { data: appointmentsSwr, mutate: mutateAppointments, isLoading: appointmentsLoading } = useSWR(
+    ['swr:appointments', appointmentsQueryString],
+    async ([, qs]) =>
+      apiGet<{
+        success: boolean;
+        data: Appointment[];
+        meta?: {
+          total: number;
+          totalPages: number;
+          statusCounts: Record<string, number>;
+          completedFinalPriceSum: number;
+          todayTotal: number;
+        };
+      }>(`/appointments?${qs}`),
+    { revalidateOnFocus: true }
+  );
+
+  const appointments = appointmentsSwr?.data ?? [];
+  const listMeta = appointmentsSwr?.meta
+    ? {
+        total: appointmentsSwr.meta.total,
+        totalPages: appointmentsSwr.meta.totalPages,
+        statusCounts: appointmentsSwr.meta.statusCounts || {},
+        completedFinalPriceSum: appointmentsSwr.meta.completedFinalPriceSum ?? 0,
+        todayTotal: appointmentsSwr.meta.todayTotal ?? 0,
+      }
+    : null;
+
   const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
     setSnackbar({ open: true, message, severity });
   };
+
+  useSocketSWRInvalidate({
+    onAppointmentCreated: () => showNotification('New appointment created!', 'success'),
+  });
 
   // Helper function to get all services for an appointment
   const getAppointmentServices = (appointment: any) => {
@@ -338,97 +439,6 @@ export default function AppointmentsPage() {
   const handleCloseSnackbar = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
-
-  const fetchAppointments = React.useCallback(async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      params.set('page', String(currentPage));
-      params.set('limit', String(PAGE_SIZE));
-      if (statusFilter !== 'all') {
-        params.set('status', statusFilter);
-      }
-      if (staffFilter !== 'all') {
-        params.set('barberId', staffFilter === 'unassigned' ? 'unassigned' : staffFilter);
-      }
-      if (debouncedSearch.length > 0) {
-        params.set('search', debouncedSearch);
-      }
-
-      const ymdMY = (d: Date) =>
-        d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
-      const malaysiaNow = new Date(
-        new Date().toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' })
-      );
-
-      if (dateFilter !== 'all') {
-        if (dateFilter === 'today') {
-          const s = ymdMY(malaysiaNow);
-          params.set('dateFrom', s);
-          params.set('dateTo', s);
-        } else if (dateFilter === 'yesterday') {
-          const d = new Date(malaysiaNow);
-          d.setDate(d.getDate() - 1);
-          const s = ymdMY(d);
-          params.set('dateFrom', s);
-          params.set('dateTo', s);
-        } else if (dateFilter === 'this_week') {
-          const d = new Date(malaysiaNow);
-          const day = d.getDay();
-          const daysToMonday = day === 0 ? 6 : day - 1;
-          const weekStart = new Date(d);
-          weekStart.setDate(d.getDate() - daysToMonday);
-          params.set('dateFrom', ymdMY(weekStart));
-          params.set('dateTo', ymdMY(malaysiaNow));
-        } else if (dateFilter === 'this_month') {
-          const monthStart = new Date(malaysiaNow.getFullYear(), malaysiaNow.getMonth(), 1);
-          params.set('dateFrom', ymdMY(monthStart));
-          params.set('dateTo', ymdMY(malaysiaNow));
-        } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateFilter)) {
-          params.set('dateFrom', dateFilter);
-          params.set('dateTo', dateFilter);
-        }
-      }
-
-      const response = await apiGet<{
-        success: boolean;
-        data: Appointment[];
-        meta?: {
-          total: number;
-          totalPages: number;
-          statusCounts: Record<string, number>;
-          completedFinalPriceSum: number;
-          todayTotal: number;
-        };
-      }>(`/appointments?${params.toString()}`);
-
-      setAppointments(response.data || []);
-      if (response.meta) {
-        setListMeta({
-          total: response.meta.total,
-          totalPages: response.meta.totalPages,
-          statusCounts: response.meta.statusCounts || {},
-          completedFinalPriceSum: response.meta.completedFinalPriceSum ?? 0,
-          todayTotal: response.meta.todayTotal ?? 0,
-        });
-      } else {
-        setListMeta(null);
-      }
-    } catch (error) {
-      console.error('Error fetching appointments:', error);
-      setAppointments([]);
-      setListMeta(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    PAGE_SIZE,
-    currentPage,
-    statusFilter,
-    staffFilter,
-    dateFilter,
-    debouncedSearch,
-  ]);
 
   React.useEffect(() => {
     fetchPackages();
@@ -484,6 +494,32 @@ export default function AppointmentsPage() {
     return clients.find((c) => String(c.id) === idStr) ?? null;
   }, [newAppointment.clientId, clients, createClientSnapshot]);
 
+  const createModalPhoneDigits = newClientPhoneNumber.replace(/\D/g, '');
+  const isPendingNewClient = React.useMemo(() => {
+    if (newAppointment.clientId) return false;
+    if (!/^01[0-9]{8,9}$/.test(createModalPhoneDigits)) return false;
+    return !clients.some(
+      (c) => (c.phoneNumber ? String(c.phoneNumber).replace(/\D/g, '') : '') === createModalPhoneDigits
+    );
+  }, [newAppointment.clientId, createModalPhoneDigits, clients]);
+
+  const canSubmitCreateAppointment = React.useMemo(() => {
+    if (!newAppointment.packageId) return false;
+    if (newAppointment.clientId) return true;
+    if (!/^01[0-9]{8,9}$/.test(createModalPhoneDigits)) return false;
+    const onFile = clients.some(
+      (c) => (c.phoneNumber ? String(c.phoneNumber).replace(/\D/g, '') : '') === createModalPhoneDigits
+    );
+    if (onFile) return false;
+    return createClientNameDraft.trim().length > 0;
+  }, [
+    newAppointment.packageId,
+    newAppointment.clientId,
+    createModalPhoneDigits,
+    clients,
+    createClientNameDraft,
+  ]);
+
   const editAppointmentClientValue = React.useMemo(() => {
     if (!editingAppointment) return null;
     const cid = editingAppointment.clientId;
@@ -505,40 +541,6 @@ export default function AppointmentsPage() {
     }
     return null;
   }, [editingAppointment, clients, editClientSnapshot]);
-
-  React.useEffect(() => {
-    fetchAppointments();
-  }, [fetchAppointments]);
-
-  // Socket.io connection for real-time updates
-  React.useEffect(() => {
-    const socket = getSocket();
-
-    // Listen for new appointment events
-    socket.on('appointment:created', (data: { appointment: Appointment }) => {
-      console.log('📨 New appointment received via socket:', data.appointment);
-      
-      // Add the new appointment to the list
-      setAppointments(prev => {
-        // Check if appointment already exists (avoid duplicates)
-        const exists = prev.some(apt => apt.id === data.appointment.id);
-        if (exists) {
-          return prev;
-        }
-        
-        // Add new appointment at the beginning of the list
-        return [data.appointment, ...prev];
-      });
-
-      // Show notification
-      showNotification('New appointment created!', 'success');
-    });
-
-    // Cleanup on unmount
-    return () => {
-      socket.off('appointment:created');
-    };
-  }, [fetchAppointments]);
 
   const fetchPackages = async () => {
     try {
@@ -593,7 +595,7 @@ export default function AppointmentsPage() {
       });
       
       // Refresh appointments
-      fetchAppointments();
+      void mutateAppointments();
       
       // Close dialog and reset state
       setChangeBarberOpen(false);
@@ -616,7 +618,7 @@ export default function AppointmentsPage() {
       await apiDelete(`/appointments/${selectedAppointment.id}`);
       
       // Refresh appointments
-      fetchAppointments();
+      void mutateAppointments();
       
       // Close dialogs and reset state
       setDeleteConfirmOpen(false);
@@ -634,33 +636,50 @@ export default function AppointmentsPage() {
     try {
       let clientId = newAppointment.clientId;
       
-      // If no client selected but phone number typed, register new client first
+      // If no client selected but a full Malaysian mobile is typed, register new client first (when not already on file)
       if (!clientId && newClientPhoneNumber) {
-        const phoneNumber = newClientPhoneNumber.trim();
-        
-        // Validate Malaysian phone format
+        const phoneNumber = newClientPhoneNumber.replace(/\D/g, '').trim();
+
         if (!/^01[0-9]{8,9}$/.test(phoneNumber)) {
           showNotification('Please enter a valid Malaysian phone number (01XXXXXXXX)', 'error');
           return;
         }
-        
+
+        const onFile = clients.some(
+          (c) => (c.phoneNumber ? String(c.phoneNumber).replace(/\D/g, '') : '') === phoneNumber
+        );
+        if (onFile) {
+          showNotification('This number is already on file — choose the client from the list.', 'error');
+          return;
+        }
+
+        const newName = createClientNameDraft.trim();
+        if (!newName) {
+          showNotification('Enter the client name for this new number.', 'error');
+          return;
+        }
+        if (/[0-9]/.test(newName)) {
+          showNotification('Client name cannot contain numbers', 'error');
+          return;
+        }
+
         try {
           const response = await apiPost<{ success: boolean; data: { client: any } }>('/clients/register', {
-            phoneNumber
+            phoneNumber,
+            fullName: newName,
           });
-          
+
           if (response.success) {
             clientId = response.data.client.id;
             showNotification('New client registered!', 'success');
           }
         } catch (error: any) {
-          if (error?.response?.data?.clientExists) {
+          if (error?.clientExists || error?.response?.data?.clientExists) {
             showNotification('Client already exists. Please select from the list.', 'error');
             return;
-          } else {
-            showNotification('Failed to register client', 'error');
-            return;
           }
+          showNotification(error?.message || 'Failed to register client', 'error');
+          return;
         }
       }
       
@@ -711,9 +730,10 @@ export default function AppointmentsPage() {
       setNewClientPhoneNumber('');
       setNewAdditionalPackages([]);
       setCreateClientSnapshot(null);
+      setCreateClientNameDraft('');
 
       // Refresh appointments
-      fetchAppointments();
+      void mutateAppointments();
 
       showNotification('Appointment created successfully!', 'success');
     } catch (error: any) {
@@ -723,7 +743,55 @@ export default function AppointmentsPage() {
     }
   };
 
+  const handleUpdateCreateClientName = async () => {
+    if (!newAppointment.clientId) {
+      showNotification('Select a client first', 'error');
+      return;
+    }
+
+    const trimmed = createClientNameDraft.trim();
+    if (!trimmed) {
+      showNotification('Client name cannot be empty', 'error');
+      return;
+    }
+    if (/[0-9]/.test(trimmed)) {
+      showNotification('Client name cannot contain numbers', 'error');
+      return;
+    }
+
+    setUpdatingCreateClientName(true);
+    try {
+      const result = await apiPatch<{ success: boolean; data: { id: number; fullName: string } }>(
+        `/clients/${newAppointment.clientId}/name`,
+        { fullName: trimmed }
+      );
+      if (result.success) {
+        setClients((prev) =>
+          prev.map((client) =>
+            String(client.id) === String(newAppointment.clientId)
+              ? { ...client, fullName: result.data.fullName }
+              : client
+          )
+        );
+        setCreateClientSnapshot((prev: any) =>
+          prev && String(prev.id) === String(newAppointment.clientId)
+            ? { ...prev, fullName: result.data.fullName }
+            : prev
+        );
+        showNotification('Client name updated', 'success');
+      }
+    } catch (error: any) {
+      showNotification(error?.message || 'Failed to update client name', 'error');
+    } finally {
+      setUpdatingCreateClientName(false);
+    }
+  };
+
   const handleEditAppointment = (appointment: any) => {
+    if (appointment?.status === 'cancelled') {
+      showNotification('Restore this appointment to pending first (use Restore to pending), then you can edit.', 'warning');
+      return;
+    }
     console.log('Editing appointment:', appointment); // Debug log
     setEditClientSnapshot(null);
 
@@ -1009,7 +1077,7 @@ export default function AppointmentsPage() {
       setEditValidatingCurrentDiscount(false);
       
       // Refresh appointments
-      fetchAppointments();
+      void mutateAppointments();
       
       showNotification('Appointment updated successfully!', 'success');
     } catch (error: any) {
@@ -1116,7 +1184,7 @@ export default function AppointmentsPage() {
       pdf.setFontSize(10);
       pdf.text(appointment.client.fullName, margin, yPosition);
       yPosition += 5;
-      pdf.text(appointment.client.phoneNumber, margin, yPosition);
+      pdf.text(appointment.client.phoneNumber ?? 'Guest (no phone)', margin, yPosition);
       yPosition += 5;
       pdf.text(`Client ID: ${appointment.client.clientId}`, margin, yPosition);
       
@@ -1302,6 +1370,7 @@ export default function AppointmentsPage() {
       setShowAddDiscount(false);
       setShowFinalAdjust(false);
       
+      setGuestCompletionPhone('');
       // Open confirmation modal for completion
       setConfirmationOpen(true);
       // Don't call handleMenuClose() here to preserve selectedAppointment
@@ -1312,8 +1381,11 @@ export default function AppointmentsPage() {
     try {
       await apiPut(`/appointments/${appointmentToUpdate.id}`, { status: newStatus });
       // Refresh appointments
-      fetchAppointments();
+      void mutateAppointments();
       handleMenuClose();
+      if (newStatus === 'pending' && appointmentToUpdate.status === 'cancelled') {
+        showNotification('Restored to pending. You can edit or mark as completed.', 'success');
+      }
     } catch (error) {
       console.error('Error updating appointment status:', error);
     }
@@ -1341,6 +1413,20 @@ export default function AppointmentsPage() {
       showNotification('Please select payment method (Cash or Online Transfer).', 'error');
       return;
     }
+
+    const guestPhoneDigits = guestCompletionPhone.replace(/\D/g, '');
+    const guestHasNoPhone = !selectedAppointment?.client.phoneNumber;
+    const isLinkingGuestPhone = guestHasNoPhone && guestPhoneDigits.length > 0;
+    if (isLinkingGuestPhone && !/^01[0-9]{8,9}$/.test(guestPhoneDigits)) {
+      showNotification(
+        'Enter a valid Malaysian mobile (01XXXXXXXX) or leave the field empty to complete as guest without loyalty.',
+        'error'
+      );
+      return;
+    }
+
+    const linkedGuestPhoneThisVisit =
+      guestHasNoPhone && /^01[0-9]{8,9}$/.test(guestPhoneDigits);
 
     // Check if user is logged in
     const token = localStorage.getItem('token');
@@ -1429,7 +1515,7 @@ export default function AppointmentsPage() {
       const manualGrandTotal = Number.isFinite(finalPrice) ? finalPrice : appointmentFinalPrice + productSubtotal;
       const appointmentFinalPriceForApi = Math.max(0, manualGrandTotal - productSubtotal);
       
-      const updateData = {
+      const updateData: Record<string, unknown> = {
         status: 'completed',
         additionalPackages: selectedAdditionalPackages,
         customPackages: customPackages,
@@ -1444,7 +1530,15 @@ export default function AppointmentsPage() {
         })) : null
       };
 
+      if (!selectedAppointment.client.phoneNumber && guestPhoneDigits) {
+        updateData.guestPhoneNumber = guestPhoneDigits;
+      }
+
       console.log('Sending update data:', updateData);
+
+      const memberLinkedNote = linkedGuestPhoneThisVisit
+        ? ' Phone saved — they can log in with this number; loyalty counts from this visit.'
+        : '';
       
       const response = await apiPut(`/appointments/${selectedAppointment.id}`, updateData) as any;
       console.log('Update response:', response);
@@ -1507,7 +1601,7 @@ export default function AppointmentsPage() {
       resetConfirmationModal();
       
       // Refresh appointments
-      await fetchAppointments();
+      await mutateAppointments();
       
       // Fetch updated financial data and show comprehensive notification
       if (response.data && response.data.barber) {
@@ -1535,23 +1629,23 @@ export default function AppointmentsPage() {
             const serviceCount = currentService ? currentService.count : 1;
             
             showNotification(
-              `Appointment completed. Earnings: +RM${totalEarnings.toFixed(2)}. Today: RM${summary.totalEarnings.toFixed(2)}.`,
+              `Appointment completed. Earnings: +RM${totalEarnings.toFixed(2)}. Today: RM${summary.totalEarnings.toFixed(2)}.${memberLinkedNote}`,
               'success'
             );
           } else {
             showNotification(
-              `Appointment completed. Earnings: +RM${totalEarnings.toFixed(2)}.`,
+              `Appointment completed. Earnings: +RM${totalEarnings.toFixed(2)}.${memberLinkedNote}`,
               'success'
             );
           }
         } catch (error) {
           showNotification(
-            `Appointment completed. Earnings: +RM${totalEarnings.toFixed(2)}.`,
+            `Appointment completed. Earnings: +RM${totalEarnings.toFixed(2)}.${memberLinkedNote}`,
             'success'
           );
         }
       } else {
-        showNotification('Appointment completed successfully!', 'success');
+        showNotification(`Appointment completed successfully!${memberLinkedNote}`, 'success');
       }
       
       console.log('Appointment completion successful');
@@ -2052,6 +2146,7 @@ export default function AppointmentsPage() {
     setShowAddCustom(false);
     setShowAddDiscount(false);
     setShowFinalAdjust(false);
+    setGuestCompletionPhone('');
   };
 
   React.useEffect(() => {
@@ -2129,6 +2224,43 @@ export default function AppointmentsPage() {
           color: style.color,
           fontSize: '1rem',
         },
+      },
+    };
+  };
+
+  const getPaymentChipProps = (paymentMethod?: 'CASH' | 'TRANSFER' | null) => {
+    if (paymentMethod === 'CASH') {
+      return {
+        label: 'Cash',
+        sx: {
+          fontWeight: 700,
+          borderRadius: 2,
+          border: '1px solid #6ee7b7',
+          bgcolor: '#ecfdf5',
+          color: '#047857',
+        },
+      };
+    }
+    if (paymentMethod === 'TRANSFER') {
+      return {
+        label: 'Transfer',
+        sx: {
+          fontWeight: 700,
+          borderRadius: 2,
+          border: '1px solid #93c5fd',
+          bgcolor: '#eff6ff',
+          color: '#1d4ed8',
+        },
+      };
+    }
+    return {
+      label: '—',
+      sx: {
+        fontWeight: 700,
+        borderRadius: 2,
+        border: '1px solid #e2e8f0',
+        bgcolor: '#f8fafc',
+        color: '#64748b',
       },
     };
   };
@@ -2342,6 +2474,10 @@ export default function AppointmentsPage() {
               variant="contained"
               onClick={() => {
                 setCreateClientSnapshot(null);
+                setCreateClientNameDraft('');
+                setNewClientPhoneNumber('');
+                setNewAppointment({ clientId: '', packageId: '', barberId: '' });
+                setNewAdditionalPackages([]);
                 setCreateAppointmentOpen(true);
               }}
               sx={{
@@ -2668,7 +2804,7 @@ export default function AppointmentsPage() {
                 </Box>
               </Stack>
             
-              {loading ? (
+              {appointmentsLoading ? (
               <Typography variant="body1" textAlign="center" sx={{ py: 4 }}>
                 Loading appointments...
               </Typography>
@@ -2679,11 +2815,12 @@ export default function AppointmentsPage() {
             ) : isMobile ? (
               // Mobile Card Layout
               <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-                {appointments.map((appointment, index) => (
+                {appointments.map((appointment) => (
                   <Grid item xs={12} key={appointment.id}>
                     <AppointmentCard
                       appointment={appointment}
                       onMenuClick={handleMenuClick}
+                      onRestoreToPending={(apt) => handleStatusUpdate('pending', apt)}
                     />
                   </Grid>
                 ))}
@@ -2710,6 +2847,7 @@ export default function AppointmentsPage() {
                       <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>Price</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Payment</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
@@ -2731,9 +2869,26 @@ export default function AppointmentsPage() {
                               {appointment.client.fullName.charAt(0)}
                             </Avatar>
                             <Box>
-                              <Typography variant="body2" fontWeight={500}>
-                                {appointment.client.fullName}
-                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                                <Typography variant="body2" fontWeight={500}>
+                                  {appointment.client.fullName}
+                                </Typography>
+                                <AppointmentLoyaltyIndicator progress={appointment.client.loyaltyProgress} />
+                                {!appointment.client.phoneNumber && (
+                                  <Chip
+                                    icon={<PersonOffIcon sx={{ fontSize: '0.9rem !important' }} />}
+                                    size="small"
+                                    label="Guest"
+                                    variant="outlined"
+                                    sx={{
+                                      height: 22,
+                                      borderColor: '#cbd5e1',
+                                      color: '#475569',
+                                      '& .MuiChip-label': { px: 0.75, fontWeight: 600, fontSize: '0.72rem' },
+                                    }}
+                                  />
+                                )}
+                              </Box>
                               <Typography variant="caption" color="text.secondary">
                                 {appointment.client.clientId}
                               </Typography>
@@ -2781,6 +2936,9 @@ export default function AppointmentsPage() {
                         </TableCell>
                         <TableCell>
                           <Chip {...getStatusChipProps(appointment.status)} size="small" />
+                        </TableCell>
+                        <TableCell>
+                          <Chip {...getPaymentChipProps(appointment.paymentMethod)} size="small" />
                         </TableCell>
                         <TableCell>
                           <Stack direction="row" spacing={0.75} alignItems="center">
@@ -2865,6 +3023,24 @@ export default function AppointmentsPage() {
                                 </Tooltip>
                               )}
                             </>
+                          )}
+                          {appointment.status === 'cancelled' && (userRole === 'Boss' || userRole === 'Staff') && (
+                            <Tooltip title="Restore to pending — then edit or complete">
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => handleStatusUpdate('pending', appointment)}
+                                sx={{
+                                  border: '1px solid',
+                                  borderColor: 'primary.light',
+                                  width: 30,
+                                  height: 30,
+                                  p: 0.5,
+                                }}
+                              >
+                                <RestoreIcon sx={{ fontSize: 18 }} />
+                              </IconButton>
+                            </Tooltip>
                           )}
                           <IconButton
                             size="small"
@@ -2956,9 +3132,21 @@ export default function AppointmentsPage() {
               View Log
             </MenuItem>
           )}
-          {/* Edit Appointment - Boss and Staff can edit, but not when status is pending */}
-          {(userRole === 'Boss' || userRole === 'Staff') && selectedAppointment?.status !== 'pending' && (
-            <MenuItem onClick={() => handleEditAppointment(selectedAppointment!)} sx={{ borderRadius: 1.5, py: 1.1 }}>
+          {/* Restore cancelled → pending before any edit/checkout (avoids broken payment/status flows) */}
+          {(userRole === 'Boss' || userRole === 'Staff') && selectedAppointment?.status === 'cancelled' && (
+            <MenuItem
+              onClick={() => handleStatusUpdate('pending')}
+              sx={{ borderRadius: 1.5, py: 1.1, color: 'primary.main' }}
+            >
+              <RestoreIcon sx={{ mr: 1, fontSize: '1rem' }} />
+              Restore to pending
+            </MenuItem>
+          )}
+          {/* Edit: confirmed or completed only (not pending, not cancelled) */}
+          {(userRole === 'Boss' || userRole === 'Staff') &&
+            selectedAppointment &&
+            (selectedAppointment.status === 'confirmed' || selectedAppointment.status === 'completed') && (
+            <MenuItem onClick={() => handleEditAppointment(selectedAppointment)} sx={{ borderRadius: 1.5, py: 1.1 }}>
               <EditOutlinedIcon sx={{ mr: 1, fontSize: '1rem' }} />
               Edit
             </MenuItem>
@@ -3024,6 +3212,10 @@ export default function AppointmentsPage() {
               {selectedAppointment && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                   <Chip size="small" label={selectedAppointment.client.fullName} />
+                  <AppointmentLoyaltyIndicator
+                    progress={selectedAppointment.client.loyaltyProgress}
+                    size={28}
+                  />
                   <Chip size="small" variant="outlined" label={selectedAppointment.client.clientId} />
                   <Typography variant="body2" color="text.secondary">
                     {getAppointmentServices(selectedAppointment).join(', ')}
@@ -3033,6 +3225,53 @@ export default function AppointmentsPage() {
                       • {selectedAppointment.barber.name}
                     </Typography>
                   )}
+                </Box>
+              )}
+
+              {selectedAppointment && (selectedAppointment.client.loyaltyProgress ?? 0) === 5 && (
+                <Alert
+                  severity="info"
+                  icon={<LocalOfferIcon />}
+                  sx={{
+                    borderRadius: 2,
+                    alignItems: 'flex-start',
+                    border: '2px solid',
+                    borderColor: 'info.dark',
+                    boxShadow: '0 0 0 3px rgba(25, 118, 210, 0.28), 0 4px 14px rgba(25, 118, 210, 0.22)',
+                    '& .MuiAlert-message': { width: '100%' },
+                  }}
+                >
+                  <Typography variant="body2" fontWeight={600} sx={{ color: 'text.primary' }}>
+                    <strong>5/6</strong> — <strong>RM10 off this visit</strong>. Mention it at checkout.
+                  </Typography>
+                </Alert>
+              )}
+
+              {selectedAppointment && !selectedAppointment.client.phoneNumber && (
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 2.5,
+                    border: '1px dashed',
+                    borderColor: 'divider',
+                    bgcolor: 'action.hover',
+                  }}
+                >
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
+                    Turn guest into member (optional)
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="01XXXXXXXX"
+                    value={guestCompletionPhone}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                      setGuestCompletionPhone(digits);
+                    }}
+                    placeholder="0123456789"
+                    inputProps={{ inputMode: 'numeric', maxLength: 11 }}
+                  />
                 </Box>
               )}
 
@@ -3706,11 +3945,18 @@ export default function AppointmentsPage() {
           </DialogContent>
 
           {/* Actions */}
-          <Box sx={modalActionsSx}>
+          <Box
+            sx={{
+              ...modalActionsSx,
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+            }}
+          >
             <Button
               variant="outlined"
               onClick={resetConfirmationModal}
-              sx={secondaryButtonSx}
+              sx={{ ...secondaryButtonSx, flex: 'none', minWidth: 100 }}
             >
               Cancel
             </Button>
@@ -3718,7 +3964,7 @@ export default function AppointmentsPage() {
               variant="contained"
               onClick={() => handleConfirmCompletion()}
               disabled={isCompleting || !paymentMethod}
-              sx={{ ...primaryButtonSx, flex: 1.5 }}
+              sx={{ ...primaryButtonSx, flex: 'none', minWidth: { xs: 160, sm: 220 } }}
             >
               {isCompleting ? 'Processing...' : `Complete · RM${(() => {
                 if (multipleDiscountCodes.length > 0) return calculateMultipleDiscountsTotal().toFixed(2);
@@ -3735,6 +3981,10 @@ export default function AppointmentsPage() {
           onClose={() => {
             setCreateAppointmentOpen(false);
             setCreateClientSnapshot(null);
+            setCreateClientNameDraft('');
+            setNewClientPhoneNumber('');
+            setNewAppointment({ clientId: '', packageId: '', barberId: '' });
+            setNewAdditionalPackages([]);
           }} 
           maxWidth="sm" 
           fullWidth
@@ -3747,6 +3997,10 @@ export default function AppointmentsPage() {
               onClick={() => {
                 setCreateAppointmentOpen(false);
                 setCreateClientSnapshot(null);
+                setCreateClientNameDraft('');
+                setNewClientPhoneNumber('');
+                setNewAppointment({ clientId: '', packageId: '', barberId: '' });
+                setNewAdditionalPackages([]);
               }}
               size="small"
               sx={modalCloseButtonSx}
@@ -3772,16 +4026,19 @@ export default function AppointmentsPage() {
                 }}
                 onChange={(event, newValue) => {
                   if (typeof newValue === 'string') {
-                    setNewClientPhoneNumber(newValue.trim());
+                    setNewClientPhoneNumber(newValue);
                     setNewAppointment({ ...newAppointment, clientId: '' });
                     setCreateClientSnapshot(null);
+                    setCreateClientNameDraft('');
                   } else if (newValue) {
                     setNewAppointment({ ...newAppointment, clientId: newValue.id });
                     setNewClientPhoneNumber('');
                     setCreateClientSnapshot(newValue);
+                    setCreateClientNameDraft(newValue.fullName || '');
                   } else {
                     setNewAppointment({ ...newAppointment, clientId: '' });
                     setCreateClientSnapshot(null);
+                    setCreateClientNameDraft('');
                   }
                 }}
                 renderInput={(params) => (
@@ -3789,7 +4046,9 @@ export default function AppointmentsPage() {
                     {...params}
                     label="Select or Add Client"
                     placeholder="Search name, ID, or phone (01XXXXXXXX)..."
-                    helperText="Results load from the server as you type. For a brand-new client, type a Malaysian mobile number."
+                    helperText={
+                      isPendingNewClient ? 'New number — add their name below, then Create.' : undefined
+                    }
                     size="small"
                     sx={formFieldSx}
                   />
@@ -3808,6 +4067,40 @@ export default function AppointmentsPage() {
                   String(option.id) === String(value.id)
                 }
               />
+
+              {isPendingNewClient && (
+                <TextField
+                  label="Client name (new profile)"
+                  value={createClientNameDraft}
+                  onChange={(e) => setCreateClientNameDraft(e.target.value.replace(/[0-9]/g, ''))}
+                  size="small"
+                  fullWidth
+                  required
+                  sx={formFieldSx}
+                />
+              )}
+
+              {newAppointment.clientId && !isPendingNewClient && (
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                  <TextField
+                    label="Edit Selected Client Name"
+                    value={createClientNameDraft}
+                    onChange={(e) => setCreateClientNameDraft(e.target.value.replace(/[0-9]/g, ''))}
+                    size="small"
+                    fullWidth
+                    helperText="Quick fix for wrong names before creating appointment"
+                    sx={formFieldSx}
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={handleUpdateCreateClientName}
+                    disabled={updatingCreateClientName || !createClientNameDraft.trim()}
+                    sx={{ ...secondaryButtonSx, minWidth: 90, mt: 0.4 }}
+                  >
+                    {updatingCreateClientName ? 'Saving...' : 'Save'}
+                  </Button>
+                </Box>
+              )}
 
               {/* Package Selection */}
               <FormControl fullWidth size="small" sx={formFieldSx}>
@@ -3957,6 +4250,9 @@ export default function AppointmentsPage() {
               onClick={() => {
                 setCreateAppointmentOpen(false);
                 setCreateClientSnapshot(null);
+                setCreateClientNameDraft('');
+                setNewClientPhoneNumber('');
+                setNewAppointment({ clientId: '', packageId: '', barberId: '' });
                 setNewAdditionalPackages([]);
               }}
               sx={secondaryButtonSx}
@@ -3967,7 +4263,7 @@ export default function AppointmentsPage() {
               variant="contained"
               startIcon={<AddIcon />}
               onClick={handleCreateAppointment}
-              disabled={(!newAppointment.clientId && !newClientPhoneNumber) || !newAppointment.packageId}
+              disabled={!canSubmitCreateAppointment}
               sx={primaryButtonSx}
             >
               Create
@@ -4202,7 +4498,6 @@ export default function AppointmentsPage() {
                       {...params}
                       label="Select or Add Client"
                       placeholder="Search name, ID, or phone (01XXXXXXXX)..."
-                      helperText="Results load from the server as you type. For a brand-new client, type a Malaysian mobile number."
                     />
                   )}
                   renderOption={(props, option) => (

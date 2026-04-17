@@ -15,7 +15,7 @@ import {
   Link as MUILink
 } from '@mui/material';
 import { z } from 'zod';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { apiPost } from '../../../src/utils/axios';
 
@@ -35,10 +35,13 @@ export default function ClientLoginPage() {
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   
   const {
-    register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<LoginForm>({ resolver: zodResolver(LoginSchema) });
+  } = useForm<LoginForm>({
+    resolver: zodResolver(LoginSchema),
+    defaultValues: { phoneNumber: '' },
+  });
 
   React.useEffect(() => {
     document.documentElement.classList.add('auth-locked');
@@ -157,14 +160,28 @@ export default function ClientLoginPage() {
               )}
 
               <Box component="form" onSubmit={handleSubmit(onSubmit)} mt={{ xs: 2, sm: 3 }}>
-                <TextField
-                  label="Phone Number"
-                  placeholder="01XXXXXXXX"
-                  fullWidth
-                  size="small"
-                  {...register("phoneNumber")}
-                  error={!!errors.phoneNumber}
-                  helperText={errors.phoneNumber?.message || "Enter your registered phone number"}
+                <Controller
+                  name="phoneNumber"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      label="Phone Number"
+                      placeholder="01XXXXXXXX"
+                      fullWidth
+                      size="small"
+                      value={field.value}
+                      onChange={(e) => {
+                        const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 11);
+                        field.onChange(digitsOnly);
+                      }}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      inputRef={field.ref}
+                      error={!!errors.phoneNumber}
+                      helperText={errors.phoneNumber?.message || 'Numbers only — enter your registered phone'}
+                      inputProps={{ inputMode: 'numeric', autoComplete: 'tel' }}
+                    />
+                  )}
                 />
                 
                 <Button

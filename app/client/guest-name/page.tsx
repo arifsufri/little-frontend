@@ -33,9 +33,21 @@ export default function GuestNamePage() {
     };
   }, []);
 
+  const sanitizeGuestName = (value: string) =>
+    value.replace(/[^a-zA-Z\u00C0-\u024F\s'-]/g, '');
+
   const handleGuestNameSubmit = async () => {
-    if (!guestName.trim()) {
+    const trimmed = guestName.trim();
+    if (!trimmed) {
       setErrorMsg('Please enter your name');
+      return;
+    }
+    if (!/[a-zA-Z\u00C0-\u024F]/.test(trimmed)) {
+      setErrorMsg('Please use letters only (no numbers or symbols)');
+      return;
+    }
+    if (trimmed.length < 2) {
+      setErrorMsg('Name must be at least 2 characters');
       return;
     }
 
@@ -49,7 +61,7 @@ export default function GuestNamePage() {
         success: boolean;
         data: { client: any };
       }>('/clients/register', {
-        fullName: guestName.trim(),
+        fullName: trimmed,
         phoneNumber: null,
         isGuest: true
       });
@@ -142,7 +154,7 @@ export default function GuestNamePage() {
               fullWidth
               value={guestName}
               onChange={(e) => {
-                setGuestName(e.target.value);
+                setGuestName(sanitizeGuestName(e.target.value));
                 setErrorMsg(null);
               }}
               onKeyPress={(e) => {
