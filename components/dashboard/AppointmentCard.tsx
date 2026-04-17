@@ -11,18 +11,14 @@ import {
   IconButton,
   Stack,
   Divider,
-  useTheme,
-  useMediaQuery
+  Tooltip
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PendingIcon from '@mui/icons-material/Pending';
 import CancelIcon from '@mui/icons-material/Cancel';
-import PersonIcon from '@mui/icons-material/Person';
-import PhoneIcon from '@mui/icons-material/Phone';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 
 interface Appointment {
@@ -77,9 +73,6 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   appointment,
   onMenuClick
 }) => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-MY', {
       year: 'numeric',
@@ -130,281 +123,110 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   };
 
   return (
-    <Card 
-      sx={{ 
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-        border: 'none', 
-        borderRadius: { xs: 4, sm: 5 }, 
-        backgroundColor: '#fff',
-        cursor: 'pointer',
-        transition: 'all 0.3s ease',
-               '&:hover': {
-                 outline: '2px solid #8B0000',
-                 outlineOffset: '-2px'
-               }
-      }}
-    >
-      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-        {/* Header with client info and menu */}
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'flex-start', 
-          justifyContent: 'space-between', 
-          mb: { xs: 1.5, sm: 2 },
-          gap: { xs: 1, sm: 2 }
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 }, flex: 1, minWidth: 0 }}>
-            <Avatar 
-              sx={{ 
-                width: { xs: 40, sm: 48 }, 
-                height: { xs: 40, sm: 48 }, 
-                bgcolor: 'primary.main',
-                fontSize: { xs: '1rem', sm: '1.2rem' },
-                fontWeight: 600
-              }}
-            >
+    <Card elevation={1}>
+      <CardContent sx={{ p: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+            <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main' }}>
               {appointment.client.fullName.charAt(0)}
             </Avatar>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography 
-                variant="h6" 
-                fontWeight={600} 
-                sx={{ 
-                  fontSize: { xs: '1rem', sm: '1.1rem' },
-                  lineHeight: 1.2,
-                  mb: { xs: 0.25, sm: 0.5 },
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}
-              >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="subtitle1" fontWeight={600} noWrap>
                 {appointment.client.fullName}
               </Typography>
-              <Typography 
-                variant="body2" 
-                color="text.secondary"
-                sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 0.5,
-                  fontSize: { xs: '0.8rem', sm: '0.875rem' }
-                }}
-              >
-                <PersonIcon fontSize="small" />
+              <Typography variant="caption" color="text.secondary">
                 {appointment.client.clientId}
               </Typography>
             </Box>
           </Box>
-          <IconButton 
-            size="small" 
-            onClick={(e) => {
-              e.stopPropagation();
-              onMenuClick(e, appointment);
-            }}
-            sx={{ 
-              bgcolor: 'grey.50',
-              '&:hover': { bgcolor: 'grey.100' },
-              width: { xs: 32, sm: 36 },
-              height: { xs: 32, sm: 36 }
-            }}
-          >
-            <MoreVertIcon fontSize="small" />
-          </IconButton>
-        </Box>
-
-        {/* Status chip and Discount indicator */}
-        <Box sx={{ mb: { xs: 1.5, sm: 2 }, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Chip 
+          <Chip
             icon={getStatusIcon(appointment.status)}
             label={appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
             color={getStatusColor(appointment.status) as any}
             size="small"
-            variant="outlined"
-            sx={{ 
-              fontWeight: 500,
-              fontSize: { xs: '0.75rem', sm: '0.8125rem' }
-            }}
+            variant="filled"
           />
-          {appointment.hasDiscount && (
-            <Chip
-              icon={<LocalOfferIcon />}
-              label="Discount Applied"
-              color="success"
-              size="small"
-              variant="filled"
-              sx={{ 
-                fontWeight: 600,
-                fontSize: { xs: '0.7rem', sm: '0.75rem' }
-              }}
-            />
-          )}
         </Box>
 
-        <Divider sx={{ my: { xs: 1.5, sm: 2 } }} />
+        <Divider sx={{ my: 1.5 }} />
 
-        {/* Service info */}
-        <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
-          <Typography 
-            variant="subtitle1" 
-            fontWeight={600} 
-            sx={{ 
-              mb: { xs: 0.5, sm: 1 }, 
-              color: 'text.primary',
-              fontSize: { xs: '0.95rem', sm: '1rem' },
-              lineHeight: 1.3
-            }}
-          >
-            {appointment.package.name}
-          </Typography>
-          <Typography 
-            variant="body2" 
-            color="text.secondary" 
-            sx={{ 
-              mb: { xs: 0.5, sm: 1 },
-              fontSize: { xs: '0.8rem', sm: '0.875rem' }
-            }}
-          >
-            Barber: {appointment.barber?.name || appointment.package.barber || 'Not assigned'}
-          </Typography>
-        </Box>
-
-        {/* Details grid */}
-        <Stack spacing={{ xs: 1, sm: 1.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 1 } }}>
-            <PhoneIcon fontSize="small" color="action" />
-            <Typography 
-              variant="body2" 
-              color="text.secondary" 
-              sx={{ 
-                minWidth: { xs: 50, sm: 60 },
-                fontSize: { xs: '0.8rem', sm: '0.875rem' }
-              }}
-            >
-              Phone:
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5 }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={600} noWrap>
+              {appointment.package.name}
             </Typography>
-            <Typography 
-              variant="body2" 
-              fontWeight={500}
-              sx={{ 
-                fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}
-            >
-              {appointment.client.phoneNumber}
+            <Typography variant="caption" color="text.secondary" noWrap>
+              Barber: {appointment.barber?.name || appointment.package.barber || 'Not assigned'}
             </Typography>
           </Box>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 1 } }}>
-            <AttachMoneyIcon fontSize="small" color="action" />
-            <Typography 
-              variant="body2" 
-              color="text.secondary" 
-              sx={{ 
-                minWidth: { xs: 50, sm: 60 },
-                fontSize: { xs: '0.8rem', sm: '0.875rem' }
-              }}
-            >
-              Price:
+          <Box sx={{ textAlign: 'right' }}>
+            <Typography variant="body2" fontWeight={700} color="success.main">
+              RM{calculateTotalPrice().toFixed(2)}
             </Typography>
-            <Box>
-              <Typography 
-                variant="body2" 
-                fontWeight={600} 
-                color="success.main"
-                sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}
-              >
-                RM{calculateTotalPrice().toFixed(2)}
-              </Typography>
-              {appointment.productSales && appointment.productSales.length > 0 && (
-                <Typography 
-                  variant="caption" 
-                  color="text.secondary"
-                  sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
-                >
-                  Service: RM{(appointment.finalPrice || appointment.package.price).toFixed(2)} + Products: RM{appointment.productSales.reduce((sum, sale) => sum + sale.totalPrice, 0).toFixed(2)}
-                </Typography>
-              )}
-            </Box>
-          </Box>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 1 } }}>
-            <AccessTimeIcon fontSize="small" color="action" />
-            <Typography 
-              variant="body2" 
-              color="text.secondary" 
-              sx={{ 
-                minWidth: { xs: 50, sm: 60 },
-                fontSize: { xs: '0.8rem', sm: '0.875rem' }
-              }}
-            >
-              Duration:
-            </Typography>
-            <Typography 
-              variant="body2" 
-              fontWeight={500}
-              sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}
-            >
+            <Typography variant="caption" color="text.secondary">
               {appointment.package.duration} mins
             </Typography>
           </Box>
+        </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 1 } }}>
-            <CalendarTodayIcon fontSize="small" color="action" />
-            <Typography 
-              variant="body2" 
-              color="text.secondary" 
-              sx={{ 
-                minWidth: { xs: 50, sm: 60 },
-                fontSize: { xs: '0.8rem', sm: '0.875rem' }
-              }}
-            >
-              Booked:
+        <Box sx={{ mt: 1.25, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+          <Stack direction="row" spacing={1} sx={{ minWidth: 0 }}>
+            <Chip
+              size="small"
+              variant="outlined"
+              label={appointment.appointmentDate ? formatDate(appointment.appointmentDate) : formatDate(appointment.createdAt)}
+            />
+            {appointment.hasDiscount && (
+              <Chip
+                icon={<LocalOfferIcon />}
+                label="Discount"
+                color="success"
+                size="small"
+              />
+            )}
+          </Stack>
+          <Stack direction="row" spacing={0.5}>
+            {(appointment.status === 'pending' || appointment.status === 'confirmed') && (
+              <Tooltip title="Complete">
+                <IconButton
+                  size="small"
+                  onClick={(e) => onMenuClick(e, appointment)}
+                >
+                  <CheckCircleOutlineIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {appointment.status !== 'cancelled' && (
+              <Tooltip title="Edit">
+                <IconButton
+                  size="small"
+                  onClick={(e) => onMenuClick(e, appointment)}
+                >
+                  <EditOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip title="More actions">
+              <IconButton
+                size="small"
+                onClick={(e) => onMenuClick(e, appointment)}
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </Box>
+
+        {appointment.notes && (
+          <Box sx={{ mt: 1.25, p: 1.25, bgcolor: 'grey.50', borderRadius: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Notes
             </Typography>
-            <Typography 
-              variant="body2" 
-              fontWeight={500}
-              sx={{ 
-                fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}
-            >
-              {formatDate(appointment.createdAt)}
+            <Typography variant="body2">
+              {appointment.notes}
             </Typography>
           </Box>
-
-          {appointment.notes && (
-            <Box sx={{ 
-              mt: { xs: 1, sm: 1 }, 
-              p: { xs: 1.5, sm: 2 }, 
-              bgcolor: 'grey.50', 
-              borderRadius: { xs: 1.5, sm: 2 } 
-            }}>
-              <Typography 
-                variant="body2" 
-                color="text.secondary" 
-                sx={{ 
-                  mb: 0.5, 
-                  fontWeight: 500,
-                  fontSize: { xs: '0.8rem', sm: '0.875rem' }
-                }}
-              >
-                Notes:
-              </Typography>
-              <Typography 
-                variant="body2" 
-                color="text.primary"
-                sx={{ 
-                  fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                  lineHeight: 1.4
-                }}
-              >
-                {appointment.notes}
-              </Typography>
-            </Box>
-          )}
-        </Stack>
+        )}
       </CardContent>
     </Card>
   );

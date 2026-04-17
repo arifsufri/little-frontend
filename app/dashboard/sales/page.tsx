@@ -36,12 +36,13 @@ import {
   Divider,
   Stack,
   Pagination,
+  Container,
 } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CloseIcon from '@mui/icons-material/Close';
 import { apiGet, apiPost, apiDelete } from '../../../src/utils/axios';
-import GradientButton from '../../../components/GradientButton';
 
 interface Product {
   id: number;
@@ -106,6 +107,36 @@ export default function SalesPage() {
     total: number;
     totalPages: number;
   } | null>(null);
+
+  const dialogPaperProps = {
+    sx: {
+      borderRadius: 3,
+      border: '1px solid',
+      borderColor: 'divider',
+      boxShadow: '0 20px 45px rgba(15, 23, 42, 0.12)',
+    },
+  };
+  const modalTitleSx = {
+    py: 2,
+    pr: 6,
+    borderBottom: '1px solid',
+    borderColor: 'divider',
+    bgcolor: 'rgba(248, 250, 252, 0.9)',
+    fontWeight: 700,
+  };
+  const modalContentSx = {
+    px: { xs: 2, sm: 3 },
+    py: { xs: 2, sm: 2.5 },
+    bgcolor: '#fcfcfd',
+  };
+  const modalActionsSx = {
+    px: { xs: 2, sm: 3 },
+    py: { xs: 1.75, sm: 2.25 },
+    gap: { xs: 1.25, sm: 1.5 },
+    borderTop: '1px solid',
+    borderColor: 'divider',
+    bgcolor: 'rgba(248, 250, 252, 0.85)',
+  };
 
   React.useEffect(() => {
     if (userRole === 'Boss' || userRole === 'Staff') {
@@ -302,57 +333,99 @@ export default function SalesPage() {
 
   return (
     <DashboardLayout>
-      <Box sx={{ mb: { xs: 3, sm: 4 } }}>
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: { xs: 'flex-start', sm: 'center' }, 
-          justifyContent: 'space-between', 
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 2, sm: 2 }, 
-          pb: 2
-        }}>
-          <Typography 
-            variant="h4" 
-            fontWeight={900} 
-            sx={{ 
-              fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
-              fontSize: { xs: '1.75rem', sm: '3rem' },
-              color: '#000000',
-              lineHeight: 1.2
+      <Container maxWidth="lg" sx={{ px: { xs: 1, sm: 3 } }}>
+        <Box
+          sx={{
+            mb: { xs: 2, sm: 3 },
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            background:
+              'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(248,113,113,0.08) 45%, rgba(255,255,255,0.92))',
+            boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              justifyContent: 'space-between',
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 2, sm: 2 },
             }}
           >
-            Product Sales
-          </Typography>
-          <GradientButton
-            variant="maroon"
-            animated
-            startIcon={<AddIcon />}
-            onClick={handleOpenSellDialog}
-            sx={{ 
-              px: { xs: 2, sm: 3 }, 
-              py: { xs: 1, sm: 1.2 }, 
-              fontSize: { xs: 13, sm: 14 },
-              width: { xs: '100%', sm: 'auto' },
-              borderRadius: { xs: 3, sm: 4 }
-            }}
-          >
-            Sell Product
-          </GradientButton>
+            <Box>
+              <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+                Product Sales
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Track retail sales, assigned staff commission, and client purchase history.
+              </Typography>
+            </Box>
+            <Box
+              component="button"
+              onClick={handleOpenSellDialog}
+              sx={{
+                px: { xs: 2, sm: 1.25 },
+                py: 1,
+                width: { xs: '100%', sm: 'auto' },
+                minWidth: { xs: '100%', sm: 44 },
+                borderRadius: 999,
+                border: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: { xs: 13, sm: 14 },
+                fontWeight: 700,
+                lineHeight: 1,
+                boxShadow: '0 8px 18px rgba(220, 38, 38, 0.22)',
+                bgcolor: '#dc2626',
+                color: '#fff',
+                overflow: 'hidden',
+                cursor: 'pointer',
+                transition: 'all 220ms ease',
+                '&:hover': {
+                  bgcolor: '#b91c1c',
+                  boxShadow: '0 10px 22px rgba(185, 28, 28, 0.28)',
+                  px: { xs: 2, sm: 2.25 },
+                  '& .sell-product-label': {
+                    maxWidth: { xs: 180, sm: 130 },
+                    opacity: 1,
+                    marginLeft: 0.75,
+                  },
+                },
+              }}
+              aria-label="Sell product"
+            >
+              <AddIcon sx={{ fontSize: 20, flexShrink: 0 }} />
+              <Box
+                component="span"
+                className="sell-product-label"
+                sx={{
+                  display: 'inline-block',
+                  whiteSpace: 'nowrap',
+                  maxWidth: { xs: 180, sm: 0 },
+                  opacity: { xs: 1, sm: 0 },
+                  marginLeft: { xs: 0.75, sm: 0 },
+                  lineHeight: 1,
+                  transition: 'all 220ms ease',
+                }}
+              >
+                Sell Product
+              </Box>
+            </Box>
+          </Box>
         </Box>
-      </Box>
 
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <Card sx={{ 
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-            border: 'none', 
-            borderRadius: { xs: 4, sm: 5 }, 
+            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)', 
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 3, 
             backgroundColor: '#fff',
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              outline: '2px solid #8B0000',
-              outlineOffset: '-2px'
-            }
           }}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               {loading ? (
@@ -372,11 +445,9 @@ export default function SalesPage() {
                       variant="outlined" 
                       sx={{ 
                         p: 2, 
-                        borderRadius: 2,
-                        '&:hover': { 
-                          outline: '2px solid #8B0000',
-                          outlineOffset: '-2px'
-                        }
+                        borderRadius: 2.5,
+                        borderColor: '#e2e8f0',
+                        boxShadow: '0 8px 20px rgba(15, 23, 42, 0.05)',
                       }}
                     >
                       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
@@ -394,10 +465,9 @@ export default function SalesPage() {
                         </Box>
                         <IconButton
                           size="small"
-                          color="error"
                           onClick={() => handleDeleteClick(sale)}
                           disabled={deletingSaleId === sale.id}
-                          sx={{ ml: 1 }}
+                          sx={{ ml: 1, border: '1px solid', borderColor: '#fecaca', color: '#dc2626', width: 30, height: 30 }}
                         >
                           {deletingSaleId === sale.id ? (
                             <CircularProgress size={20} />
@@ -425,9 +495,8 @@ export default function SalesPage() {
                           <Box sx={{ mt: 0.5 }}>
                             <Chip 
                               label={sale.staff?.name || 'Unknown'} 
-                              color="primary" 
                               size="small"
-                              variant="outlined"
+                              sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontWeight: 700 }}
                             />
                           </Box>
                         </Grid>
@@ -443,7 +512,7 @@ export default function SalesPage() {
                           <Typography variant="caption" color="text.secondary">
                             Total Price
                           </Typography>
-                          <Typography variant="body2" fontWeight={600} color="success.main">
+                          <Typography variant="body2" fontWeight={700} sx={{ color: '#b91c1c' }}>
                             RM{sale.totalPrice.toFixed(2)}
                           </Typography>
                         </Grid>
@@ -454,8 +523,8 @@ export default function SalesPage() {
                           <Box sx={{ mt: 0.5 }}>
                             <Chip 
                               label={`RM ${sale.commissionAmount.toFixed(2)}`} 
-                              color="success" 
                               size="small"
+                              sx={{ bgcolor: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', fontWeight: 700 }}
                             />
                           </Box>
                         </Grid>
@@ -465,10 +534,10 @@ export default function SalesPage() {
                 </Stack>
             ) : (
                 // Desktop Table Layout
-                <TableContainer component={Paper} variant="outlined">
-                  <Table>
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2.5, borderColor: '#e2e8f0', overflowX: 'auto' }}>
+                  <Table sx={{ minWidth: 900 }}>
                     <TableHead>
-                      <TableRow>
+                      <TableRow sx={{ bgcolor: '#f8fafc' }}>
                         <TableCell><strong>Date</strong></TableCell>
                         <TableCell><strong>Product</strong></TableCell>
                         <TableCell><strong>Client</strong></TableCell>
@@ -481,7 +550,7 @@ export default function SalesPage() {
                     </TableHead>
                     <TableBody>
                       {sales.map((sale) => (
-                        <TableRow key={sale.id} hover>
+                        <TableRow key={sale.id} hover sx={{ '&:hover td': { bgcolor: '#fcfcfd' } }}>
                           <TableCell>
                             <Typography variant="body2" color="text.secondary">
                               {new Date(sale.createdAt).toLocaleDateString('en-MY', {
@@ -504,9 +573,8 @@ export default function SalesPage() {
                           <TableCell>
                             <Chip 
                               label={sale.staff?.name || 'Unknown'} 
-                              color="primary" 
                               size="small"
-                              variant="outlined"
+                              sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontWeight: 700 }}
                             />
                           </TableCell>
                           <TableCell>
@@ -515,23 +583,23 @@ export default function SalesPage() {
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
-                            <Typography variant="body2" fontWeight={600} color="success.main">
+                            <Typography variant="body2" fontWeight={700} sx={{ color: '#b91c1c' }}>
                               RM{sale.totalPrice.toFixed(2)}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
                             <Chip 
                               label={`RM ${sale.commissionAmount.toFixed(2)}`} 
-                              color="success" 
                               size="small"
+                              sx={{ bgcolor: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', fontWeight: 700 }}
                             />
                           </TableCell>
                           <TableCell align="center">
                             <IconButton
                               size="small"
-                              color="error"
                               onClick={() => handleDeleteClick(sale)}
                               disabled={deletingSaleId === sale.id}
+                              sx={{ border: '1px solid', borderColor: '#fecaca', color: '#dc2626', width: 30, height: 30 }}
                             >
                               {deletingSaleId === sale.id ? (
                                 <CircularProgress size={20} />
@@ -552,9 +620,16 @@ export default function SalesPage() {
                     count={salesMeta.totalPages}
                     page={salesPage}
                     onChange={(_, p) => setSalesPage(p)}
-                    color="primary"
+                    color="standard"
                     showFirstButton
                     showLastButton
+                    sx={{
+                      '& .MuiPaginationItem-root.Mui-selected': {
+                        bgcolor: 'rgba(239, 68, 68, 0.14)',
+                        color: '#b91c1c',
+                        fontWeight: 700,
+                      },
+                    }}
                   />
                 </Box>
               )}
@@ -567,6 +642,7 @@ export default function SalesPage() {
           </Card>
         </Grid>
       </Grid>
+      </Container>
 
       {/* Sell Product Dialog */}
       <Dialog 
@@ -574,24 +650,15 @@ export default function SalesPage() {
           onClose={handleCloseSellDialog} 
           maxWidth="sm" 
           fullWidth
-          sx={{
-            '& .MuiDialog-paper': {
-              margin: { xs: 1, sm: 2 },
-              borderRadius: { xs: 2, sm: 2 },
-              maxHeight: { xs: '90vh', sm: 'none' }
-            }
-          }}
+          PaperProps={dialogPaperProps}
         >
-          <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
-            <Typography 
-              variant="h6" 
-              fontWeight={600}
-              sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
-            >
-              Sell Product
-            </Typography>
+          <DialogTitle sx={modalTitleSx}>
+            Sell Product
+            <IconButton onClick={handleCloseSellDialog} sx={{ position: 'absolute', right: 12, top: 12 }} aria-label="close">
+              <CloseIcon />
+            </IconButton>
           </DialogTitle>
-          <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
+          <DialogContent dividers sx={modalContentSx}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
               <FormControl fullWidth>
                 <InputLabel>Product *</InputLabel>
@@ -653,14 +720,14 @@ export default function SalesPage() {
               />
 
               {selectedProduct && quantity && (
-                <Box sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
+                <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
                   <Typography variant="body2" color="text.secondary">
                     Unit Price: RM {selectedProduct.price.toFixed(2)}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Total Price: RM {totalPrice.toFixed(2)}
                   </Typography>
-                  <Typography variant="body2" color="success.main" sx={{ fontWeight: 'bold', mt: 1 }}>
+                  <Typography variant="body2" sx={{ color: '#047857', fontWeight: 700, mt: 1 }}>
                     Your Commission (5%): RM {commission.toFixed(2)}
                   </Typography>
                 </Box>
@@ -676,39 +743,22 @@ export default function SalesPage() {
               />
             </Box>
           </DialogContent>
-          <DialogActions sx={{ 
-            px: { xs: 2, sm: 3 }, 
-            pb: { xs: 2, sm: 3 },
-            gap: { xs: 1.5, sm: 2 },
-            flexDirection: 'row'
-          }}>
-            <GradientButton
-              variant="blue"
-              animated
+          <DialogActions sx={modalActionsSx}>
+            <Button
+              variant="outlined"
               onClick={handleCloseSellDialog}
-              sx={{ 
-                flex: 1,
-                px: { xs: 2, sm: 3 }, 
-                py: { xs: 1, sm: 1.2 }, 
-                fontSize: { xs: 13, sm: 14 }
-              }}
+              sx={{ flex: 1, borderRadius: 2, py: 1.1, textTransform: 'none', fontWeight: 600, borderColor: 'grey.300', color: 'text.secondary', '&:hover': { borderColor: 'grey.400', bgcolor: 'grey.50' } }}
             >
               Cancel
-            </GradientButton>
-            <GradientButton
-              variant="maroon"
-              animated
+            </Button>
+            <Button
+              variant="contained"
               onClick={handleSellProduct}
               disabled={selling || !selectedProductId || !quantity || !selectedStaffId}
-              sx={{ 
-                flex: 1,
-                px: { xs: 2, sm: 3 }, 
-                py: { xs: 1, sm: 1.2 }, 
-                fontSize: { xs: 13, sm: 14 }
-              }}
+              sx={{ flex: 1.2, borderRadius: 2, py: 1.1, textTransform: 'none', fontWeight: 700, bgcolor: '#dc2626', boxShadow: '0 8px 20px rgba(220, 38, 38, 0.28)', '&:hover': { bgcolor: '#b91c1c', boxShadow: '0 10px 24px rgba(185, 28, 28, 0.34)' }, '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#94a3b8' } }}
             >
               {selling ? <CircularProgress size={20} color="inherit" /> : 'Sell Product'}
-            </GradientButton>
+            </Button>
           </DialogActions>
       </Dialog>
 
@@ -721,29 +771,27 @@ export default function SalesPage() {
           }} 
           maxWidth="sm" 
           fullWidth
-          sx={{
-            '& .MuiDialog-paper': {
-              margin: { xs: 1, sm: 2 },
-              borderRadius: { xs: 2, sm: 2 },
-              maxHeight: { xs: '90vh', sm: 'none' }
-            }
-          }}
+          PaperProps={dialogPaperProps}
         >
-          <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
-            <Typography 
-              variant="h6" 
-              fontWeight={600}
-              sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+          <DialogTitle sx={modalTitleSx}>
+            Delete Product Sale
+            <IconButton
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setSaleToDelete(null);
+              }}
+              sx={{ position: 'absolute', right: 12, top: 12 }}
+              aria-label="close"
             >
-              Delete Product Sale
-            </Typography>
+              <CloseIcon />
+            </IconButton>
             {saleToDelete && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                 Are you sure you want to delete this sale?
               </Typography>
             )}
           </DialogTitle>
-          <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
+          <DialogContent dividers sx={modalContentSx}>
             {saleToDelete && (
               <Box sx={{ 
                 p: 2, 
@@ -782,42 +830,25 @@ export default function SalesPage() {
               ⚠️ This action cannot be undone.
             </Typography>
           </DialogContent>
-          <DialogActions sx={{ 
-            px: { xs: 2, sm: 3 }, 
-            pb: { xs: 2, sm: 3 },
-            gap: { xs: 1.5, sm: 2 },
-            flexDirection: 'row'
-          }}>
-            <GradientButton
-              variant="blue"
-              animated
+          <DialogActions sx={modalActionsSx}>
+            <Button
+              variant="outlined"
               onClick={() => {
                 setDeleteDialogOpen(false);
                 setSaleToDelete(null);
               }}
-              sx={{ 
-                flex: 1,
-                px: { xs: 2, sm: 3 }, 
-                py: { xs: 1, sm: 1.2 }, 
-                fontSize: { xs: 13, sm: 14 }
-              }}
+              sx={{ flex: 1, borderRadius: 2, py: 1.1, textTransform: 'none', fontWeight: 600, borderColor: 'grey.300', color: 'text.secondary', '&:hover': { borderColor: 'grey.400', bgcolor: 'grey.50' } }}
             >
               Cancel
-            </GradientButton>
-            <GradientButton
-              variant="red"
-              animated
+            </Button>
+            <Button
+              variant="contained"
               onClick={handleDeleteConfirm}
               disabled={deletingSaleId !== null}
-              sx={{ 
-                flex: 1,
-                px: { xs: 2, sm: 3 }, 
-                py: { xs: 1, sm: 1.2 }, 
-                fontSize: { xs: 13, sm: 14 }
-              }}
+              sx={{ flex: 1.2, borderRadius: 2, py: 1.1, textTransform: 'none', fontWeight: 700, bgcolor: '#dc2626', boxShadow: '0 8px 20px rgba(220, 38, 38, 0.28)', '&:hover': { bgcolor: '#b91c1c', boxShadow: '0 10px 24px rgba(185, 28, 28, 0.34)' }, '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#94a3b8' } }}
             >
               {deletingSaleId !== null ? <CircularProgress size={20} color="inherit" /> : 'Delete Sale'}
-            </GradientButton>
+            </Button>
           </DialogActions>
       </Dialog>
 

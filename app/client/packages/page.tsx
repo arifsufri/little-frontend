@@ -33,12 +33,13 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
 import ContentCutIcon from '@mui/icons-material/ContentCut';
 import ProductCard from '../../../components/dashboard/ProductCard';
+import LoyaltyFlipCard from '../../../components/client/LoyaltyFlipCard';
 import { apiGet, apiPost } from '../../../src/utils/axios';
 
 // Helper function to get full image URL
 const getImageUrl = (imageUrl?: string | null): string | undefined => {
   if (!imageUrl) return undefined;
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
   return `${baseUrl}${imageUrl}`;
 };
 
@@ -70,6 +71,8 @@ interface Client {
   clientId: string;
   fullName: string;
   phoneNumber: string;
+  loyaltyProgress?: number;
+  loyaltyCycleCount?: number;
 }
 
 export default function ClientPackagesPage() {
@@ -82,6 +85,7 @@ export default function ClientPackagesPage() {
   const [booking, setBooking] = React.useState(false);
   const [bookingSuccess, setBookingSuccess] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [loyaltyProgress, setLoyaltyProgress] = React.useState(0);
   
   // Guest name popup state
   const [isGuest, setIsGuest] = React.useState(false);
@@ -135,6 +139,24 @@ export default function ClientPackagesPage() {
   React.useEffect(() => {
     fetchPackages();
   }, []);
+
+  React.useEffect(() => {
+    const fetchLoyaltyStatus = async () => {
+      if (!clientData?.id) return;
+      try {
+        const response = await apiGet<{
+          success: boolean;
+          data: { loyaltyProgress: number };
+        }>(`/clients/${clientData.id}/loyalty`);
+        if (response.success) {
+          setLoyaltyProgress(response.data.loyaltyProgress ?? 0);
+        }
+      } catch (error) {
+        setLoyaltyProgress(clientData.loyaltyProgress ?? 0);
+      }
+    };
+    fetchLoyaltyStatus();
+  }, [clientData]);
 
   const fetchPackages = async () => {
     try {
@@ -292,15 +314,20 @@ export default function ClientPackagesPage() {
         maxWidth="sm" 
         fullWidth
         PaperProps={{
-          sx: { borderRadius: 3 }
+          sx: {
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.12)'
+          }
         }}
       >
-        <DialogTitle>
+        <DialogTitle sx={{ py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'rgba(248, 250, 252, 0.9)' }}>
           <Typography variant="h5" fontWeight={700}>
             Welcome, Guest!
           </Typography>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent dividers sx={{ py: 2.5, bgcolor: '#fcfcfd' }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Please enter your name to continue booking
           </Typography>
@@ -327,9 +354,10 @@ export default function ClientPackagesPage() {
             }}
             autoFocus
             disabled={creatingGuest}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#fff' } }}
           />
         </DialogContent>
-        <DialogActions sx={{ p: 3, pt: 0 }}>
+        <DialogActions sx={{ p: 2.5, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'rgba(248, 250, 252, 0.85)' }}>
           <Button
             fullWidth
             variant="contained"
@@ -337,27 +365,22 @@ export default function ClientPackagesPage() {
             onClick={handleGuestNameSubmit}
             disabled={creatingGuest || !guestName.trim()}
             sx={{
-              background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-              color: 'white',
-              py: 1.5,
+              bgcolor: '#dc2626',
+              color: '#fff',
+              py: 1.2,
               fontSize: '1rem',
-              fontWeight: 600,
+              fontWeight: 700,
               fontFamily: '"Inter", "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-              letterSpacing: '0.5px',
               textTransform: 'none',
               borderRadius: 2,
-              transform: 'scale(1)',
-              transition: 'transform 0.1s ease-in-out, all 0.2s ease-in-out',
-              '&:active': {
-                transform: 'scale(0.95)',
-              },
+              boxShadow: '0 8px 20px rgba(220, 38, 38, 0.28)',
               '&:hover': {
-                background: 'linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)',
-                transform: 'translateY(-2px) scale(1)',
+                bgcolor: '#b91c1c',
+                boxShadow: '0 10px 24px rgba(185, 28, 28, 0.34)',
               },
               '&:disabled': {
                 background: '#9ca3af',
-                transform: 'scale(1)',
+                boxShadow: 'none',
               }
             }}
           >
@@ -440,6 +463,9 @@ export default function ClientPackagesPage() {
         pb: 6
       }}>
         <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 5 } }}>
+        <Box sx={{ mb: { xs: 2.5, sm: 3.5 } }}>
+          <LoyaltyFlipCard progress={loyaltyProgress} />
+        </Box>
         {/* Packages Grid */}
           <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ m: 0, width: '100%' }}>
           {packages && packages.length > 0 ? packages.map((pkg) => (
@@ -510,10 +536,17 @@ export default function ClientPackagesPage() {
       <Dialog 
         open={!!selectedPackage} 
         onClose={() => setSelectedPackage(null)} 
-        maxWidth="sm" 
+        maxWidth="md" 
         fullWidth
         PaperProps={{
-          sx: { borderRadius: 3, overflow: 'hidden' }
+          sx: {
+            borderRadius: 3,
+            overflow: 'hidden',
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.12)',
+            maxHeight: '90vh',
+          }
         }}
       >
         {selectedPackage && (
@@ -610,7 +643,7 @@ export default function ClientPackagesPage() {
               </Box>
             </Box>
 
-            <DialogContent sx={{ p: 3 }}>
+            <DialogContent dividers sx={{ p: 3, bgcolor: '#fcfcfd' }}>
               {bookingSuccess && (
                 <Alert severity="success" sx={{ mb: 2 }}>
                   Booking successful! We&apos;ll contact you soon to confirm your appointment.
@@ -668,7 +701,7 @@ export default function ClientPackagesPage() {
 
               {/* Additional Services - Dropdown with Checkboxes */}
               {getAvailableAdditionalServices().length > 0 && (
-                <Box sx={{ mb: 3 }}>
+                <Box sx={{ mb: 3, p: 2, borderRadius: 2.5, border: '1px solid #e2e8f0', bgcolor: '#fff' }}>
                   <Typography 
                     variant="h6" 
                     fontWeight={700} 
@@ -721,7 +754,7 @@ export default function ClientPackagesPage() {
                           <Checkbox checked={additionalServices.includes(service.id)} />
                           <ListItemText 
                             primary={service.name}
-                            secondary={`${service.duration} mins • +RM${service.price}`}
+                            secondary={`+RM${service.price}`}
                             sx={{
                               '& .MuiListItemText-primary': {
                                 fontFamily: '"Inter", "Manrope", sans-serif',
@@ -784,7 +817,7 @@ export default function ClientPackagesPage() {
                                 fontWeight: 500
                               }}
                             >
-                              {service.name} ({service.duration} mins)
+                              {service.name}
                             </Typography>
                             <Typography 
                               variant="body2" 
@@ -806,130 +839,101 @@ export default function ClientPackagesPage() {
 
               <Divider sx={{ mb: 3 }} />
 
-              {/* Duration and Price */}
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={6}>
-                  <Box sx={{ 
-                    p: 2.5, 
-                    borderRadius: 2, 
-                    textAlign: 'center',
-                    background: 'linear-gradient(135deg, #111827 0%, #1f2937 100%)',
-                    color: 'white',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    border: '1px solid rgba(255,255,255,0.1)'
-                  }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        opacity: 0.9, 
-                        mb: 1,
-                        fontFamily: '"Inter", "Manrope", sans-serif',
-                        fontWeight: 500,
-                        fontSize: '0.85rem'
-                      }}
-                    >
-                      Duration
+              {/* Price Summary */}
+              <Box
+                sx={{
+                  mb: 2.5,
+                  p: 2.5,
+                  borderRadius: 2.5,
+                  border: '1px solid #fecaca',
+                  background: 'linear-gradient(135deg, #fff5f5 0%, #fff 65%)',
+                }}
+              >
+                <Typography
+                  variant="overline"
+                  sx={{
+                    color: '#991b1b',
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                  }}
+                >
+                  Booking Summary
+                </Typography>
+                <Box sx={{ mt: 1.25, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    Package price
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 700 }}>
+                    RM{selectedPackage.price}
+                  </Typography>
+                </Box>
+                {additionalServices.length > 0 && (
+                  <Box sx={{ mt: 0.75, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Additional services
                     </Typography>
-                    <Typography 
-                      variant="h5" 
-                      fontWeight={700}
-                      sx={{
-                        fontFamily: '"Inter", "Manrope", sans-serif',
-                        letterSpacing: '0.5px'
-                      }}
-                    >
-                      {selectedPackage.duration} mins
+                    <Typography variant="body1" sx={{ fontWeight: 700 }}>
+                      RM{totalPrice - selectedPackage.price}
                     </Typography>
                   </Box>
-                </Grid>
-                <Grid item xs={6}>
-                  <Box sx={{ 
-                    p: 2.5, 
-                    borderRadius: 2, 
-                    textAlign: 'center',
-                    background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-                    color: 'white',
-                    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
-                    border: '1px solid rgba(255,255,255,0.1)'
-                  }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        opacity: 0.95, 
-                        mb: 1,
-                        fontFamily: '"Inter", "Manrope", sans-serif',
-                        fontWeight: 500,
-                        fontSize: '0.85rem'
-                      }}
-                    >
-                      Total Price
-                    </Typography>
-                    <Typography 
-                      variant="h5" 
-                      fontWeight={700}
-                      sx={{
-                        fontFamily: '"Inter", "Manrope", sans-serif',
-                        letterSpacing: '0.5px'
-                      }}
-                    >
-                      RM{totalPrice}
-                    </Typography>
-                    {additionalServices.length > 0 && (
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          opacity: 0.9, 
-                          display: 'block', 
-                          mt: 0.5,
-                          fontFamily: '"Inter", "Manrope", sans-serif',
-                          fontSize: '0.7rem'
-                        }}
-                      >
-                        Base: RM{selectedPackage.price} + Extras: RM{totalPrice - selectedPackage.price}
-                      </Typography>
-                    )}
-                  </Box>
-                </Grid>
-              </Grid>
+                )}
+                <Divider sx={{ my: 1.25 }} />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body1" sx={{ fontWeight: 700 }}>
+                    Total
+                  </Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: '#b91c1c' }}>
+                    RM{totalPrice}
+                  </Typography>
+                </Box>
+              </Box>
 
             </DialogContent>
 
-            <DialogActions sx={{ p: 3, pt: 0 }}>
+            <DialogActions sx={{ p: 2.5, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#f8fafc', justifyContent: 'space-between' }}>
               <Button
-                fullWidth
+                variant="outlined"
+                onClick={() => setSelectedPackage(null)}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  px: 2.5,
+                  py: 1.1,
+                  borderColor: '#cbd5e1',
+                  color: '#475569',
+                  '&:hover': { borderColor: '#94a3b8', bgcolor: '#f8fafc' },
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
                 variant="contained"
                 size="large"
                 onClick={handleBookPackage}
                 disabled={booking || bookingSuccess}
                 sx={{
-                  background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-                  color: 'white',
-                  py: 1.5,
-                  fontSize: '1.1rem',
+                  bgcolor: '#dc2626',
+                  color: '#fff',
+                  py: 1.1,
+                  px: 2.75,
+                  fontSize: '1rem',
                   fontWeight: 700,
                   fontFamily: '"Inter", "Manrope", sans-serif',
-                  letterSpacing: '0.5px',
                   textTransform: 'none',
                   borderRadius: 2,
-                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.4)',
-                  transform: 'scale(1)',
-                  transition: 'transform 0.1s ease-in-out, all 0.2s ease-in-out',
-                  '&:active': {
-                    transform: 'scale(0.95)',
-                  },
+                  boxShadow: '0 8px 20px rgba(220, 38, 38, 0.28)',
                   '&:hover': {
-                    background: 'linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)',
-                    boxShadow: '0 6px 16px rgba(220, 38, 38, 0.5)',
-                    transform: 'translateY(-2px) scale(1)',
+                    bgcolor: '#b91c1c',
+                    boxShadow: '0 10px 24px rgba(185, 28, 28, 0.34)',
                   },
                   '&:disabled': {
                     background: '#9ca3af',
                     boxShadow: 'none',
-                    transform: 'scale(1)',
                   }
                 }}
               >
-                {booking ? 'Booking...' : bookingSuccess ? 'Booked Successfully!' : 'Book Your Slot Now!'}
+                    {booking ? 'Booking...' : bookingSuccess ? 'Booked Successfully!' : 'Confirm Booking'}
               </Button>
             </DialogActions>
           </>

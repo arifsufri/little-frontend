@@ -1,11 +1,19 @@
 'use client';
 
 import * as React from 'react';
-import { Box, Container, Typography, Card, CardContent, FormControl, InputLabel, Select, MenuItem, Button } from '@mui/material';
+import { Box, Container, Typography, Card, CardContent, FormControl, InputLabel, Select, MenuItem, Button, Chip } from '@mui/material';
 import DashboardLayout from '../../../components/dashboard/Layout';
 import { apiGet } from '../../../src/utils/axios';
 import PeriodProfitLossCard from '../../../components/dashboard/PeriodProfitLossCard';
 import { useUserRole } from '../../../hooks/useUserRole';
+
+const formatDateInKualaLumpur = (date: Date) =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kuala_Lumpur',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
 
 export default function ProfitLossPage() {
   const { userRole } = useUserRole();
@@ -14,13 +22,12 @@ export default function ProfitLossPage() {
     const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' }));
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     return {
-      startDate: startOfMonth.toISOString().split('T')[0],
-      endDate: today.toISOString().split('T')[0],
+      startDate: formatDateInKualaLumpur(startOfMonth),
+      endDate: formatDateInKualaLumpur(today),
     };
   });
   const [overview, setOverview] = React.useState<any>(null);
   const [paymentMethodFilter, setPaymentMethodFilter] = React.useState<'ALL' | 'CASH' | 'TRANSFER'>('ALL');
-  const [transactions, setTransactions] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
 
   const formatCurrency = React.useCallback((amount: number) => {
@@ -47,8 +54,8 @@ export default function ProfitLossPage() {
     }
 
     return {
-      startDate: start.toISOString().split('T')[0],
-      endDate: end.toISOString().split('T')[0],
+      startDate: formatDateInKualaLumpur(start),
+      endDate: formatDateInKualaLumpur(end),
     };
   }, []);
 
@@ -64,22 +71,10 @@ export default function ProfitLossPage() {
     }
   }, [paymentMethodFilter]);
 
-  const fetchTransactions = React.useCallback(async (range: { startDate: string; endDate: string }) => {
-    try {
-      const pmParam = paymentMethodFilter !== 'ALL' ? `&paymentMethod=${paymentMethodFilter}` : '';
-      const response = await apiGet(`/financial/transactions?startDate=${range.startDate}&endDate=${range.endDate}${pmParam}`) as any;
-      if (response?.success) setTransactions(response.data.transactions || []);
-      else setTransactions([]);
-    } catch {
-      setTransactions([]);
-    }
-  }, [paymentMethodFilter]);
-
   React.useEffect(() => {
     if (userRole !== 'Boss') return;
     fetchOverview(dateRange);
-    fetchTransactions(dateRange);
-  }, [userRole, dateRange, fetchOverview, fetchTransactions]);
+  }, [userRole, dateRange, fetchOverview]);
 
   if (userRole !== 'Boss') {
     return (
@@ -94,25 +89,27 @@ export default function ProfitLossPage() {
   return (
     <DashboardLayout>
       <Container maxWidth="lg" sx={{ px: { xs: 1, sm: 3 } }}>
-        <Box sx={{ mb: 3 }}>
-          <Typography
-            variant="h4"
-            fontWeight={900}
-            sx={{
-              fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
-              fontSize: { xs: '1.75rem', sm: '3rem' },
-              color: '#000000',
-              lineHeight: 1.2,
-            }}
-          >
+        <Box
+          sx={{
+            mb: { xs: 2, sm: 3 },
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            background:
+              'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(248,113,113,0.08) 45%, rgba(255,255,255,0.92))',
+            boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
+          }}
+        >
+          <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.2 }}>
             Profit &amp; Loss
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Selected period net profit = total income − product COGS − commissions − recorded expenses.
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Selected period net profit = total income - product COGS - commissions - recorded expenses.
           </Typography>
         </Box>
 
-        <Card sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <Card sx={{ borderRadius: 3, border: '1px solid', borderColor: '#e2e8f0', boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)' }}>
           <CardContent sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
             <FormControl size="small" sx={{ minWidth: 220 }}>
               <InputLabel id="pnl-range">Date range</InputLabel>
@@ -152,67 +149,15 @@ export default function ProfitLossPage() {
             <Button variant="outlined" onClick={() => fetchOverview(dateRange)} disabled={loading}>
               {loading ? 'Refreshing…' : 'Refresh'}
             </Button>
+            <Box sx={{ width: '100%' }} />
+            <Chip size="small" label={`Period: ${dateFilter.replaceAll('_', ' ')}`} sx={{ bgcolor: '#eef2ff', color: '#3730a3', border: '1px solid #c7d2fe', fontWeight: 700 }} />
+            <Chip size="small" label={`Payment: ${paymentMethodFilter === 'ALL' ? 'All methods' : paymentMethodFilter}`} sx={{ bgcolor: '#ecfeff', color: '#0f766e', border: '1px solid #99f6e4', fontWeight: 700 }} />
           </CardContent>
         </Card>
 
         {overview && (
           <PeriodProfitLossCard overview={overview} formatCurrency={formatCurrency} title="Profit and loss (selected period)" />
         )}
-
-        <Card sx={{ mt: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2, flexWrap: 'wrap' }}>
-              <Typography variant="h6" fontWeight={700}>
-                Transactions (Cash vs Transfer)
-              </Typography>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => {
-                  const payload = {
-                    period: dateRange,
-                    paymentMethod: paymentMethodFilter,
-                    generatedAt: new Date().toISOString(),
-                    transactions,
-                  };
-                  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `transactions_${dateRange.startDate}_to_${dateRange.endDate}_${paymentMethodFilter}.json`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                }}
-                disabled={!transactions || transactions.length === 0}
-              >
-                Export JSON
-              </Button>
-            </Box>
-
-            {transactions.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                No transactions found for the selected period / payment method.
-              </Typography>
-            ) : (
-              <pre
-                style={{
-                  margin: 0,
-                  maxHeight: 340,
-                  overflow: 'auto',
-                  padding: 12,
-                  borderRadius: 12,
-                  background: '#f8fafc',
-                  border: '1px solid #e5e7eb',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  fontSize: 12,
-                }}
-              >
-                {JSON.stringify(transactions, null, 2)}
-              </pre>
-            )}
-          </CardContent>
-        </Card>
       </Container>
     </DashboardLayout>
   );

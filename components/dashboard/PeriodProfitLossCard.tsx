@@ -45,23 +45,23 @@ export default function PeriodProfitLossCard({
     <Card
       sx={{
         mt: 3,
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-        border: '2px solid',
-        borderColor: 'primary.main',
-        borderRadius: { xs: 4, sm: 5 },
+        boxShadow: '0 14px 30px rgba(15, 23, 42, 0.06)',
+        border: '1px solid',
+        borderColor: '#e2e8f0',
+        borderRadius: 3,
         bgcolor: '#fff',
         ...cardSx,
       }}
     >
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-        <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>
+        <Typography variant="h6" fontWeight={800} sx={{ mb: 0.25 }}>
           {title}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Track retail COGS, staff commissions, and business expenses. Net profit matches: total income minus product COGS, minus commissions, minus recorded expenses.
         </Typography>
 
-        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2.5, borderColor: '#e2e8f0' }}>
           <Table size="small">
             <TableBody>
               <TableRow>
@@ -72,7 +72,7 @@ export default function PeriodProfitLossCard({
                 <TableCell sx={{ fontWeight: 600 }}>Product sales revenue (all channels)</TableCell>
                 <TableCell align="right">{formatCurrency(productRev)}</TableCell>
               </TableRow>
-              <TableRow sx={{ bgcolor: 'action.hover' }}>
+              <TableRow sx={{ bgcolor: '#f8fafc' }}>
                 <TableCell sx={{ fontWeight: 700 }}>Total income</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 700 }}>
                   {formatCurrency(tr)}
@@ -101,7 +101,7 @@ export default function PeriodProfitLossCard({
                   -{formatCurrency(cogs)}
                 </TableCell>
               </TableRow>
-              <TableRow sx={{ bgcolor: 'rgba(16, 185, 129, 0.08)' }}>
+              <TableRow sx={{ bgcolor: 'rgba(16, 185, 129, 0.10)' }}>
                 <TableCell sx={{ fontWeight: 700 }}>Contribution after product COGS</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 700, color: 'success.dark' }}>
                   {formatCurrency(afterCogs)}
@@ -129,7 +129,7 @@ export default function PeriodProfitLossCard({
                   </TableCell>
                 </TableRow>
               )}
-              <TableRow sx={{ bgcolor: net >= 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.1)' }}>
+              <TableRow sx={{ bgcolor: net >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.13)' }}>
                 <TableCell sx={{ fontWeight: 800, fontSize: '1rem' }}>Net profit</TableCell>
                 <TableCell
                   align="right"

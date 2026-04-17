@@ -41,6 +41,7 @@ import {
   Alert,
   Collapse,
   Divider,
+  Container,
 } from '@mui/material';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -161,6 +162,14 @@ interface StaffFinancialData {
   }[];
 }
 
+const formatDateInKualaLumpur = (date: Date) =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kuala_Lumpur',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+
 // Modern Financial Card Component
 function FinancialCard({ 
   title, 
@@ -185,15 +194,15 @@ function FinancialCard({
       sx={{ 
         position: 'relative',
         overflow: 'hidden',
-        borderRadius: { xs: 2, sm: 3, md: 4 },
+        borderRadius: 3,
         background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-        border: '1px solid rgba(0, 0, 0, 0.06)',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         height: { xs: 120, sm: 140, md: 160 },
         '&:hover': {
           transform: { xs: 'none', sm: 'translateY(-4px)' },
-          boxShadow: { xs: '0 4px 20px rgba(0, 0, 0, 0.08)', sm: '0 12px 40px rgba(0, 0, 0, 0.15)' },
+          boxShadow: { xs: '0 12px 28px rgba(15, 23, 42, 0.05)', sm: '0 14px 30px rgba(15, 23, 42, 0.10)' },
           '& .card-icon': {
             transform: 'scale(1.1)',
           }
@@ -252,7 +261,7 @@ function FinancialCard({
             sx={{ 
               width: { xs: 40, sm: 48, md: 56 },
               height: { xs: 40, sm: 48, md: 56 },
-              borderRadius: { xs: '12px', sm: '14px', md: '16px' },
+              borderRadius: 2,
               background: bgColor,
               display: 'flex',
               alignItems: 'center',
@@ -306,11 +315,10 @@ export default function FinancialPage() {
     // Initialize with Malaysia timezone
     const malaysiaToday = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"}));
     const startOfMonth = new Date(malaysiaToday.getFullYear(), malaysiaToday.getMonth(), 1);
-    const startOfMonthMalaysia = new Date(startOfMonth.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"}));
     
     return {
-      startDate: startOfMonthMalaysia.toISOString().split('T')[0],
-      endDate: malaysiaToday.toISOString().split('T')[0]
+      startDate: formatDateInKualaLumpur(startOfMonth),
+      endDate: formatDateInKualaLumpur(malaysiaToday)
     };
   });
   // Temporary date state for custom date picker (not applied until user clicks Apply)
@@ -324,7 +332,7 @@ export default function FinancialPage() {
     category: '',
     description: '',
     amount: '',
-    date: new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"})).toISOString().split('T')[0]
+    date: formatDateInKualaLumpur(new Date())
   });
   const [snackbar, setSnackbar] = React.useState({
     open: false,
@@ -363,7 +371,7 @@ export default function FinancialPage() {
   // Get today's date string in Malaysia timezone (YYYY-MM-DD format)
   const getTodayMalaysiaString = () => {
     const malaysiaDate = getMalaysiaDate();
-    return malaysiaDate.toISOString().split('T')[0];
+    return formatDateInKualaLumpur(malaysiaDate);
   };
 
   // Handle preset date filter changes
@@ -1338,38 +1346,31 @@ export default function FinancialPage() {
 
   return (
     <DashboardLayout>
-      <Box sx={{ 
-        width: '100%',
-        maxWidth: '100vw',
-        minWidth: 0,
-        overflow: 'hidden',
-        overflowX: 'hidden',
-        px: { xs: 0, sm: 0 },
-        boxSizing: 'border-box'
-      }}>
+      <Container maxWidth="lg" sx={{ px: { xs: 1, sm: 3 } }}>
+      <Box sx={{ width: '100%', minWidth: 0, overflow: 'hidden', boxSizing: 'border-box' }}>
       {/* Modern Header Section */}
-      <Box sx={{ 
-        mb: { xs: 3, sm: 4 }
-      }}>
+      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
         <Box sx={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: { xs: 'flex-start', sm: 'center' },
           flexDirection: { xs: 'column', sm: 'row' },
           gap: { xs: 3, sm: 2 },
-          pb: 3,
-          borderBottom: '1px solid',
-          borderColor: 'divider'
+          p: { xs: 2, sm: 2.5 },
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: 'divider',
+          background: 'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(248,113,113,0.08) 45%, rgba(255,255,255,0.92))',
+          boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
         }}>
           {/* Title Section */}
           <Box>
           <Typography 
-              variant="h3" 
+              variant="h4" 
               component="h1" 
             sx={{ 
                 fontWeight: 700,
-              fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
-                fontSize: { xs: '2rem', sm: '2.5rem' },
+                fontSize: { xs: '1.75rem', sm: '2.15rem' },
                 color: 'text.primary',
                 lineHeight: 1.2,
                 mb: 0.5
@@ -1381,23 +1382,25 @@ export default function FinancialPage() {
               variant="body1" 
               sx={{ 
                 color: 'text.secondary',
-                fontSize: { xs: '0.95rem', sm: '1rem' },
+                fontSize: { xs: '0.9rem', sm: '0.95rem' },
                 fontWeight: 400
               }}
             >
-              Track your business performance and financial insights
+              Track and trace revenue, commissions, costs, and payroll from one place.
             </Typography>
           </Box>
         </Box>
 
         {/* Period & payment filters */}
         <Box sx={{ 
-          mb: 3,
-          p: 2,
-          bgcolor: 'grey.50',
-          borderRadius: 2,
+          mt: 2,
+          mb: 2,
+          p: { xs: 1.5, sm: 2 },
+          bgcolor: '#f8fafc',
+          borderRadius: 2.5,
           border: '1px solid',
-          borderColor: 'grey.200'
+          borderColor: '#e2e8f0',
+          boxShadow: '0 8px 22px rgba(15, 23, 42, 0.04)',
         }}>
           <Box sx={{ 
             display: 'flex', 
@@ -1420,7 +1423,15 @@ export default function FinancialPage() {
                 size="small"
                 variant={dateFilter === key ? 'contained' : 'outlined'}
                 onClick={() => handleDateFilterChange(key)}
-                sx={{ textTransform: 'none', borderRadius: 999, fontWeight: 600 }}
+                sx={{
+                  textTransform: 'none',
+                  borderRadius: 999,
+                  fontWeight: 700,
+                  borderColor: '#cbd5e1',
+                  color: dateFilter === key ? '#fff' : '#475569',
+                  bgcolor: dateFilter === key ? '#dc2626' : '#fff',
+                  '&:hover': { borderColor: '#f87171', bgcolor: dateFilter === key ? '#b91c1c' : '#fff1f2' },
+                }}
               >
                 {label}
               </Button>
@@ -1429,7 +1440,15 @@ export default function FinancialPage() {
               size="small"
               variant={dateFilter === 'custom' ? 'contained' : 'outlined'}
               onClick={() => handleDateFilterChange('custom')}
-              sx={{ textTransform: 'none', borderRadius: 999, fontWeight: 600 }}
+              sx={{
+                textTransform: 'none',
+                borderRadius: 999,
+                fontWeight: 700,
+                borderColor: '#cbd5e1',
+                color: dateFilter === 'custom' ? '#fff' : '#475569',
+                bgcolor: dateFilter === 'custom' ? '#dc2626' : '#fff',
+                '&:hover': { borderColor: '#f87171', bgcolor: dateFilter === 'custom' ? '#b91c1c' : '#fff1f2' },
+              }}
             >
               Custom
             </Button>
@@ -1534,7 +1553,9 @@ export default function FinancialPage() {
                 disabled={dateRange.startDate === tempDateRange.startDate && dateRange.endDate === tempDateRange.endDate}
                 sx={{
                   textTransform: 'none',
-                  fontWeight: 600,
+                  fontWeight: 700,
+                  bgcolor: '#dc2626',
+                  '&:hover': { bgcolor: '#b91c1c' },
                   '&.Mui-disabled': { bgcolor: 'grey.300', color: 'grey.500' }
                 }}
               >
@@ -1542,12 +1563,33 @@ export default function FinancialPage() {
               </Button>
             </Box>
           </Collapse>
+          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: '#e2e8f0', display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Chip size="small" label={`Period: ${dateFilter.replaceAll('_', ' ')}`} sx={{ bgcolor: '#eef2ff', color: '#3730a3', border: '1px solid #c7d2fe', fontWeight: 700 }} />
+            <Chip size="small" label={`Payment: ${paymentMethodFilter === 'ALL' ? 'All methods' : paymentMethodFilter}`} sx={{ bgcolor: '#ecfeff', color: '#0f766e', border: '1px solid #99f6e4', fontWeight: 700 }} />
+          </Box>
         </Box>
       </Box>
 
       {userRole === 'Boss' ? (
         // Boss View
-        <Box>
+        <Box sx={{
+          '& .MuiCard-root': {
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: '#e2e8f0',
+            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
+          },
+          '& .MuiTableContainer-root': {
+            borderRadius: 2.5,
+            borderColor: '#e2e8f0',
+          },
+          '& .MuiTableHead-root .MuiTableRow-root': {
+            backgroundColor: '#f8fafc',
+          },
+          '& .MuiTableRow-root:hover .MuiTableCell-root': {
+            backgroundColor: '#fcfcfd',
+          },
+        }}>
           <Tabs 
             value={tabValue} 
             onChange={(e, newValue) => setTabValue(newValue)}
@@ -1555,9 +1597,26 @@ export default function FinancialPage() {
             scrollButtons="auto"
             allowScrollButtonsMobile
             sx={{ 
-              mb: 3, 
-              borderBottom: 1, 
-              borderColor: 'divider',
+              mb: 3,
+              p: 0.5,
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: '#e2e8f0',
+              bgcolor: '#fafafa',
+              '& .MuiTabs-indicator': { height: 0 },
+              '& .MuiTab-root': {
+                minHeight: 40,
+                borderRadius: 1.5,
+                textTransform: 'none',
+                fontWeight: 700,
+                color: '#64748b',
+                transition: 'all 180ms ease',
+              },
+              '& .MuiTab-root.Mui-selected': {
+                color: '#b91c1c',
+                bgcolor: 'rgba(239, 68, 68, 0.14)',
+                boxShadow: '0 6px 16px rgba(220, 38, 38, 0.14)',
+              },
               '& .MuiTabs-scrollButtons': {
                 '&.Mui-disabled': {
                   opacity: 0.3
@@ -1576,60 +1635,44 @@ export default function FinancialPage() {
               <Typography variant="subtitle2" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', fontSize: '0.75rem', mb: 1.5 }}>
                 Today
               </Typography>
-              <Box sx={{ 
-                mb: 4, 
-                p: 3, 
-                borderRadius: 2, 
-                bgcolor: 'background.paper',
-                border: '2px solid #8B0000',
-              }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                  <Typography variant="h6" fontWeight={600} color="text.primary">
+              <Box sx={{ mb: 4, p: { xs: 2, sm: 2.5 }, borderRadius: 3, bgcolor: 'background.paper', border: '1px solid #fecaca', boxShadow: '0 10px 26px rgba(127, 29, 29, 0.07)' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, flexWrap: 'wrap', gap: 1.25, mb: 2 }}>
+                  <Typography variant="h6" fontWeight={700} color="text.primary">
                     Today&apos;s business summary
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {new Date().toLocaleDateString('en-MY', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric',
-                      timeZone: 'Asia/Kuala_Lumpur'
-                    })}
-                  </Typography>
+                  <Chip
+                    size="small"
+                    label={new Date().toLocaleDateString('en-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kuala_Lumpur' })}
+                    sx={{ bgcolor: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', fontWeight: 600 }}
+                  />
                 </Box>
-                
-                <Grid container spacing={2} sx={{ mb: 3 }}>
+
+                <Grid container spacing={1.5} sx={{ mb: 2 }}>
                   <Grid item xs={6} md={3}>
-                    <Box sx={{ textAlign: { xs: 'left', md: 'center' } }}>
-                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                        Revenue
-                      </Typography>
-                      <Typography variant="h5" fontWeight={700} color="text.primary">
+                    <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid #fca5a5', bgcolor: '#fff1f2' }}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={700}>Revenue</Typography>
+                      <Typography variant="h6" fontWeight={800} sx={{ color: '#b91c1c' }}>
                         {formatCurrency(calculateTodaysRevenue())}
                       </Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={6} md={3}>
-                    <Box sx={{ textAlign: { xs: 'left', md: 'center' } }}>
-                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                        Customers
-                      </Typography>
-                      <Typography variant="h5" fontWeight={700} color="text.primary">
+                    <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid #bfdbfe', bgcolor: '#eff6ff' }}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={700}>Customers</Typography>
+                      <Typography variant="h6" fontWeight={800} sx={{ color: '#1d4ed8' }}>
                         {calculateTodaysCustomers()}
                       </Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={6} md={3}>
-                    <Box sx={{ textAlign: { xs: 'left', md: 'center' } }}>
-                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                        Expenses
-                      </Typography>
-                      <Typography variant="h5" fontWeight={700} color="text.primary">
+                    <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid #fde68a', bgcolor: '#fffbeb' }}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={700}>Expenses</Typography>
+                      <Typography variant="h6" fontWeight={800} sx={{ color: '#b45309' }}>
                         {(() => {
-                          const today = new Date().toISOString().split('T')[0];
+                          const today = getTodayMalaysiaString();
                           const todayExpenses = financialData.expenses
                             ?.filter((exp: any) => {
-                              const expenseDate = new Date(exp.date).toISOString().split('T')[0];
+                              const expenseDate = formatDateInKualaLumpur(new Date(exp.date));
                               return expenseDate === today;
                             })
                             .reduce((sum: number, exp: any) => sum + exp.amount, 0) || 0;
@@ -1639,21 +1682,20 @@ export default function FinancialPage() {
                     </Box>
                   </Grid>
                   <Grid item xs={6} md={3}>
-                    <Box sx={{ textAlign: { xs: 'left', md: 'center' }, display: 'flex', flexDirection: 'column', alignItems: { xs: 'flex-start', md: 'center' }, gap: 0.5 }}>
-                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                        Status
-                      </Typography>
+                    <Box sx={{ p: 1.5, borderRadius: 2, border: '1px solid #d1d5db', bgcolor: '#f8fafc' }}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={700}>Status</Typography>
                       {(() => {
-                        const today = new Date().toISOString().split('T')[0];
+                        const today = getTodayMalaysiaString();
                         const closed = isBossDateClosed(today);
                         return (
                           <Chip
                             size="small"
                             label={closed ? 'Closed' : 'Active'}
                             sx={{
+                              mt: 0.5,
                               fontWeight: 700,
-                              bgcolor: closed ? 'action.selected' : 'success.light',
-                              color: closed ? 'text.secondary' : 'success.dark',
+                              bgcolor: closed ? '#e5e7eb' : '#dcfce7',
+                              color: closed ? '#6b7280' : '#166534',
                             }}
                           />
                         );
@@ -1662,32 +1704,29 @@ export default function FinancialPage() {
                   </Grid>
                 </Grid>
 
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.25, pt: 1.5, borderTop: '1px solid', borderColor: '#e2e8f0' }}>
                   <Button
                     variant="outlined"
                     size="small"
                     onClick={generateFinancialReportPDF}
                     startIcon={<DownloadIcon />}
-                    sx={{
-                      textTransform: 'none',
-                      borderColor: '#1976d2',
-                      color: '#1976d2',
-                      '&:hover': { borderColor: '#1565c0', bgcolor: 'rgba(25, 118, 210, 0.04)' },
-                    }}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, borderColor: '#cbd5e1', color: '#475569', '&:hover': { borderColor: '#94a3b8', bgcolor: '#f8fafc' } }}
                   >
                     Print PDF
                   </Button>
                   <Button
-                    variant="outlined"
+                    variant="contained"
                     size="small"
                     onClick={() => setBossCloseDailyOpen(true)}
                     disabled={calculateTodaysRevenue() === 0}
                     sx={{
                       textTransform: 'none',
-                      borderColor: '#8B0000',
-                      color: '#8B0000',
-                      '&:hover': { borderColor: '#8B0000', bgcolor: 'rgba(139,0,0,0.08)' },
-                      '&:disabled': { borderColor: '#e0e0e0', color: 'text.disabled' },
+                      borderRadius: 2,
+                      fontWeight: 700,
+                      bgcolor: '#dc2626',
+                      boxShadow: '0 8px 18px rgba(220, 38, 38, 0.22)',
+                      '&:hover': { bgcolor: '#b91c1c' },
+                      '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#94a3b8' },
                     }}
                   >
                     Close daily account
@@ -1695,8 +1734,11 @@ export default function FinancialPage() {
                 </Box>
               </Box>
 
-              <Typography variant="subtitle2" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', fontSize: '0.75rem', mt: 1, mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', fontSize: '0.75rem', mt: 1, mb: 0.75 }}>
                 Period overview
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Quick financial snapshot for the selected range to track profitability, cost pressure, and customer volume at a glance.
               </Typography>
               <Grid container spacing={{ xs: 2, sm: 3 }}>
                 {/* Financial Overview Cards */}
@@ -1806,9 +1848,10 @@ export default function FinancialPage() {
           {tabValue === 1 && financialData && (
             <Stack spacing={3}>
             <Card sx={{ 
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-              border: 'none', 
-              borderRadius: { xs: 4, sm: 5 }, 
+              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)', 
+              border: '1px solid',
+              borderColor: '#e2e8f0',
+              borderRadius: 3, 
               backgroundColor: '#fff'
             }}>
               <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -1936,10 +1979,10 @@ export default function FinancialPage() {
                   </Grid>
                 ) : (
                   // Desktop Table Layout
-                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-                  <Table>
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2.5, borderColor: '#e2e8f0', overflowX: 'auto' }}>
+                  <Table sx={{ minWidth: 860 }}>
                     <TableHead>
-                      <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                      <TableRow sx={{ backgroundColor: '#f8fafc' }}>
                         <TableCell><strong>Barber</strong></TableCell>
                         <TableCell align="center"><strong>Appointments</strong></TableCell>
                         <TableCell align="center"><strong>Services & Products</strong></TableCell>
@@ -1949,7 +1992,7 @@ export default function FinancialPage() {
                     </TableHead>
                     <TableBody>
                       {financialData.barberPerformance.map((barber) => (
-                        <TableRow key={barber.id} hover sx={{ '&:nth-of-type(even)': { bgcolor: 'action.hover' } }}>
+                        <TableRow key={barber.id} hover sx={{ '&:nth-of-type(even)': { bgcolor: 'action.hover' }, '&:hover td': { bgcolor: '#fcfcfd' } }}>
                           <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                               <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
@@ -2016,9 +2059,10 @@ export default function FinancialPage() {
             </Card>
 
             <Card sx={{ 
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-              border: 'none', 
-              borderRadius: { xs: 4, sm: 5 }, 
+              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)', 
+              border: '1px solid',
+              borderColor: '#e2e8f0',
+              borderRadius: 3, 
               backgroundColor: '#fff'
             }}>
               <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -2029,8 +2073,8 @@ export default function FinancialPage() {
                 >
                   Staff payroll breakdown
                 </Typography>
-                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-                  <Table size="small">
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2.5, borderColor: '#e2e8f0', overflowX: 'auto' }}>
+                  <Table size="small" sx={{ minWidth: 980 }}>
                     <TableHead>
                       <TableRow sx={{ bgcolor: '#f8fafc' }}>
                         <TableCell><strong>Staff member</strong></TableCell>
@@ -2045,7 +2089,7 @@ export default function FinancialPage() {
                     <TableBody>
                       {financialData.barberPerformance && financialData.barberPerformance.length > 0 ? (
                         financialData.barberPerformance.map((barber) => (
-                          <TableRow key={barber.id} hover sx={{ '&:nth-of-type(even)': { bgcolor: 'action.hover' } }}>
+                          <TableRow key={barber.id} hover sx={{ '&:nth-of-type(even)': { bgcolor: 'action.hover' }, '&:hover td': { bgcolor: '#fcfcfd' } }}>
                             <TableCell>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
@@ -2156,9 +2200,10 @@ export default function FinancialPage() {
           {tabValue === 2 && financialData && (
             <Stack spacing={3}>
               <Card sx={{ 
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-                border: 'none', 
-                borderRadius: { xs: 4, sm: 5 }, 
+                boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)', 
+                border: '1px solid',
+                borderColor: '#e2e8f0',
+                borderRadius: 3, 
                 backgroundColor: '#fff'
               }}>
                 <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -2171,23 +2216,33 @@ export default function FinancialPage() {
                         Report period: {formatDate(dateRange.startDate)} – {formatDate(dateRange.endDate)}
                       </Typography>
                     </Box>
-                    <GradientButton
-                      variant="red"
-                      animated
+                    <Button
+                      variant="contained"
                       startIcon={<RestartAltIcon />}
                       onClick={() => setResetMonthlyOpen(true)}
-                      sx={{ px: { xs: 2, sm: 3 }, py: { xs: 0.8, sm: 1 }, fontSize: { xs: 12, sm: 13 } }}
+                      sx={{
+                        px: { xs: 2, sm: 2.5 },
+                        py: 0.85,
+                        borderRadius: 2,
+                        textTransform: 'none',
+                        fontWeight: 700,
+                        fontSize: { xs: 12, sm: 13 },
+                        bgcolor: '#dc2626',
+                        boxShadow: '0 8px 18px rgba(220, 38, 38, 0.22)',
+                        '&:hover': { bgcolor: '#b91c1c' },
+                      }}
                     >
                       Reset monthly
-                    </GradientButton>
+                    </Button>
                   </Box>
                 </CardContent>
               </Card>
 
               <Card sx={{ 
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-                border: 'none', 
-                borderRadius: { xs: 4, sm: 5 }, 
+                boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)', 
+                border: '1px solid',
+                borderColor: '#e2e8f0',
+                borderRadius: 3, 
                 backgroundColor: '#fff'
               }}>
                 <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -2206,12 +2261,11 @@ export default function FinancialPage() {
                   {financialData.serviceBreakdown.map((service, index) => (
                     <Grid item xs={12} sm={6} md={4} key={index}>
                       <Card sx={{
-                        border: '1px solid #e0e0e0',
-                        borderRadius: 3,
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 2.5,
                         transition: 'all 0.2s ease',
                         '&:hover': {
-                          outline: '2px solid #8B0000',
-                          outlineOffset: '-2px'
+                          boxShadow: '0 10px 22px rgba(15, 23, 42, 0.08)'
                         }
                       }}>
                         <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -2234,9 +2288,10 @@ export default function FinancialPage() {
 
               {financialData.productSalesBreakdown && financialData.productSalesBreakdown.length > 0 && (
                 <Card sx={{
-                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-                  border: 'none',
-                  borderRadius: { xs: 4, sm: 5 },
+                  boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
+                  border: '1px solid',
+                  borderColor: '#e2e8f0',
+                  borderRadius: 3,
                   bgcolor: '#fff'
                 }}>
                   <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -2246,8 +2301,8 @@ export default function FinancialPage() {
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                       Totals include only sales not linked to an appointment (same basis as period product mix). Shop-wide COGS and retail profit are on the Dashboard tab.
                     </Typography>
-                    <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-                      <Table size="small">
+                    <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2.5, borderColor: '#e2e8f0', overflowX: 'auto' }}>
+                      <Table size="small" sx={{ minWidth: 760 }}>
                         <TableHead>
                           <TableRow sx={{ bgcolor: '#f8fafc' }}>
                             <TableCell><strong>Product</strong></TableCell>
@@ -2260,7 +2315,7 @@ export default function FinancialPage() {
                         </TableHead>
                         <TableBody>
                           {financialData.productSalesBreakdown.map((row) => (
-                            <TableRow key={row.name} sx={{ '&:nth-of-type(even)': { bgcolor: 'action.hover' } }}>
+                            <TableRow key={row.name} sx={{ '&:nth-of-type(even)': { bgcolor: 'action.hover' }, '&:hover td': { bgcolor: '#fcfcfd' } }}>
                               <TableCell>{row.name}</TableCell>
                               <TableCell align="right">{row.quantity}</TableCell>
                               <TableCell align="right">{formatCurrency(row.totalRevenue)}</TableCell>
@@ -2308,9 +2363,10 @@ export default function FinancialPage() {
               )}
 
               <Card sx={{ 
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-                border: 'none', 
-                borderRadius: { xs: 4, sm: 5 }, 
+                boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)', 
+                border: '1px solid',
+                borderColor: '#e2e8f0',
+                borderRadius: 3, 
                 backgroundColor: '#fff'
               }}>
                 <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -2329,8 +2385,8 @@ export default function FinancialPage() {
                     <Grid item xs={12} md={6}>
                       <Box sx={{ 
                         p: 3, 
-                        border: '1px solid #e0e0e0', 
-                        borderRadius: 3,
+                        border: '1px solid #e2e8f0', 
+                        borderRadius: 2.5,
                         height: '100%'
                       }}>
                         <Typography variant="h6" fontWeight={600} gutterBottom color="success.main">
@@ -2458,9 +2514,10 @@ export default function FinancialPage() {
 
           {tabValue === 3 && financialData && (
             <Card sx={{ 
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-              border: 'none', 
-              borderRadius: { xs: 4, sm: 5 }, 
+              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)', 
+              border: '1px solid',
+              borderColor: '#e2e8f0',
+              borderRadius: 3, 
               backgroundColor: '#fff'
             }}>
               <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -2472,22 +2529,24 @@ export default function FinancialPage() {
                   >
                     Expenses
                   </Typography>
-                  <GradientButton
-                    variant="red"
-                    animated
+                  <Button
+                    variant="contained"
                     startIcon={<AddIcon />}
                     onClick={() => setExpenseDialogOpen(true)}
                     sx={{ 
-                      px: { xs: 2, sm: 3 }, 
-                      py: { xs: 1, sm: 1.2 }, 
+                      px: { xs: 2, sm: 2.5 }, 
+                      py: 0.9,
                       fontSize: { xs: '0.85rem', sm: '0.9rem' },
-                      fontWeight: 600,
+                      fontWeight: 700,
                       borderRadius: 2,
                       textTransform: 'none',
+                      bgcolor: '#dc2626',
+                      boxShadow: '0 8px 18px rgba(220, 38, 38, 0.22)',
+                      '&:hover': { bgcolor: '#b91c1c' },
                     }}
                   >
                     Add expense
-                  </GradientButton>
+                  </Button>
                 </Box>
                 
                 {isMobile ? (
@@ -2496,12 +2555,11 @@ export default function FinancialPage() {
                     {financialData.expenses.map((expense) => (
                       <Grid item xs={12} key={expense.id}>
                         <Card sx={{ 
-                          border: '1px solid #e0e0e0',
-                          borderRadius: 3,
+                          border: '1px solid #e2e8f0',
+                          borderRadius: 2.5,
                           transition: 'all 0.2s ease',
                           '&:hover': {
-                            outline: '2px solid #8B0000',
-                            outlineOffset: '-2px'
+                            boxShadow: '0 10px 22px rgba(15, 23, 42, 0.08)'
                           }
                         }}>
                           <CardContent sx={{ p: 2 }}>
@@ -2516,8 +2574,8 @@ export default function FinancialPage() {
                               </Box>
                               <IconButton 
                                 size="small" 
-                                color="error"
                                 onClick={() => handleDeleteExpense(expense.id)}
+                                sx={{ border: '1px solid #fecaca', color: '#dc2626', width: 30, height: 30, '&:hover': { bgcolor: '#fef2f2' } }}
                               >
                                 <DeleteIcon />
                               </IconButton>
@@ -2526,10 +2584,8 @@ export default function FinancialPage() {
                             <Box sx={{ mb: 1 }}>
                               <Chip 
                                 label={expense.category}
-                                color="secondary"
                                 size="small"
-                                variant="outlined"
-                                sx={{ mb: 1 }}
+                                sx={{ mb: 1, bgcolor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontWeight: 700 }}
                               />
                             </Box>
                             
@@ -2543,10 +2599,10 @@ export default function FinancialPage() {
                   </Grid>
                 ) : (
                   // Desktop Table Layout
-                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-                  <Table>
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2.5, borderColor: '#e2e8f0', overflowX: 'auto' }}>
+                  <Table sx={{ minWidth: 760 }}>
                     <TableHead>
-                      <TableRow>
+                      <TableRow sx={{ bgcolor: '#f8fafc' }}>
                         <TableCell><strong>Date</strong></TableCell>
                         <TableCell><strong>Category</strong></TableCell>
                         <TableCell><strong>Description</strong></TableCell>
@@ -2556,14 +2612,13 @@ export default function FinancialPage() {
                     </TableHead>
                     <TableBody>
                       {financialData.expenses.map((expense) => (
-                        <TableRow key={expense.id} hover sx={{ '&:nth-of-type(even)': { bgcolor: 'action.hover' } }}>
+                        <TableRow key={expense.id} hover sx={{ '&:nth-of-type(even)': { bgcolor: 'action.hover' }, '&:hover td': { bgcolor: '#fcfcfd' } }}>
                           <TableCell>{formatDate(expense.date)}</TableCell>
                           <TableCell>
                             <Chip 
                               label={expense.category}
-                              color="secondary"
                               size="small"
-                              variant="outlined"
+                              sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontWeight: 700 }}
                             />
                           </TableCell>
                           <TableCell>{expense.description}</TableCell>
@@ -2575,8 +2630,8 @@ export default function FinancialPage() {
                           <TableCell>
                             <IconButton 
                               size="small" 
-                              color="error"
                               onClick={() => handleDeleteExpense(expense.id)}
+                              sx={{ border: '1px solid #fecaca', color: '#dc2626', width: 30, height: 30, '&:hover': { bgcolor: '#fef2f2' } }}
                             >
                               <DeleteIcon />
                             </IconButton>
@@ -3552,6 +3607,7 @@ export default function FinancialPage() {
         </Alert>
       </Snackbar>
       </Box>
+      </Container>
     </DashboardLayout>
   );
 }

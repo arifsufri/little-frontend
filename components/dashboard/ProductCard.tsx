@@ -78,14 +78,15 @@ export default function ProductCard({
       tabIndex={onClick ? 0 : undefined}
       sx={{
         borderRadius: 3,
-        border: `1px solid ${isActive ? '#d1d5db' : '#ef4444'}`,
-        boxShadow: '0 8px 0 #0000000d, 0 12px 24px rgba(0,0,0,0.10)',
+        border: '1px solid',
+        borderColor: isActive ? '#e2e8f0' : '#fecaca',
+        boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'border-color 150ms ease, transform 150ms ease, outline-color 150ms ease, opacity 150ms ease',
-        opacity: isActive ? 1 : 0.7,
-        '&:hover': onClick ? { borderColor: '#ef4444' } : undefined,
+        opacity: isActive ? 1 : 0.9,
+        '&:hover': onClick ? { borderColor: '#fca5a5', transform: 'translateY(-2px)' } : undefined,
         '&:focus-visible': onClick ? { outline: '2px solid #ef4444', outlineOffset: 2 } : undefined,
-        '&:active': onClick ? { transform: 'translateY(1px)' } : undefined,
+        '&:active': onClick ? { transform: 'translateY(0px)' } : undefined,
       }}
     >
       <Card
@@ -103,12 +104,14 @@ export default function ProductCard({
               src={imageSrc} 
               alt={imageAlt || title} 
               onError={() => setImageError(true)}
-              sx={{ 
+              sx={{
                 position: 'absolute', 
                 inset: 0, 
                 width: '100%', 
                 height: '100%', 
-                objectFit: 'cover' 
+                objectFit: 'cover',
+                transition: 'transform 220ms ease',
+                '.MuiBox-root:hover &': { transform: 'scale(1.04)' },
               }} 
             />
           ) : (
@@ -184,23 +187,38 @@ export default function ProductCard({
               top: 8,
               left: 8,
               zIndex: 3,
-              backgroundColor: isActive ? 'success.main' : 'error.main',
-              color: 'white',
-              fontWeight: 600,
-              fontSize: '0.75rem',
+              backgroundColor: isActive ? '#ecfdf5' : '#fef2f2',
+              color: isActive ? '#047857' : '#b91c1c',
+              border: '1px solid',
+              borderColor: isActive ? '#6ee7b7' : '#fca5a5',
+              fontWeight: 700,
+              fontSize: '0.72rem',
               '& .MuiChip-label': {
                 px: 1
               }
             }}
           />
         </Box>
-        <CardContent sx={{ display: 'flex', flexDirection: retailMeta ? 'column' : 'row', alignItems: retailMeta ? 'stretch': 'center', justifyContent: 'space-between', gap: retailMeta ? 0.5 : 2, py: { xs: 1.25, sm: 2 }, position: 'relative' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, width: '100%' }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 800, fontSize: { xs: 14, sm: 18 } }}>
+        <CardContent sx={{ display: 'flex', flexDirection: retailMeta ? 'column' : 'row', alignItems: retailMeta ? 'stretch': 'center', justifyContent: 'space-between', gap: retailMeta ? 0.8 : 2, py: { xs: 1.4, sm: 2 }, px: { xs: 1.2, sm: 2 }, position: 'relative' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: { xs: 1, sm: 2 }, width: '100%', minWidth: 0 }}>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: 800,
+                fontSize: { xs: 13, sm: 18 },
+                lineHeight: 1.2,
+                minWidth: 0,
+                flex: 1,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={title}
+            >
               {title}
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="subtitle1" color="text.secondary" sx={{ fontWeight: 800, fontSize: { xs: 14, sm: 18 } }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, fontSize: { xs: 13, sm: 18 }, color: '#b91c1c', whiteSpace: 'nowrap' }}>
                 {price}
               </Typography>
               {userRole === 'Boss' && (onEdit || onDelete || onToggleStatus) && (
@@ -208,17 +226,32 @@ export default function ProductCard({
                   size="small"
                   onClick={handleMenuClick}
                   sx={{ 
-                    ml: 1,
-                    '&:hover': { backgroundColor: 'rgba(0,0,0,0.04)' }
+                    ml: 0,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    width: { xs: 26, sm: 28 },
+                    height: { xs: 26, sm: 28 },
+                    '&:hover': { backgroundColor: 'rgba(100, 116, 139, 0.08)' }
                   }}
                 >
-                  <MoreVertIcon fontSize="small" />
+                  <MoreVertIcon sx={{ fontSize: { xs: 16, sm: 17 } }} />
                 </IconButton>
               )}
             </Box>
           </Box>
           {retailMeta ? (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', pr: userRole === 'Boss' ? 4 : 0 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                display: 'block',
+                pr: userRole === 'Boss' ? 4 : 0,
+                p: 1,
+                borderRadius: 1.5,
+                bgcolor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+              }}
+            >
               {retailMeta}
             </Typography>
           ) : null}
@@ -232,26 +265,30 @@ export default function ProductCard({
         onClose={handleMenuClose}
         PaperProps={{
           sx: {
-            borderRadius: 2,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-            minWidth: 120
+            mt: 1,
+            borderRadius: 2.5,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 14px 30px rgba(15, 23, 42, 0.14)',
+            minWidth: 140,
+            p: 0.5,
           }
         }}
       >
         {onEdit && (
-          <MenuItem onClick={handleEdit} sx={{ gap: 1.5, py: 1 }}>
+          <MenuItem onClick={handleEdit} sx={{ gap: 1.5, py: 1, borderRadius: 1.5 }}>
             <EditIcon fontSize="small" />
             Edit
           </MenuItem>
         )}
         {onToggleStatus && (
-          <MenuItem onClick={handleToggleStatus} sx={{ gap: 1.5, py: 1, color: isActive ? 'warning.main' : 'success.main' }}>
+          <MenuItem onClick={handleToggleStatus} sx={{ gap: 1.5, py: 1, color: isActive ? 'warning.main' : 'success.main', borderRadius: 1.5 }}>
             {isActive ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
             {isActive ? 'Deactivate' : 'Activate'}
           </MenuItem>
         )}
         {onDelete && (
-          <MenuItem onClick={handleDelete} sx={{ gap: 1.5, py: 1, color: 'error.main' }}>
+          <MenuItem onClick={handleDelete} sx={{ gap: 1.5, py: 1, color: 'error.main', borderRadius: 1.5 }}>
             <DeleteIcon fontSize="small" />
             Delete
           </MenuItem>

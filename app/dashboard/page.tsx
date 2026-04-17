@@ -16,7 +16,8 @@ import {
   useTheme,
   useMediaQuery,
   Paper,
-  Divider
+  Divider,
+  Container,
 } from '@mui/material';
 import GroupIcon from '@mui/icons-material/GroupOutlined';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
@@ -357,28 +358,38 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
+      <Container maxWidth="lg" sx={{ px: { xs: 1, sm: 3 } }}>
       {/* Hero Header */}
-      <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+      <Box
+        sx={{
+          mb: { xs: 2, sm: 3 },
+          p: { xs: 2, sm: 2.5 },
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: 'divider',
+          background:
+            'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(248,113,113,0.08) 45%, rgba(255,255,255,0.92))',
+          boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
+        }}
+      >
         <Box>
           <Typography 
-            variant="h3" 
-            fontWeight={900} 
+            variant="h4" 
+            fontWeight={700} 
             sx={{ 
-              fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
-              fontSize: { xs: '1.75rem', sm: '3rem' },
+              fontSize: { xs: '1.75rem', sm: '2.15rem' },
               mb: { xs: 0.5, sm: 1 },
-              color: '#000000',
               lineHeight: 1.2
             }}
           >
             Dashboard
           </Typography>
           <Typography 
-            variant="h6" 
+            variant="body2" 
             sx={{ 
-              color: '#666666',
+              color: 'text.secondary',
               fontWeight: 400,
-              fontSize: { xs: '0.9rem', sm: '1.25rem' },
+              fontSize: { xs: '0.9rem', sm: '0.95rem' },
               lineHeight: 1.3
             }}
           >
@@ -395,7 +406,7 @@ export default function DashboardPage() {
             value={stats.totalClients} 
             icon={<GroupIcon />} 
             loading={loading}
-            gradient="linear-gradient(135deg, #8B4513 0%, #A0522D 100%)"
+            gradient="linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%)"
             subtitle="Active customers"
           />
         </Grid>
@@ -405,7 +416,7 @@ export default function DashboardPage() {
             value={stats.appointmentsToday} 
             icon={<CalendarMonthIcon />} 
             loading={loading}
-            gradient="linear-gradient(135deg, #A52A2A 0%, #B22222 100%)"
+            gradient="linear-gradient(135deg, #1f2937 0%, #374151 100%)"
             subtitle="All bookings"
           />
         </Grid>
@@ -415,7 +426,7 @@ export default function DashboardPage() {
             value={stats.appointmentsTodayCount} 
             icon={<PendingIcon />} 
             loading={loading}
-            gradient="linear-gradient(135deg, #CD853F 0%, #D2691E 100%)"
+            gradient="linear-gradient(135deg, #9a3412 0%, #c2410c 100%)"
             subtitle={stats.pendingAppointmentsToday > 0 ? "Needs attention" : "All clear"}
           />
         </Grid>
@@ -426,7 +437,7 @@ export default function DashboardPage() {
             icon={<AttachMoneyIcon />} 
             loading={loading}
             prefix="RM"
-            gradient="linear-gradient(135deg, #800000 0%, #8B0000 100%)"
+            gradient="linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%)"
             subtitle="Today's earnings"
           />
         </Grid>
@@ -435,15 +446,15 @@ export default function DashboardPage() {
         <Grid item xs={12} lg={8}>
           <Card 
             sx={{ 
-              borderRadius: { xs: 4, sm: 5 },
+              borderRadius: 3,
               background: '#ffffff',
-              border: 'none',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
               minHeight: { xs: 320, sm: 400 },
               transition: 'all 0.3s ease',
               '&:hover': {
                 transform: { xs: 'none', sm: 'translateY(-8px)' },
-                boxShadow: { xs: '0 4px 20px rgba(0, 0, 0, 0.08)', sm: '0 12px 40px rgba(0, 0, 0, 0.15)' }
+                boxShadow: { xs: '0 12px 28px rgba(15, 23, 42, 0.05)', sm: '0 14px 30px rgba(15, 23, 42, 0.10)' }
               }
             }}
           >
@@ -489,6 +500,12 @@ export default function DashboardPage() {
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={revenueData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(139, 69, 19, 0.1)" />
+                    <defs>
+                      <linearGradient id="dashboardRevenueLine" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#dc2626" />
+                        <stop offset="100%" stopColor="#f87171" />
+                      </linearGradient>
+                    </defs>
                     <XAxis 
                       dataKey="date" 
                       stroke="#718096"
@@ -510,9 +527,9 @@ export default function DashboardPage() {
                     <Line 
                       type="monotone" 
                       dataKey="revenue" 
-                      stroke="#059669" 
+                      stroke="url(#dashboardRevenueLine)" 
                       strokeWidth={3}
-                      dot={{ fill: '#059669', r: 4 }}
+                      dot={{ fill: '#dc2626', r: 4 }}
                       activeDot={{ r: 6 }}
                     />
                   </LineChart>
@@ -526,15 +543,15 @@ export default function DashboardPage() {
         <Grid item xs={12} lg={4}>
           <Card 
             sx={{ 
-              borderRadius: { xs: 4, sm: 5 },
+              borderRadius: 3,
               background: '#ffffff',
-              border: 'none',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
               minHeight: { xs: 320, sm: 400 },
               transition: 'all 0.3s ease',
               '&:hover': {
                 transform: { xs: 'none', sm: 'translateY(-8px)' },
-                boxShadow: { xs: '0 4px 20px rgba(0, 0, 0, 0.08)', sm: '0 12px 40px rgba(0, 0, 0, 0.15)' }
+                boxShadow: { xs: '0 12px 28px rgba(15, 23, 42, 0.05)', sm: '0 14px 30px rgba(15, 23, 42, 0.10)' }
               }
             }}
           >
@@ -578,7 +595,7 @@ export default function DashboardPage() {
                     <Typography variant="body2" fontWeight={600} sx={{ color: '#4a5568' }}>
                       Completion Rate
                     </Typography>
-                    <Typography variant="h6" fontWeight={700} sx={{ color: '#8B4513' }}>
+                      <Typography variant="h6" fontWeight={700} sx={{ color: '#b91c1c' }}>
                       {completionRate}%
                     </Typography>
                   </Stack>
@@ -588,9 +605,9 @@ export default function DashboardPage() {
                     sx={{
                       height: 8,
                       borderRadius: 4,
-                      bgcolor: 'rgba(139, 69, 19, 0.1)',
+                      bgcolor: 'rgba(239, 68, 68, 0.12)',
                       '& .MuiLinearProgress-bar': {
-                        background: 'linear-gradient(90deg, #8B4513 0%, #A52A2A 100%)',
+                        background: 'linear-gradient(90deg, #dc2626 0%, #f87171 100%)',
                         borderRadius: 4
                       }
                     }}
@@ -604,7 +621,7 @@ export default function DashboardPage() {
                     Revenue Target Progress
                   </Typography>
                   <Stack direction="row" justifyContent="space-between" alignItems="baseline">
-                    <Typography variant="h5" fontWeight={700} sx={{ color: '#8B4513' }}>
+                    <Typography variant="h5" fontWeight={700} sx={{ color: '#b91c1c' }}>
                       RM{stats.totalRevenueToday}
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#718096' }}>
@@ -617,10 +634,10 @@ export default function DashboardPage() {
                     sx={{
                       height: 6,
                       borderRadius: 3,
-                      bgcolor: 'rgba(165, 42, 42, 0.1)',
+                      bgcolor: 'rgba(239, 68, 68, 0.10)',
                       mt: 1,
                       '& .MuiLinearProgress-bar': {
-                        background: 'linear-gradient(90deg, #A52A2A 0%, #800000 100%)',
+                        background: 'linear-gradient(90deg, #ef4444 0%, #b91c1c 100%)',
                         borderRadius: 3
                       }
                     }}
@@ -638,7 +655,7 @@ export default function DashboardPage() {
                       <Typography variant="body2" sx={{ color: '#4a5568' }}>
                         Average Service Time
                       </Typography>
-                      <Typography variant="body2" fontWeight={600} sx={{ color: '#8B4513' }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ color: '#b91c1c' }}>
                         45 mins
                       </Typography>
                     </Stack>
@@ -648,7 +665,7 @@ export default function DashboardPage() {
                       </Typography>
                       <Stack direction="row" alignItems="center" spacing={0.5}>
                         <StarIcon sx={{ fontSize: 16, color: '#FFD700' }} />
-                        <Typography variant="body2" fontWeight={600} sx={{ color: '#8B4513' }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ color: '#b91c1c' }}>
                           4.8/5
                         </Typography>
                       </Stack>
@@ -657,7 +674,7 @@ export default function DashboardPage() {
                       <Typography variant="body2" sx={{ color: '#4a5568' }}>
                         Next Appointment
                       </Typography>
-                      <Typography variant="body2" fontWeight={600} sx={{ color: '#A52A2A' }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ color: '#dc2626' }}>
                         {stats.pendingAppointmentsToday > 0 
                           ? `${stats.pendingAppointmentsToday} pending`
                           : 'All clear'
@@ -675,15 +692,15 @@ export default function DashboardPage() {
         <Grid item xs={12} lg={6}>
           <Card 
             sx={{ 
-              borderRadius: { xs: 4, sm: 5 },
+              borderRadius: 3,
               background: '#ffffff',
-              border: 'none',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
               minHeight: { xs: 320, sm: 400 },
               transition: 'all 0.3s ease',
               '&:hover': {
                 transform: { xs: 'none', sm: 'translateY(-8px)' },
-                boxShadow: { xs: '0 4px 20px rgba(0, 0, 0, 0.08)', sm: '0 12px 40px rgba(0, 0, 0, 0.15)' }
+                boxShadow: { xs: '0 12px 28px rgba(15, 23, 42, 0.05)', sm: '0 14px 30px rgba(15, 23, 42, 0.10)' }
               }
             }}
           >
@@ -750,7 +767,7 @@ export default function DashboardPage() {
                         return [value, 'Appointments'];
                       }}
                     />
-                    <Bar dataKey="revenue" fill="#2563eb" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="revenue" fill="#dc2626" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -768,15 +785,15 @@ export default function DashboardPage() {
         <Grid item xs={12} lg={6}>
           <Card 
             sx={{ 
-              borderRadius: { xs: 4, sm: 5 },
+              borderRadius: 3,
               background: '#ffffff',
-              border: 'none',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
               minHeight: { xs: 320, sm: 400 },
               transition: 'all 0.3s ease',
               '&:hover': {
                 transform: { xs: 'none', sm: 'translateY(-8px)' },
-                boxShadow: { xs: '0 4px 20px rgba(0, 0, 0, 0.08)', sm: '0 12px 40px rgba(0, 0, 0, 0.15)' }
+                boxShadow: { xs: '0 12px 28px rgba(15, 23, 42, 0.05)', sm: '0 14px 30px rgba(15, 23, 42, 0.10)' }
               }
             }}
           >
@@ -840,11 +857,7 @@ export default function DashboardPage() {
                       }}
                       formatter={(value: any) => [value, 'Appointments']}
                     />
-                    <Bar 
-                      dataKey="appointments" 
-                      fill="#dc2626" 
-                      radius={[8, 8, 0, 0]}
-                    />
+                    <Bar dataKey="appointments" fill="#ef4444" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -856,15 +869,15 @@ export default function DashboardPage() {
         <Grid item xs={12} lg={6}>
           <Card 
             sx={{ 
-              borderRadius: { xs: 4, sm: 5 },
+              borderRadius: 3,
               background: '#ffffff',
-              border: 'none',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
               minHeight: { xs: 320, sm: 400 },
               transition: 'all 0.3s ease',
               '&:hover': {
                 transform: { xs: 'none', sm: 'translateY(-8px)' },
-                boxShadow: { xs: '0 4px 20px rgba(0, 0, 0, 0.08)', sm: '0 12px 40px rgba(0, 0, 0, 0.15)' }
+                boxShadow: { xs: '0 12px 28px rgba(15, 23, 42, 0.05)', sm: '0 14px 30px rgba(15, 23, 42, 0.10)' }
               }
             }}
           >
@@ -923,7 +936,7 @@ export default function DashboardPage() {
                         {serviceBreakdown.map((entry, index) => (
                           <Cell 
                             key={`cell-${index}`} 
-                            fill={['#8B4513', '#A52A2A', '#CD853F', '#D2691E', '#B8860B'][index % 5]} 
+                            fill={['#dc2626', '#ef4444', '#f97316', '#fb7185', '#7f1d1d'][index % 5]} 
                           />
                         ))}
                       </Pie>
@@ -951,8 +964,8 @@ export default function DashboardPage() {
                         sx={{ 
                           p: 1.5, 
                           borderRadius: 2,
-                          background: 'rgba(139, 69, 19, 0.03)',
-                          border: '1px solid rgba(139, 69, 19, 0.1)'
+                          background: 'rgba(239, 68, 68, 0.04)',
+                          border: '1px solid rgba(239, 68, 68, 0.12)'
                         }}
                       >
                         <Stack direction="row" alignItems="center" spacing={1}>
@@ -961,7 +974,7 @@ export default function DashboardPage() {
                               width: 12, 
                               height: 12, 
                               borderRadius: '50%',
-                              background: ['#8B4513', '#A52A2A', '#CD853F', '#D2691E', '#B8860B'][index % 5]
+                              background: ['#dc2626', '#ef4444', '#f97316', '#fb7185', '#7f1d1d'][index % 5]
                             }} 
                           />
                           <Typography variant="body2" fontWeight={600}>
@@ -995,15 +1008,15 @@ export default function DashboardPage() {
         <Grid item xs={12} lg={6}>
           <Card 
             sx={{ 
-              borderRadius: { xs: 4, sm: 5 },
+              borderRadius: 3,
               background: '#ffffff',
-              border: 'none',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
               minHeight: { xs: 320, sm: 400 },
               transition: 'all 0.3s ease',
               '&:hover': {
                 transform: { xs: 'none', sm: 'translateY(-8px)' },
-                boxShadow: { xs: '0 4px 20px rgba(0, 0, 0, 0.08)', sm: '0 12px 40px rgba(0, 0, 0, 0.15)' }
+                boxShadow: { xs: '0 12px 28px rgba(15, 23, 42, 0.05)', sm: '0 14px 30px rgba(15, 23, 42, 0.10)' }
               }
             }}
           >
@@ -1089,6 +1102,7 @@ export default function DashboardPage() {
           </Card>
         </Grid>
       </Grid>
+      </Container>
     </DashboardLayout>
   );
 }

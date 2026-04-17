@@ -46,6 +46,7 @@ import PendingIcon from '@mui/icons-material/PendingActions';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -386,6 +387,81 @@ export default function StaffPage() {
   };
 
   const stats = getStaffStats();
+  const statCardSx = {
+    borderRadius: 3,
+    border: '1px solid',
+    borderColor: 'divider',
+    boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
+    backgroundColor: '#fff',
+    height: '100%',
+  };
+  const dialogPaperProps = {
+    sx: {
+      borderRadius: 3,
+      border: '1px solid',
+      borderColor: 'divider',
+      boxShadow: '0 20px 45px rgba(15, 23, 42, 0.12)',
+    },
+  };
+  const modalTitleSx = {
+    py: 2,
+    borderBottom: '1px solid',
+    borderColor: 'divider',
+    bgcolor: 'rgba(248, 250, 252, 0.9)',
+  };
+  const modalContentSx = {
+    px: { xs: 2, sm: 3 },
+    py: { xs: 2, sm: 2.5 },
+    overflow: 'auto',
+    bgcolor: '#fcfcfd',
+  };
+  const modalActionsSx = {
+    px: { xs: 2, sm: 3 },
+    py: { xs: 1.75, sm: 2.25 },
+    gap: { xs: 1.25, sm: 1.5 },
+    flexDirection: 'row',
+    borderTop: '1px solid',
+    borderColor: 'divider',
+    bgcolor: 'rgba(248, 250, 252, 0.85)',
+  };
+  const secondaryButtonSx = {
+    flex: 1,
+    borderRadius: 2,
+    py: 1.1,
+    textTransform: 'none',
+    fontWeight: 600,
+    borderColor: 'grey.300',
+    color: 'text.secondary',
+    '&:hover': { borderColor: 'grey.400', bgcolor: 'grey.50' },
+  };
+  const primaryButtonSx = {
+    flex: 1,
+    borderRadius: 2,
+    py: 1.1,
+    textTransform: 'none',
+    fontWeight: 700,
+    bgcolor: '#dc2626',
+    boxShadow: '0 8px 20px rgba(220, 38, 38, 0.28)',
+    '&:hover': { bgcolor: '#b91c1c', boxShadow: '0 10px 24px rgba(185, 28, 28, 0.34)' },
+    '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#94a3b8' },
+  };
+  const getRoleChipSx = (role: Staff['role']) => ({
+    borderRadius: 2,
+    fontWeight: 700,
+    border: '1px solid',
+    ...(role === 'Boss'
+      ? { bgcolor: '#eff6ff', color: '#1d4ed8', borderColor: '#93c5fd' }
+      : { bgcolor: '#faf5ff', color: '#9333ea', borderColor: '#d8b4fe' }),
+  });
+  const getStaffStatusChipSx = (status: Staff['status']) => ({
+    borderRadius: 2,
+    fontWeight: 700,
+    border: '1px solid',
+    textTransform: 'capitalize',
+    ...(status === 'active'
+      ? { bgcolor: '#ecfdf5', color: '#047857', borderColor: '#6ee7b7' }
+      : { bgcolor: '#fef2f2', color: '#b91c1c', borderColor: '#fca5a5' }),
+  });
 
   // Only Boss can access this page
   if (userRole !== 'Boss') {
@@ -406,59 +482,92 @@ export default function StaffPage() {
   return (
     <DashboardLayout>
       {/* Header */}
-      <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+      <Box
+        sx={{
+          mb: { xs: 2, sm: 3 },
+          p: { xs: 2, sm: 2.5 },
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: 'divider',
+          background:
+            'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(248,113,113,0.08) 45%, rgba(255,255,255,0.92))',
+          boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
+        }}
+      >
         <Box sx={{ 
           display: 'flex', 
           alignItems: { xs: 'flex-start', sm: 'center' }, 
           justifyContent: 'space-between', 
           flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 2, sm: 2 }, 
-          pb: 2
+          gap: { xs: 2, sm: 2 },
         }}>
-          <Typography 
-            variant="h4" 
-            fontWeight={900} 
-            sx={{ 
-              fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
-              fontSize: { xs: '1.75rem', sm: '3rem' },
-              color: '#000000',
-              lineHeight: 1.2
-            }}
-          >
-            Staff Management
-          </Typography>
-          <GradientButton
-            variant="red"
-            animated
+          <Box>
+            <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+              Staff Management
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Manage team members, roles, commissions, and activity.
+            </Typography>
+          </Box>
+          <Box
+            component="button"
             onClick={() => setCreateStaffOpen(true)}
-            sx={{ 
-              px: { xs: 2, sm: 3 }, 
-              py: { xs: 1, sm: 1.2 }, 
-              fontSize: { xs: 13, sm: 14 },
+            sx={{
+              px: { xs: 2, sm: 1.25 },
+              py: 1,
               width: { xs: '100%', sm: 'auto' },
-              borderRadius: { xs: 3, sm: 4 }
+              minWidth: { xs: '100%', sm: 44 },
+              borderRadius: 999,
+              border: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: { xs: 13, sm: 14 },
+              fontWeight: 700,
+              lineHeight: 1,
+              boxShadow: '0 8px 18px rgba(220, 38, 38, 0.22)',
+              bgcolor: '#dc2626',
+              color: '#fff',
+              overflow: 'hidden',
+              cursor: 'pointer',
+              transition: 'all 220ms ease',
+              '&:hover': {
+                bgcolor: '#b91c1c',
+                boxShadow: '0 10px 22px rgba(185, 28, 28, 0.28)',
+                px: { xs: 2, sm: 2.25 },
+                '& .create-staff-label': {
+                  maxWidth: { xs: 160, sm: 120 },
+                  opacity: 1,
+                  marginLeft: 0.75,
+                },
+              },
             }}
+            aria-label="Add new staff"
           >
-            Add New Staff
-          </GradientButton>
+            <AddIcon sx={{ fontSize: 20, flexShrink: 0 }} />
+            <Box
+              component="span"
+              className="create-staff-label"
+              sx={{
+                display: 'inline-block',
+                whiteSpace: 'nowrap',
+                maxWidth: { xs: 160, sm: 0 },
+                opacity: { xs: 1, sm: 0 },
+                marginLeft: { xs: 0.75, sm: 0 },
+                lineHeight: 1,
+                transition: 'all 220ms ease',
+              }}
+            >
+              Add Staff
+            </Box>
+          </Box>
         </Box>
       </Box>
 
       <Grid container spacing={{ xs: 2, sm: 3 }}>
         {/* Stats Cards */}
         <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ 
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-            border: 'none', 
-            borderRadius: { xs: 4, sm: 5 }, 
-            backgroundColor: '#fff',
-            height: '100%',
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              outline: '2px solid #8B0000',
-              outlineOffset: '-2px'
-            }
-          }}>
+          <Card sx={statCardSx}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -503,18 +612,7 @@ export default function StaffPage() {
         </Grid>
 
         <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ 
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-            border: 'none', 
-            borderRadius: { xs: 4, sm: 5 }, 
-            backgroundColor: '#fff',
-            height: '100%',
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              outline: '2px solid #8B0000',
-              outlineOffset: '-2px'
-            }
-          }}>
+          <Card sx={statCardSx}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -559,18 +657,7 @@ export default function StaffPage() {
         </Grid>
 
         <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ 
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-            border: 'none', 
-            borderRadius: { xs: 4, sm: 5 }, 
-            backgroundColor: '#fff',
-            height: '100%',
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              outline: '2px solid #8B0000',
-              outlineOffset: '-2px'
-            }
-          }}>
+          <Card sx={statCardSx}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -615,18 +702,7 @@ export default function StaffPage() {
         </Grid>
 
         <Grid item xs={6} sm={6} md={3}>
-          <Card sx={{ 
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-            border: 'none', 
-            borderRadius: { xs: 4, sm: 5 }, 
-            backgroundColor: '#fff',
-            height: '100%',
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              outline: '2px solid #8B0000',
-              outlineOffset: '-2px'
-            }
-          }}>
+          <Card sx={statCardSx}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -672,17 +748,16 @@ export default function StaffPage() {
 
         {/* Staff List */}
         <Grid item xs={12}>
-          <Card sx={{ 
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-            border: 'none', 
-            borderRadius: { xs: 4, sm: 5 }, 
-            backgroundColor: '#fff',
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              outline: '2px solid #8B0000',
-              outlineOffset: '-2px'
-            }
-          }}>
+          <Card
+            elevation={0}
+            sx={{
+              borderRadius: 3,
+              border: '1px solid',
+              borderColor: 'divider',
+              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
+              overflow: 'hidden',
+            }}
+          >
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Typography 
                 variant="h6" 
@@ -696,13 +771,20 @@ export default function StaffPage() {
               </Typography>
 
               {/* Filters and Search */}
-              <Box sx={{ 
-                mb: { xs: 2, sm: 3 }, 
-                display: 'flex', 
-                flexDirection: { xs: 'column', sm: 'row' },
-                gap: { xs: 1.5, sm: 2 }, 
-                alignItems: { xs: 'stretch', sm: 'center' }
-              }}>
+              <Box
+                sx={{
+                  mb: { xs: 2, sm: 3 },
+                  display: 'flex',
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  gap: { xs: 1.25, sm: 1.25 },
+                  alignItems: { xs: 'stretch', sm: 'center' },
+                  p: { xs: 1.25, sm: 1.5 },
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: '#fafafa',
+                }}
+              >
                 <TextField
                   placeholder="Search by name, email, or phone..."
                   value={searchTerm}
@@ -711,7 +793,9 @@ export default function StaffPage() {
                     flex: { xs: 'none', sm: 1 },
                     maxWidth: { xs: '100%', sm: 400 },
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: { xs: 1.5, sm: 2 },
+                      borderRadius: { xs: 1.5, sm: 1.5 },
+                      height: 40,
+                      bgcolor: 'background.paper',
                     }
                   }}
                   InputProps={{
@@ -728,19 +812,19 @@ export default function StaffPage() {
                   size="small" 
                   sx={{ 
                     minWidth: { xs: '100%', sm: 150 },
-                    maxWidth: { xs: '100%', sm: 200 }
+                    maxWidth: { xs: '100%', sm: 200 },
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      height: 40,
+                      bgcolor: 'background.paper',
+                    },
                   }}
                 >
-                  <InputLabel>Status Filter</InputLabel>
+                  <InputLabel>Status</InputLabel>
                   <Select
                     value={statusFilter}
-                    label="Status Filter"
+                    label="Status"
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: { xs: 1.5, sm: 2 },
-                      }
-                    }}
                   >
                     <MenuItem value="all">
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -760,16 +844,27 @@ export default function StaffPage() {
                   mt: { xs: 1, sm: 0 },
                   px: { xs: 1, sm: 0 }
                 }}>
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary"
-                    sx={{ 
-                      fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                      textAlign: { xs: 'center', sm: 'right' }
+                  <Box
+                    sx={{
+                      px: 1.25,
+                      py: 0.6,
+                      borderRadius: 999,
+                      bgcolor: 'background.paper',
+                      border: '1px solid',
+                      borderColor: 'divider',
                     }}
                   >
-                    Showing {filteredStaff.length} of {staff.length} staff members
-                  </Typography>
+                    <Typography 
+                      variant="body2" 
+                      color="text.secondary"
+                      sx={{ 
+                        fontSize: { xs: '0.78rem', sm: '0.82rem' },
+                        textAlign: { xs: 'center', sm: 'right' }
+                      }}
+                    >
+                      Showing {filteredStaff.length} of {staff.length} staff members
+                    </Typography>
+                  </Box>
                 </Box>
               </Box>
               
@@ -860,23 +955,30 @@ export default function StaffPage() {
                 </Grid>
               ) : (
                 // Desktop Table Layout
-                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-                  <Table>
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2.5, borderColor: 'divider', boxShadow: 'none', overflowX: 'auto', overflowY: 'hidden' }}>
+                  <Table sx={{ minWidth: 980 }}>
                     <TableHead>
-                      <TableRow>
-                        <TableCell><strong>Staff Member</strong></TableCell>
-                        <TableCell><strong>ID Number</strong></TableCell>
-                        <TableCell><strong>Role</strong></TableCell>
-                        <TableCell><strong>Status</strong></TableCell>
-                        <TableCell><strong>Commission</strong></TableCell>
-                        <TableCell><strong>Join Date</strong></TableCell>
-                        <TableCell><strong>Performance</strong></TableCell>
-                        <TableCell><strong>Actions</strong></TableCell>
+                      <TableRow sx={{ bgcolor: 'rgba(148, 163, 184, 0.12)' }}>
+                        <TableCell sx={{ fontWeight: 700 }}>Staff Member</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>ID Number</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Role</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Commission</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Join Date</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Performance</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {filteredStaff.map((member) => (
-                        <TableRow key={member.id} hover>
+                        <TableRow
+                          key={member.id}
+                          hover
+                          sx={{
+                            '&:last-of-type td': { borderBottom: 0 },
+                            '&:hover': { bgcolor: 'rgba(59, 130, 246, 0.04)' },
+                          }}
+                        >
                           <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                               <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main' }}>
@@ -902,7 +1004,8 @@ export default function StaffPage() {
                               label={member.role}
                               color={getRoleColor(member.role) as any}
                               size="small"
-                              variant="outlined"
+                              variant="filled"
+                              sx={getRoleChipSx(member.role)}
                             />
                           </TableCell>
                           <TableCell>
@@ -910,16 +1013,24 @@ export default function StaffPage() {
                               label={member.status}
                               color={getStatusColor(member.status) as any}
                               size="small"
-                              variant="outlined"
+                              variant="filled"
+                              sx={getStaffStatusChipSx(member.status)}
                             />
                           </TableCell>
                           <TableCell>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                               <Chip 
                                 label={`Service: ${member.commissionRate || 0}%`}
-                                color="primary"
                                 size="small"
-                                variant="outlined"
+                                variant="filled"
+                                sx={{
+                                  borderRadius: 2,
+                                  fontWeight: 700,
+                                  border: '1px solid',
+                                  borderColor: '#fecaca',
+                                  bgcolor: '#fef2f2',
+                                  color: '#b91c1c',
+                                }}
                               />
                             </Box>
                           </TableCell>
@@ -941,8 +1052,18 @@ export default function StaffPage() {
                             <IconButton
                               size="small"
                                 onClick={(e) => handleMenuOpen(e, member)}
+                                sx={{
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                  color: 'text.secondary',
+                                  bgcolor: 'transparent',
+                                  width: 30,
+                                  height: 30,
+                                  p: 0.5,
+                                  '&:hover': { bgcolor: 'rgba(100, 116, 139, 0.08)' },
+                                }}
                             >
-                              <MoreVertIcon />
+                              <MoreVertIcon sx={{ fontSize: 17 }} />
                             </IconButton>
                             )}
                           </TableCell>
@@ -969,12 +1090,15 @@ export default function StaffPage() {
         sx={{
           '& .MuiDialog-paper': {
             margin: { xs: 1, sm: 2 },
-            borderRadius: { xs: 2, sm: 2 },
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.12)',
             maxHeight: { xs: '90vh', sm: 'none' }
           }
         }}
       >
-        <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
+        <DialogTitle sx={{ py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'rgba(248, 250, 252, 0.9)' }}>
           <Typography 
             variant="h6" 
             fontWeight={600}
@@ -983,7 +1107,7 @@ export default function StaffPage() {
             Add New Staff Member
           </Typography>
         </DialogTitle>
-        <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
+        <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: { xs: 2, sm: 2.5 }, overflow: 'auto', bgcolor: '#fcfcfd' }}>
           <Stack spacing={3} sx={{ mt: 1 }}>
             <TextField
               label="Full Name"
@@ -1046,39 +1170,41 @@ export default function StaffPage() {
             </FormControl>
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ 
-          px: { xs: 2, sm: 3 }, 
-          pb: { xs: 2, sm: 3 },
-          gap: { xs: 1.5, sm: 2 },
-          flexDirection: 'row'
-        }}>
-          <GradientButton
-            variant="blue"
-            animated
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: { xs: 1.75, sm: 2.25 }, gap: { xs: 1.25, sm: 1.5 }, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'rgba(248, 250, 252, 0.85)' }}>
+          <Button
+            variant="outlined"
             onClick={() => setCreateStaffOpen(false)}
             sx={{ 
               flex: 1,
-              px: { xs: 2, sm: 3 }, 
-              py: { xs: 1, sm: 1.2 }, 
-              fontSize: { xs: 13, sm: 14 }
+              borderRadius: 2,
+              py: 1.1,
+              textTransform: 'none',
+              fontWeight: 600,
+              borderColor: 'grey.300',
+              color: 'text.secondary',
+              '&:hover': { borderColor: 'grey.400', bgcolor: 'grey.50' },
             }}
           >
             Cancel
-          </GradientButton>
-          <GradientButton
-            variant="red"
-            animated
+          </Button>
+          <Button
+            variant="contained"
             onClick={handleCreateStaff}
             disabled={!newStaff.name || !newStaff.idNumber || newStaff.idNumber.length !== 4}
             sx={{ 
               flex: 1,
-              px: { xs: 2, sm: 3 }, 
-              py: { xs: 1, sm: 1.2 }, 
-              fontSize: { xs: 13, sm: 14 }
+              borderRadius: 2,
+              py: 1.1,
+              textTransform: 'none',
+              fontWeight: 700,
+              bgcolor: '#dc2626',
+              boxShadow: '0 8px 20px rgba(220, 38, 38, 0.28)',
+              '&:hover': { bgcolor: '#b91c1c', boxShadow: '0 10px 24px rgba(185, 28, 28, 0.34)' },
+              '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#94a3b8' },
             }}
           >
             Add
-          </GradientButton>
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -1088,15 +1214,9 @@ export default function StaffPage() {
         onClose={() => setCommissionDialogOpen(false)} 
         maxWidth="sm" 
         fullWidth
-        sx={{
-          '& .MuiDialog-paper': {
-            margin: { xs: 1, sm: 2 },
-            borderRadius: { xs: 2, sm: 2 },
-            maxHeight: { xs: '90vh', sm: 'none' }
-          }
-        }}
+        PaperProps={{ ...dialogPaperProps, sx: { ...dialogPaperProps.sx, margin: { xs: 1, sm: 2 }, maxHeight: { xs: '90vh', sm: 'none' } } }}
       >
-        <DialogTitle sx={{ pb: { xs: 1, sm: 2 } }}>
+        <DialogTitle sx={modalTitleSx}>
           <Typography 
             variant="h6" 
             fontWeight={600}
@@ -1110,7 +1230,7 @@ export default function StaffPage() {
             </Typography>
           )}
         </DialogTitle>
-        <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflow: 'auto' }}>
+        <DialogContent sx={modalContentSx}>
           <Stack spacing={3} sx={{ mt: 1 }}>
             <TextField
               label="Appointment Commission Rate (%)"
@@ -1127,39 +1247,22 @@ export default function StaffPage() {
             />
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ 
-          px: { xs: 2, sm: 3 }, 
-          pb: { xs: 2, sm: 3 },
-          gap: { xs: 1.5, sm: 2 },
-          flexDirection: 'row'
-        }}>
-          <GradientButton
-            variant="blue"
-            animated
+        <DialogActions sx={modalActionsSx}>
+          <Button
+            variant="outlined"
             onClick={() => setCommissionDialogOpen(false)}
-            sx={{ 
-              flex: 1,
-              px: { xs: 2, sm: 3 }, 
-              py: { xs: 1, sm: 1.2 }, 
-              fontSize: { xs: 13, sm: 14 }
-            }}
+            sx={secondaryButtonSx}
           >
             Cancel
-          </GradientButton>
-          <GradientButton
-            variant="red"
-            animated
+          </Button>
+          <Button
+            variant="contained"
             onClick={handleUpdateCommission}
             disabled={!commissionRate || parseFloat(commissionRate) < 0 || parseFloat(commissionRate) > 100}
-            sx={{ 
-              flex: 1,
-              px: { xs: 2, sm: 3 }, 
-              py: { xs: 1, sm: 1.2 }, 
-              fontSize: { xs: 13, sm: 14 }
-            }}
+            sx={primaryButtonSx}
           >
             Update Commission
-          </GradientButton>
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -1170,17 +1273,26 @@ export default function StaffPage() {
           open={Boolean(menuAnchorEl)}
           onClose={handleMenuClose}
           PaperProps={{
-            sx: { minWidth: 180 }
+            elevation: 0,
+            sx: {
+              mt: 1,
+              minWidth: 220,
+              borderRadius: 2.5,
+              border: '1px solid',
+              borderColor: 'divider',
+              boxShadow: '0 14px 30px rgba(15, 23, 42, 0.14)',
+              p: 0.5,
+            },
           }}
         >
-          <MenuItem onClick={() => handleMenuAction('commission')}>
+          <MenuItem onClick={() => handleMenuAction('commission')} sx={{ borderRadius: 1.5, py: 1.1 }}>
             <ListItemIcon>
               <PercentIcon fontSize="small" />
             </ListItemIcon>
             <ListItemText>Edit Commission</ListItemText>
           </MenuItem>
 
-          <MenuItem onClick={() => handleMenuAction('idnumber')}>
+          <MenuItem onClick={() => handleMenuAction('idnumber')} sx={{ borderRadius: 1.5, py: 1.1 }}>
             <ListItemIcon>
               <LockResetIcon fontSize="small" />
             </ListItemIcon>
@@ -1188,7 +1300,7 @@ export default function StaffPage() {
           </MenuItem>
           
           {menuStaff && (
-            <MenuItem onClick={() => handleMenuAction('toggle')}>
+            <MenuItem onClick={() => handleMenuAction('toggle')} sx={{ borderRadius: 1.5, py: 1.1 }}>
               <ListItemIcon>
                 {menuStaff.status === 'active' ? (
                   <PersonOffIcon fontSize="small" />
@@ -1202,7 +1314,7 @@ export default function StaffPage() {
             </MenuItem>
           )}
           
-          <MenuItem onClick={() => handleMenuAction('delete')} sx={{ color: 'error.main' }}>
+          <MenuItem onClick={() => handleMenuAction('delete')} sx={{ color: 'error.main', borderRadius: 1.5, py: 1.1 }}>
             <ListItemIcon>
               <DeleteIcon fontSize="small" color="error" />
             </ListItemIcon>
@@ -1222,13 +1334,14 @@ export default function StaffPage() {
         }}
         maxWidth="sm"
         fullWidth
+        PaperProps={dialogPaperProps}
       >
-        <DialogTitle>
+        <DialogTitle sx={modalTitleSx}>
           <Typography variant="h6" fontWeight={600}>
             Set ID Number for {selectedStaff?.name}
           </Typography>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={modalContentSx}>
           <Stack spacing={3} sx={{ mt: 2 }}>
             <TextField
               label="ID Number"
@@ -1263,43 +1376,26 @@ export default function StaffPage() {
             />
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ 
-          px: { xs: 2, sm: 3 }, 
-          pb: { xs: 2, sm: 3 },
-          gap: { xs: 1.5, sm: 2 },
-          flexDirection: 'row'
-        }}>
-          <GradientButton
-            variant="blue"
-            animated
+        <DialogActions sx={modalActionsSx}>
+          <Button
+            variant="outlined"
             onClick={() => {
               setIdNumberDialogOpen(false);
               setNewIdNumber('');
               setSelectedStaff(null);
             }}
-            sx={{ 
-              flex: 1,
-              px: { xs: 2, sm: 3 }, 
-              py: { xs: 1, sm: 1.2 }, 
-              fontSize: { xs: 13, sm: 14 }
-            }}
+            sx={secondaryButtonSx}
           >
             Cancel
-          </GradientButton>
-          <GradientButton
-            variant="red"
-            animated
+          </Button>
+          <Button
+            variant="contained"
             onClick={handleSetIdNumber}
             disabled={!newIdNumber || newIdNumber.length !== 4}
-            sx={{ 
-              flex: 1,
-              px: { xs: 2, sm: 3 }, 
-              py: { xs: 1, sm: 1.2 }, 
-              fontSize: { xs: 13, sm: 14 }
-            }}
+            sx={primaryButtonSx}
           >
             Set ID Number
-          </GradientButton>
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -1309,13 +1405,14 @@ export default function StaffPage() {
         onClose={() => setDeletingStaff(null)}
         maxWidth="sm"
         fullWidth
+        PaperProps={dialogPaperProps}
       >
-        <DialogTitle>
+        <DialogTitle sx={modalTitleSx}>
           <Typography variant="h6" fontWeight={600}>
             Delete Staff Member
           </Typography>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={modalContentSx}>
           <Typography variant="body1">
             Are you sure you want to delete &quot;{deletingStaff?.name}&quot;? This action cannot be undone.
           </Typography>
@@ -1323,33 +1420,21 @@ export default function StaffPage() {
             All appointments and financial data associated with this staff member will be preserved, but they will no longer be able to access the system.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ gap: 2, p: 3, flexDirection: 'row' }}>
-          <GradientButton
-            variant="blue"
-            animated
+        <DialogActions sx={modalActionsSx}>
+          <Button
+            variant="outlined"
             onClick={() => setDeletingStaff(null)}
-            sx={{ 
-              flex: 1,
-              px: { xs: 2, sm: 3 }, 
-              py: { xs: 1, sm: 1.2 }, 
-              fontSize: { xs: 13, sm: 14 }
-            }}
+            sx={secondaryButtonSx}
           >
             Cancel
-          </GradientButton>
-          <GradientButton
-            variant="red"
-            animated
+          </Button>
+          <Button
+            variant="contained"
             onClick={handleDeleteStaff}
-            sx={{ 
-              flex: 1,
-              px: { xs: 2, sm: 3 }, 
-              py: { xs: 1, sm: 1.2 }, 
-              fontSize: { xs: 13, sm: 14 }
-            }}
+            sx={primaryButtonSx}
           >
             Delete Staff
-          </GradientButton>
+          </Button>
         </DialogActions>
       </Dialog>
 

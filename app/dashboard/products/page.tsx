@@ -5,6 +5,7 @@ import DashboardLayout from '../../../components/dashboard/Layout';
 import { Grid, Typography, Box, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, FormControlLabel, Checkbox, MenuItem, Select, InputLabel, FormControl, IconButton, Container, Divider, Alert, Snackbar, Tabs, Tab, Card, CardContent, Paper } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCutIcon from '@mui/icons-material/ContentCut';
+import AddIcon from '@mui/icons-material/Add';
 import ProductCard from '../../../components/dashboard/ProductCard';
 import GradientButton from '../../../components/GradientButton';
 import { apiGet, uploadFile, apiPut, apiDelete } from '../../../src/utils/axios';
@@ -34,7 +35,7 @@ interface StaffCommissionAssignee {
 // Helper function to get full image URL
 const getImageUrl = (imageUrl?: string | null): string | undefined => {
   if (!imageUrl) return undefined;
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
   return `${baseUrl}${imageUrl}`;
 };
 
@@ -550,7 +551,7 @@ export default function ProductsPage() {
 
   const handleToggleStatus = async (pkg: Package) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'}/packages/${pkg.id}/toggle-status`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'}/packages/${pkg.id}/toggle-status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -589,49 +590,113 @@ export default function ProductsPage() {
   return (
     <DashboardLayout>
       <Container maxWidth="lg" sx={{ px: { xs: 1, sm: 3 } }}>
-        <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+        <Box
+          sx={{
+            mb: { xs: 2, sm: 3 },
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            background:
+              'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(248,113,113,0.08) 45%, rgba(255,255,255,0.92))',
+            boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
+          }}
+        >
           <Box sx={{ 
             display: 'flex', 
             alignItems: { xs: 'flex-start', sm: 'center' }, 
             justifyContent: 'space-between', 
             flexDirection: { xs: 'column', sm: 'row' },
-            gap: { xs: 2, sm: 2 }, 
-            pb: 2
+            gap: { xs: 2, sm: 2 },
           }}>
-            <Typography 
-              variant="h4" 
-              fontWeight={900} 
-              sx={{ 
-                fontFamily: 'Soria, Georgia, Cambria, \"Times New Roman\", Times, serif',
-                fontSize: { xs: '1.75rem', sm: '3rem' },
-                color: '#000000',
-                lineHeight: 1.2
-              }}
-            >
-              Products
-            </Typography>
+            <Box>
+              <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+                Products
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Manage service packages and retail items with clear margins and stock visibility.
+              </Typography>
+            </Box>
             {userRole === 'Boss' && (
-              <GradientButton
-                variant="red"
-                animated
-                sx={{ 
-                  px: { xs: 2, sm: 3 }, 
-                  py: { xs: 1, sm: 1.2 }, 
-                  fontSize: { xs: 13, sm: 14 },
-                  width: { xs: '100%', sm: 'auto' },
-                  borderRadius: { xs: 3, sm: 4 }
-                }}
+              <Box
+                component="button"
                 onClick={() => activeTab === 0 ? setOpen(true) : setRetailProductOpen(true)}
+                sx={{
+                  px: { xs: 2, sm: 1.25 },
+                  py: 1,
+                  width: { xs: '100%', sm: 'auto' },
+                  minWidth: { xs: '100%', sm: 44 },
+                  borderRadius: 999,
+                  border: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: { xs: 13, sm: 14 },
+                  fontWeight: 700,
+                  lineHeight: 1,
+                  boxShadow: '0 8px 18px rgba(220, 38, 38, 0.22)',
+                  bgcolor: '#dc2626',
+                  color: '#fff',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  transition: 'all 220ms ease',
+                  '&:hover': {
+                    bgcolor: '#b91c1c',
+                    boxShadow: '0 10px 22px rgba(185, 28, 28, 0.28)',
+                    px: { xs: 2, sm: 2.25 },
+                    '& .create-product-label': {
+                      maxWidth: { xs: 170, sm: 130 },
+                      opacity: 1,
+                      marginLeft: 0.75,
+                    },
+                  },
+                }}
+                aria-label={activeTab === 0 ? 'Create package' : 'Create product'}
               >
-                {activeTab === 0 ? 'New Package' : 'New Product'}
-              </GradientButton>
+                <AddIcon sx={{ fontSize: 20, flexShrink: 0 }} />
+                <Box
+                  component="span"
+                  className="create-product-label"
+                  sx={{
+                    display: 'inline-block',
+                    whiteSpace: 'nowrap',
+                    maxWidth: { xs: 170, sm: 0 },
+                    opacity: { xs: 1, sm: 0 },
+                    marginLeft: { xs: 0.75, sm: 0 },
+                    lineHeight: 1,
+                    transition: 'all 220ms ease',
+                  }}
+                >
+                  {activeTab === 0 ? 'New Package' : 'New Product'}
+                </Box>
+              </Box>
             )}
           </Box>
         </Box>
 
         {/* Tabs */}
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-          <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+        <Box sx={{ mb: 3, p: 0.5, borderRadius: 2, border: '1px solid', borderColor: 'divider', bgcolor: '#fafafa' }}>
+          <Tabs
+            value={activeTab}
+            onChange={(e, newValue) => setActiveTab(newValue)}
+            sx={{
+              minHeight: 40,
+              '& .MuiTabs-indicator': { height: 0 },
+              '& .MuiTab-root': {
+                minHeight: 40,
+                borderRadius: 1.5,
+                textTransform: 'none',
+                fontWeight: 700,
+                color: '#64748b',
+                transition: 'all 180ms ease',
+              },
+              '& .MuiTab-root.Mui-selected': {
+                color: '#b91c1c',
+                bgcolor: 'rgba(239, 68, 68, 0.14)',
+                boxShadow: '0 6px 16px rgba(220, 38, 38, 0.14)',
+              },
+            }}
+          >
             <Tab label="Service Packages" />
             {userRole === 'Boss' && <Tab label="Retail Products" />}
           </Tabs>
@@ -671,35 +736,78 @@ export default function ProductsPage() {
         ) : (
           <>
             {retailProducts.length > 0 && (
-              <Card sx={{ mb: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                <CardContent sx={{ py: 2 }}>
-                  <Typography variant="subtitle1" fontWeight={700} gutterBottom>
-                    Catalog totals (aggregated across products)
+              <Card
+                elevation={0}
+                sx={{
+                  mb: 3,
+                  borderRadius: 3,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
+                  overflow: 'hidden',
+                }}
+              >
+                <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
+                  <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.25 }}>
+                    Catalog Totals
                   </Typography>
-                  <Grid container spacing={2}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Snapshot across all retail products.
+                  </Typography>
+                  <Grid container spacing={1.5}>
                     <Grid item xs={12} sm={4}>
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        Total inventory cost (stock × unit cost)
-                      </Typography>
-                      <Typography variant="h6" fontWeight={700}>
-                        RM{retailCatalogTotals.inventoryCost.toFixed(2)}
-                      </Typography>
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          border: '1px solid',
+                          borderColor: '#dbeafe',
+                          bgcolor: '#eff6ff',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                          Inventory cost
+                        </Typography>
+                        <Typography variant="h6" fontWeight={800} color="#1d4ed8">
+                          RM{retailCatalogTotals.inventoryCost.toFixed(2)}
+                        </Typography>
+                      </Box>
                     </Grid>
                     <Grid item xs={12} sm={4}>
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        Total retail value (stock × selling price)
-                      </Typography>
-                      <Typography variant="h6" fontWeight={700} color="primary.main">
-                        RM{retailCatalogTotals.potentialRevenue.toFixed(2)}
-                      </Typography>
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          border: '1px solid',
+                          borderColor: '#fde68a',
+                          bgcolor: '#fffbeb',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                          Retail value
+                        </Typography>
+                        <Typography variant="h6" fontWeight={800} color="#b45309">
+                          RM{retailCatalogTotals.potentialRevenue.toFixed(2)}
+                        </Typography>
+                      </Box>
                     </Grid>
                     <Grid item xs={12} sm={4}>
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        Potential gross profit if all stock sells
-                      </Typography>
-                      <Typography variant="h6" fontWeight={700} color="success.main">
-                        RM{(retailCatalogTotals.potentialRevenue - retailCatalogTotals.inventoryCost).toFixed(2)}
-                      </Typography>
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          border: '1px solid',
+                          borderColor: '#fecaca',
+                          bgcolor: '#fef2f2',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                          Potential gross profit
+                        </Typography>
+                        <Typography variant="h6" fontWeight={800} color="#b91c1c">
+                          RM{(retailCatalogTotals.potentialRevenue - retailCatalogTotals.inventoryCost).toFixed(2)}
+                        </Typography>
+                      </Box>
                     </Grid>
                   </Grid>
                 </CardContent>
@@ -1576,223 +1684,247 @@ export default function ProductsPage() {
       </Dialog>
 
       {/* Create Retail Product Modal */}
-      <Dialog open={retailProductOpen} onClose={resetRetailModal} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800, fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif', pr: 6 }}>
-          Create New Product
+      <Dialog
+        open={retailProductOpen}
+        onClose={resetRetailModal}
+        fullWidth
+        maxWidth="lg"
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.12)',
+            maxHeight: '90vh',
+          },
+        }}
+      >
+        <DialogTitle sx={{ py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'rgba(248, 250, 252, 0.9)', pr: 6 }}>
+          Create Retail Product
           <IconButton onClick={resetRetailModal} sx={{ position: 'absolute', right: 12, top: 12 }} aria-label="close">
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent dividers>
-          <Box sx={{ display: 'grid', gap: 2, mt: 1 }}>
-            <TextField 
-              label="Product Name *" 
-              value={retailProductName} 
-              onChange={(e) => setRetailProductName(e.target.value)} 
-              fullWidth 
-              required 
-            />
-            <TextField 
-              label="Description" 
-              value={retailProductDesc} 
-              onChange={(e) => setRetailProductDesc(e.target.value)} 
-              fullWidth 
-              multiline 
-              minRows={3} 
-            />
-            <TextField 
-              label="Unit cost / COGS (RM)" 
-              type="number" 
-              value={retailProductUnitCost} 
-              onChange={(e) => setRetailProductUnitCost(e.target.value)} 
-              fullWidth 
-              inputProps={{ min: 0, step: 0.01 }} 
-              helperText="Your landed cost per unit (what you pay to stock it)"
-            />
-            <TextField 
-              label="Selling price (RM) *" 
-              type="number" 
-              value={retailProductPrice} 
-              onChange={(e) => setRetailProductPrice(e.target.value)} 
-              fullWidth 
-              inputProps={{ min: 0, step: 0.01 }} 
-              required
-            />
-            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50' }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" gutterBottom>
-                Per-unit economics
+        <DialogContent dividers sx={{ px: { xs: 2, sm: 3 }, py: { xs: 2, sm: 2.5 }, bgcolor: '#fcfcfd', overflowX: 'hidden' }}>
+          <Box sx={{ display: 'grid', gap: 2, mt: 1, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, alignItems: 'start' }}>
+            <Box sx={{ display: 'grid', gap: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Product Basics
               </Typography>
-              <Typography variant="body2">
-                Profit: <strong>RM{draftUnitProfit.toFixed(2)}</strong>
-                {' · '}
-                Margin: <strong>{draftMarginPct.toFixed(1)}%</strong> on selling price
+              <TextField label="Product Name *" value={retailProductName} onChange={(e) => setRetailProductName(e.target.value)} fullWidth required />
+              <TextField label="Stock Quantity" type="number" value={retailProductStock} onChange={(e) => setRetailProductStock(e.target.value)} fullWidth inputProps={{ min: 0 }} />
+              <TextField label="Description" value={retailProductDesc} onChange={(e) => setRetailProductDesc(e.target.value)} fullWidth multiline minRows={3} />
+              <Divider sx={{ my: 0.5 }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Product Image
               </Typography>
-            </Paper>
-            <TextField 
-              label="Stock Quantity" 
-              type="number" 
-              value={retailProductStock} 
-              onChange={(e) => setRetailProductStock(e.target.value)} 
-              fullWidth 
-              inputProps={{ min: 0 }} 
-            />
-            <Box>
-              <input
-                accept="image/*"
-                style={{ display: 'none' }}
-                id="retail-product-image-upload"
-                type="file"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) setRetailProductImage(file);
-                }}
+              <Box>
+                <input
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  id="retail-product-image-upload"
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setRetailProductImage(file);
+                  }}
+                />
+                <label htmlFor="retail-product-image-upload">
+                  <Button variant="outlined" component="span" fullWidth sx={{ py: 1.5 }}>
+                    {retailProductImage ? retailProductImage.name : 'Upload Product Image (Optional)'}
+                  </Button>
+                </label>
+              </Box>
+            </Box>
+            <Box sx={{ display: 'grid', gap: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Pricing & Margin
+              </Typography>
+              <TextField
+                label="Unit cost / COGS (RM)"
+                type="number"
+                value={retailProductUnitCost}
+                onChange={(e) => setRetailProductUnitCost(e.target.value)}
+                fullWidth
+                inputProps={{ min: 0, step: 0.01 }}
+                helperText="Your landed cost per unit (what you pay to stock it)"
               />
-              <label htmlFor="retail-product-image-upload">
-                <Button variant="outlined" component="span" fullWidth sx={{ py: 1.5 }}>
-                  {retailProductImage ? retailProductImage.name : 'Upload Product Image (Optional)'}
-                </Button>
-              </label>
+              <TextField
+                label="Selling price (RM) *"
+                type="number"
+                value={retailProductPrice}
+                onChange={(e) => setRetailProductPrice(e.target.value)}
+                fullWidth
+                inputProps={{ min: 0, step: 0.01 }}
+                required
+              />
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50' }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" gutterBottom>
+                  Per-unit economics
+                </Typography>
+                <Typography variant="body2">
+                  Profit: <strong>RM{draftUnitProfit.toFixed(2)}</strong>
+                  {' · '}
+                  Margin: <strong>{draftMarginPct.toFixed(1)}%</strong> on selling price
+                </Typography>
+              </Paper>
             </Box>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3, gap: 1.5 }}>
-          <Button onClick={resetRetailModal} sx={{ borderRadius: 9999, px: { xs: 2, sm: 3 }, py: { xs: 0.6, sm: 1.2 } }}>
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: { xs: 1.75, sm: 2.25 }, gap: { xs: 1.25, sm: 1.5 }, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'rgba(248, 250, 252, 0.85)' }}>
+          <Button
+            variant="outlined"
+            onClick={resetRetailModal}
+            sx={{ flex: 1, borderRadius: 2, py: 1.1, textTransform: 'none', fontWeight: 600, borderColor: 'grey.300', color: 'text.secondary', '&:hover': { borderColor: 'grey.400', bgcolor: 'grey.50' } }}
+          >
             Cancel
           </Button>
-          <GradientButton 
-            variant="red" 
-            animated 
-            sx={{ px: { xs: 2, sm: 3 }, py: { xs: 0.6, sm: 1.2 }, fontSize: { xs: 12, sm: 14 } }} 
+          <Button
+            variant="contained"
+            sx={{ flex: 1.2, borderRadius: 2, py: 1.1, textTransform: 'none', fontWeight: 700, bgcolor: '#dc2626', boxShadow: '0 8px 20px rgba(220, 38, 38, 0.28)', '&:hover': { bgcolor: '#b91c1c', boxShadow: '0 10px 24px rgba(185, 28, 28, 0.34)' }, '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#94a3b8' } }}
             onClick={handleCreateRetailProduct}
             disabled={creatingRetail}
           >
             {creatingRetail ? 'Creating...' : 'Create Product'}
-          </GradientButton>
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Edit Retail Product Modal */}
-      <Dialog open={retailProductEditOpen} onClose={resetRetailModal} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800, fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif', pr: 6 }}>
+      <Dialog
+        open={retailProductEditOpen}
+        onClose={resetRetailModal}
+        fullWidth
+        maxWidth="lg"
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.12)',
+            maxHeight: '90vh',
+          },
+        }}
+      >
+        <DialogTitle sx={{ py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'rgba(248, 250, 252, 0.9)', pr: 6 }}>
           Edit Product
           <IconButton onClick={resetRetailModal} sx={{ position: 'absolute', right: 12, top: 12 }} aria-label="close">
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent dividers>
-          <Box sx={{ display: 'grid', gap: 2, mt: 1 }}>
-            <TextField 
-              label="Product Name *" 
-              value={retailProductName} 
-              onChange={(e) => setRetailProductName(e.target.value)} 
-              fullWidth 
-              required 
-            />
-            <TextField 
-              label="Description" 
-              value={retailProductDesc} 
-              onChange={(e) => setRetailProductDesc(e.target.value)} 
-              fullWidth 
-              multiline 
-              minRows={3} 
-            />
-            <TextField 
-              label="Unit cost / COGS (RM)" 
-              type="number" 
-              value={retailProductUnitCost} 
-              onChange={(e) => setRetailProductUnitCost(e.target.value)} 
-              fullWidth 
-              inputProps={{ min: 0, step: 0.01 }} 
-              helperText="Your landed cost per unit (what you pay to stock it)"
-            />
-            <TextField 
-              label="Selling price (RM) *" 
-              type="number" 
-              value={retailProductPrice} 
-              onChange={(e) => setRetailProductPrice(e.target.value)} 
-              fullWidth 
-              inputProps={{ min: 0, step: 0.01 }} 
-              required
-            />
-            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50' }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" gutterBottom>
-                Per-unit economics
+        <DialogContent dividers sx={{ px: { xs: 2, sm: 3 }, py: { xs: 2, sm: 2.5 }, bgcolor: '#fcfcfd', overflowX: 'hidden' }}>
+          <Box sx={{ display: 'grid', gap: 2, mt: 1, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, alignItems: 'start' }}>
+            <Box sx={{ display: 'grid', gap: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Product Basics
               </Typography>
-              <Typography variant="body2">
-                Profit: <strong>RM{draftUnitProfit.toFixed(2)}</strong>
-                {' · '}
-                Margin: <strong>{draftMarginPct.toFixed(1)}%</strong> on selling price
+              <TextField label="Product Name *" value={retailProductName} onChange={(e) => setRetailProductName(e.target.value)} fullWidth required />
+              <TextField label="Stock Quantity" type="number" value={retailProductStock} onChange={(e) => setRetailProductStock(e.target.value)} fullWidth inputProps={{ min: 0 }} />
+              <TextField label="Description" value={retailProductDesc} onChange={(e) => setRetailProductDesc(e.target.value)} fullWidth multiline minRows={3} />
+              <Divider sx={{ my: 0.5 }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Product Image
               </Typography>
-            </Paper>
-            <TextField 
-              label="Stock Quantity" 
-              type="number" 
-              value={retailProductStock} 
-              onChange={(e) => setRetailProductStock(e.target.value)} 
-              fullWidth 
-              inputProps={{ min: 0 }} 
-            />
-            <Box>
-              <input
-                accept="image/*"
-                style={{ display: 'none' }}
-                id="retail-product-edit-image-upload"
-                type="file"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) setRetailProductImage(file);
-                }}
-              />
-              <label htmlFor="retail-product-edit-image-upload">
-                <Button variant="outlined" component="span" fullWidth sx={{ py: 1.5 }}>
-                  {retailProductImage ? retailProductImage.name : 'Change Product Image (Optional)'}
-                </Button>
-              </label>
-            </Box>
-            <Divider />
-            <Typography variant="subtitle1" fontWeight={700}>
-              Staff Commission (RM per unit)
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Flat amount each staff earns per unit sold. Leave 0 for no commission.
-            </Typography>
-            {commissionsLoading ? (
-              <Typography variant="body2" color="text.secondary">
-                Loading staff commission settings...
-              </Typography>
-            ) : (
-              staffList.map((staff) => (
-                <TextField
-                  key={staff.id}
-                  label={`${staff.name} (${staff.role})`}
-                  type="number"
-                  value={productCommissions[staff.id] ?? '0'}
-                  onChange={(e) =>
-                    setProductCommissions((prev) => ({
-                      ...prev,
-                      [staff.id]: e.target.value
-                    }))
-                  }
-                  inputProps={{ min: 0, step: 0.5 }}
-                  fullWidth
+              <Box>
+                <input
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  id="retail-product-edit-image-upload"
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setRetailProductImage(file);
+                  }}
                 />
-              ))
-            )}
+                <label htmlFor="retail-product-edit-image-upload">
+                  <Button variant="outlined" component="span" fullWidth sx={{ py: 1.5 }}>
+                    {retailProductImage ? retailProductImage.name : 'Change Product Image (Optional)'}
+                  </Button>
+                </label>
+              </Box>
+            </Box>
+            <Box sx={{ display: 'grid', gap: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Pricing & Margin
+              </Typography>
+              <TextField
+                label="Unit cost / COGS (RM)"
+                type="number"
+                value={retailProductUnitCost}
+                onChange={(e) => setRetailProductUnitCost(e.target.value)}
+                fullWidth
+                inputProps={{ min: 0, step: 0.01 }}
+                helperText="Your landed cost per unit (what you pay to stock it)"
+              />
+              <TextField
+                label="Selling price (RM) *"
+                type="number"
+                value={retailProductPrice}
+                onChange={(e) => setRetailProductPrice(e.target.value)}
+                fullWidth
+                inputProps={{ min: 0, step: 0.01 }}
+                required
+              />
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50' }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" gutterBottom>
+                  Per-unit economics
+                </Typography>
+                <Typography variant="body2">
+                  Profit: <strong>RM{draftUnitProfit.toFixed(2)}</strong>
+                  {' · '}
+                  Margin: <strong>{draftMarginPct.toFixed(1)}%</strong> on selling price
+                </Typography>
+              </Paper>
+              <Divider sx={{ my: 0.5 }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Staff Commission (RM per unit)
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Flat amount each staff earns per unit sold. Leave 0 for no commission.
+              </Typography>
+              <Box sx={{ maxHeight: 240, overflowY: 'auto', pr: 0.5, display: 'grid', gap: 1.25 }}>
+                {commissionsLoading ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Loading staff commission settings...
+                  </Typography>
+                ) : (
+                  staffList.map((staff) => (
+                    <TextField
+                      key={staff.id}
+                      label={`${staff.name} (${staff.role})`}
+                      type="number"
+                      value={productCommissions[staff.id] ?? '0'}
+                      onChange={(e) =>
+                        setProductCommissions((prev) => ({
+                          ...prev,
+                          [staff.id]: e.target.value
+                        }))
+                      }
+                      inputProps={{ min: 0, step: 0.5 }}
+                      fullWidth
+                    />
+                  ))
+                )}
+              </Box>
+            </Box>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3, gap: 1.5 }}>
-          <Button onClick={resetRetailModal} sx={{ borderRadius: 9999, px: { xs: 2, sm: 3 }, py: { xs: 0.6, sm: 1.2 } }}>
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: { xs: 1.75, sm: 2.25 }, gap: { xs: 1.25, sm: 1.5 }, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'rgba(248, 250, 252, 0.85)' }}>
+          <Button
+            variant="outlined"
+            onClick={resetRetailModal}
+            sx={{ flex: 1, borderRadius: 2, py: 1.1, textTransform: 'none', fontWeight: 600, borderColor: 'grey.300', color: 'text.secondary', '&:hover': { borderColor: 'grey.400', bgcolor: 'grey.50' } }}
+          >
             Cancel
           </Button>
-          <GradientButton 
-            variant="red" 
-            animated 
-            sx={{ px: { xs: 2, sm: 3 }, py: { xs: 0.6, sm: 1.2 }, fontSize: { xs: 12, sm: 14 } }} 
+          <Button
+            variant="contained"
+            sx={{ flex: 1.2, borderRadius: 2, py: 1.1, textTransform: 'none', fontWeight: 700, bgcolor: '#dc2626', boxShadow: '0 8px 20px rgba(220, 38, 38, 0.28)', '&:hover': { bgcolor: '#b91c1c', boxShadow: '0 10px 24px rgba(185, 28, 28, 0.34)' }, '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#94a3b8' } }}
             onClick={handleUpdateRetailProduct}
             disabled={creatingRetail}
           >
             {creatingRetail ? 'Updating...' : 'Update Product'}
-          </GradientButton>
+          </Button>
         </DialogActions>
       </Dialog>
 

@@ -36,18 +36,22 @@ import {
   Pagination,
   Snackbar,
   Alert,
+  Button,
+  CircularProgress,
 } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import PhoneIcon from '@mui/icons-material/Phone';
 import EventIcon from '@mui/icons-material/Event';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import GroupIcon from '@mui/icons-material/GroupOutlined';
 import PendingIcon from '@mui/icons-material/PendingActions';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import { apiGet, apiPost, apiDelete } from '../../../src/utils/axios';
+import AddIcon from '@mui/icons-material/Add';
+import { apiGet, apiPost, apiDelete, apiPatch } from '../../../src/utils/axios';
 import GradientButton from '../../../components/GradientButton';
 
 interface Client {
@@ -59,6 +63,8 @@ interface Client {
   appointmentCount?: number;
   pendingCount?: number;
   totalSpent?: number;
+  loyaltyProgress?: number;
+  loyaltyCycleCount?: number;
   appointments: Array<{
     id: number;
     status: string;
@@ -82,6 +88,9 @@ export default function ClientsPage() {
   const [createClientOpen, setCreateClientOpen] = React.useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [clientToDelete, setClientToDelete] = React.useState<Client | null>(null);
+  const [loyaltyDialogOpen, setLoyaltyDialogOpen] = React.useState(false);
+  const [clientToEditLoyalty, setClientToEditLoyalty] = React.useState<Client | null>(null);
+  const [loyaltyDraft, setLoyaltyDraft] = React.useState(0);
   const [snackbar, setSnackbar] = React.useState({
     open: false,
     message: '',
@@ -216,6 +225,36 @@ export default function ClientsPage() {
     setClientToDelete(null);
   };
 
+  const openLoyaltyDialog = (client: Client) => {
+    setClientToEditLoyalty(client);
+    setLoyaltyDraft(client.loyaltyProgress ?? 0);
+    setLoyaltyDialogOpen(true);
+  };
+
+  const handleLoyaltyUpdate = async () => {
+    if (!clientToEditLoyalty) return;
+    try {
+      await apiPatch(`/clients/${clientToEditLoyalty.id}/loyalty-progress`, {
+        loyaltyProgress: loyaltyDraft
+      });
+      setLoyaltyDialogOpen(false);
+      setClientToEditLoyalty(null);
+      fetchClients();
+      setSnackbar({
+        open: true,
+        message: 'Loyalty progress updated successfully',
+        severity: 'success'
+      });
+    } catch (error: any) {
+      const errorMessage = error?.message || error?.error || 'Failed to update loyalty progress.';
+      setSnackbar({
+        open: true,
+        message: errorMessage,
+        severity: 'error'
+      });
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-MY', {
       year: 'numeric',
@@ -255,6 +294,62 @@ export default function ClientsPage() {
       ? client.totalSpent
       : getTotalSpent(client.appointments || []);
 
+  const getLoyaltyProgress = (client: Client) => client.loyaltyProgress ?? 0;
+  const renderLoyaltyCircle = (progress: number, size: number = 34) => {
+    const safeProgress = Math.max(0, Math.min(progress, 6));
+    const value = (safeProgress / 6) * 100;
+    return (
+      <Box sx={{ position: 'relative', width: size, height: size }}>
+        <CircularProgress
+          variant="determinate"
+          value={100}
+          size={size}
+          thickness={4}
+          sx={{ color: '#fee2e2', position: 'absolute', inset: 0 }}
+        />
+        <CircularProgress
+          variant="determinate"
+          value={value}
+          size={size}
+          thickness={4}
+          sx={{ color: '#ef4444', position: 'absolute', inset: 0 }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Typography sx={{ fontSize: size <= 32 ? 10 : 11, fontWeight: 700, color: '#374151' }}>
+            {safeProgress}/6
+          </Typography>
+        </Box>
+      </Box>
+    );
+  };
+
+  const getStatusChipSx = (status?: string) => {
+    const statusStyleMap: Record<string, { bg: string; color: string; border: string }> = {
+      pending: { bg: '#fff7ed', color: '#c2410c', border: '#fdba74' },
+      confirmed: { bg: '#ecfdf5', color: '#047857', border: '#6ee7b7' },
+      completed: { bg: '#eff6ff', color: '#1d4ed8', border: '#93c5fd' },
+      cancelled: { bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5' },
+    };
+    const style = statusStyleMap[status || 'pending'] ?? statusStyleMap.pending;
+    return {
+      fontWeight: 700,
+      textTransform: 'capitalize',
+      borderRadius: 2,
+      border: '1px solid',
+      borderColor: style.border,
+      bgcolor: style.bg,
+      color: style.color,
+    };
+  };
+
   const totalPages = listMeta?.totalPages ?? 1;
   const totalListed = listMeta?.total ?? 0;
   const startIndex = totalListed === 0 ? 0 : (currentPage - 1) * PAGE_SIZE;
@@ -270,70 +365,130 @@ export default function ClientsPage() {
 
   return (
     <DashboardLayout>
-      <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+      <Box
+        sx={{
+          mb: { xs: 2, sm: 3 },
+          p: { xs: 2, sm: 2.5 },
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: 'divider',
+          background:
+            'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(248,113,113,0.08) 45%, rgba(255,255,255,0.92))',
+          boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
+        }}
+      >
         <Box sx={{ 
           display: 'flex', 
           alignItems: { xs: 'flex-start', sm: 'center' }, 
           justifyContent: 'space-between', 
           flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 2, sm: 2 }, 
-          pb: 2
+          gap: { xs: 2, sm: 2 },
         }}>
-          <Typography 
-            variant="h4" 
-            fontWeight={900} 
-            sx={{ 
-              fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
-              fontSize: { xs: '1.75rem', sm: '3rem' },
-              color: '#000000',
-              lineHeight: 1.2
-            }}
-          >
-            Clients
-          </Typography>
+          <Box>
+            <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+              Clients
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Manage customer profiles, history, and lifecycle at a glance.
+            </Typography>
+          </Box>
           {(userRole === 'Boss' || userRole === 'Staff') && (
-            <GradientButton
-              variant="red"
-              animated
+            <Box
+              component="button"
               onClick={() => setCreateClientOpen(true)}
               sx={{ 
-                px: { xs: 2, sm: 3 }, 
-                py: { xs: 1, sm: 1.2 }, 
-                fontSize: { xs: 13, sm: 14 },
+                px: { xs: 2, sm: 1.25 },
+                py: 1,
                 width: { xs: '100%', sm: 'auto' },
-                borderRadius: { xs: 3, sm: 4 }
+                minWidth: { xs: '100%', sm: 44 },
+                borderRadius: 999,
+                border: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textTransform: 'none',
+                fontSize: { xs: 13, sm: 14 },
+                fontWeight: 700,
+                lineHeight: 1,
+                boxShadow: '0 8px 18px rgba(220, 38, 38, 0.22)',
+                bgcolor: '#dc2626',
+                color: '#fff',
+                overflow: 'hidden',
+                cursor: 'pointer',
+                transition: 'all 220ms ease',
+                '&:hover': {
+                  bgcolor: '#b91c1c',
+                  boxShadow: '0 10px 22px rgba(185, 28, 28, 0.28)',
+                  px: { xs: 2, sm: 2.25 },
+                  '& .create-client-label': {
+                    maxWidth: { xs: 160, sm: 120 },
+                    opacity: 1,
+                    marginLeft: 0.75,
+                  },
+                },
               }}
+              aria-label="Add new client"
             >
-              Add New Client
-            </GradientButton>
+              <AddIcon sx={{ fontSize: 20, flexShrink: 0 }} />
+              <Box
+                component="span"
+                className="create-client-label"
+                sx={{
+                  display: 'inline-block',
+                  whiteSpace: 'nowrap',
+                  maxWidth: { xs: 160, sm: 0 },
+                  opacity: { xs: 1, sm: 0 },
+                  marginLeft: { xs: 0.75, sm: 0 },
+                  lineHeight: 1,
+                  transition: 'all 220ms ease',
+                }}
+              >
+                Add Client
+              </Box>
+            </Box>
           )}
         </Box>
       </Box>
 
       <Grid container spacing={3}>
         <Grid item xs={12}>
-          <Card sx={{ 
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', 
-            border: 'none', 
-            borderRadius: { xs: 4, sm: 5 }, 
-            backgroundColor: '#fff',
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              outline: '2px solid #8B0000',
-              outlineOffset: '-2px'
-            }
-          }}>
+          <Card
+            elevation={0}
+            sx={{ 
+              borderRadius: 3, 
+              border: '1px solid',
+              borderColor: 'divider',
+              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
+              overflow: 'hidden',
+            }}
+          >
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               {/* Filters and Search */}
-              <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Box
+                sx={{
+                  mb: 3,
+                  display: 'flex',
+                  gap: 1.25,
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  p: { xs: 1.25, sm: 1.5 },
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: '#fafafa',
+                }}
+              >
                 <TextField
                   placeholder="Search by name, phone, or client ID..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   sx={{ 
                     minWidth: { xs: '100%', sm: 300 },
+                    flex: { sm: 1 },
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
+                      height: 40,
+                      borderRadius: 1.5,
+                      bgcolor: 'background.paper',
                     }
                   }}
                   InputProps={{
@@ -346,11 +501,20 @@ export default function ClientsPage() {
                   size="small"
                 />
                 
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                  <InputLabel>Status Filter</InputLabel>
+                <FormControl
+                  size="small"
+                  sx={{
+                    minWidth: { xs: '100%', sm: 180 },
+                    '& .MuiOutlinedInput-root': {
+                      height: 40,
+                      borderRadius: 1.5,
+                      bgcolor: 'background.paper',
+                    },
+                  }}
+                >
                   <Select
                     value={statusFilter}
-                    label="Status Filter"
+                    displayEmpty
                     onChange={(e) => setStatusFilter(e.target.value)}
                     startAdornment={
                       <InputAdornment position="start" sx={{ ml: 1 }}>
@@ -367,12 +531,23 @@ export default function ClientsPage() {
                 </FormControl>
                 
                 <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {totalPages > 1 
-                      ? `Page ${currentPage} of ${totalPages} (${totalListed.toLocaleString()} matched)`
-                      : `${totalListed.toLocaleString()} clients`
-                    }
-                  </Typography>
+                  <Box
+                    sx={{
+                      px: 1.25,
+                      py: 0.6,
+                      borderRadius: 999,
+                      bgcolor: 'background.paper',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.78rem', sm: '0.82rem' } }}>
+                      {totalPages > 1 
+                        ? `Page ${currentPage} of ${totalPages} (${totalListed.toLocaleString()} matched)`
+                        : `${totalListed.toLocaleString()} clients`
+                      }
+                    </Typography>
+                  </Box>
                 </Box>
               </Box>
               
@@ -434,6 +609,9 @@ export default function ClientsPage() {
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                {renderLoyaltyCircle(getLoyaltyProgress(client), 32)}
+                              </Box>
                               {latestAppointment ? (
                                 <Chip 
                                   label={latestAppointment.status}
@@ -455,21 +633,64 @@ export default function ClientsPage() {
                             </Box>
                           </Box>
                         </Box>
-                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Box sx={{ display: 'flex', gap: 0.75 }}>
                           <Tooltip title="View Details">
-                            <IconButton size="small" color="primary">
-                              <VisibilityIcon />
+                            <IconButton
+                              size="small"
+                              sx={{
+                                width: 30,
+                                height: 30,
+                                p: 0.5,
+                                border: '1px solid',
+                                borderColor: '#bfdbfe',
+                                color: '#2563eb',
+                                bgcolor: 'transparent',
+                                '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.08)' },
+                              }}
+                            >
+                              <VisibilityIcon sx={{ fontSize: 18 }} />
                             </IconButton>
                           </Tooltip>
+                          {(userRole === 'Boss') && (
+                            <Tooltip title="Edit Loyalty Progress">
+                              <IconButton
+                                size="small"
+                                onClick={() => openLoyaltyDialog(client)}
+                                sx={{
+                                  width: 30,
+                                  height: 30,
+                                  p: 0.5,
+                                  border: '1px solid',
+                                  borderColor: '#fecaca',
+                                  color: '#dc2626',
+                                  bgcolor: 'transparent',
+                                  '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.08)' },
+                                }}
+                              >
+                                <EditIcon sx={{ fontSize: 18 }} />
+                              </IconButton>
+                            </Tooltip>
+                          )}
                           {(userRole === 'Boss' || userRole === 'Staff') && (
                             <Tooltip title="Delete Client">
                               <IconButton 
-                                size="small" 
-                                color="error"
+                                size="small"
                                 onClick={() => handleDeleteClick(client)}
                                 disabled={client.appointments.length > 0}
+                                sx={{
+                                  width: 30,
+                                  height: 30,
+                                  p: 0.5,
+                                  border: '1px solid',
+                                  borderColor: client.appointments.length > 0 ? '#d4d4d8' : '#fca5a5',
+                                  color: client.appointments.length > 0 ? '#a1a1aa' : '#dc2626',
+                                  bgcolor: 'transparent',
+                                  '&:hover': {
+                                    bgcolor: client.appointments.length > 0 ? 'transparent' : 'rgba(239, 68, 68, 0.08)',
+                                  },
+                                }}
                               >
-                                <DeleteIcon />
+                                <DeleteIcon sx={{ fontSize: 18 }} />
                               </IconButton>
                             </Tooltip>
                           )}
@@ -481,26 +702,38 @@ export default function ClientsPage() {
               </Stack>
             ) : (
               // Desktop Table Layout
-              <TableContainer component={Paper} variant="outlined">
-                <Table>
+              <TableContainer
+                component={Paper}
+                variant="outlined"
+                sx={{ borderRadius: 2.5, borderColor: 'divider', boxShadow: 'none', overflowX: 'auto', overflowY: 'hidden' }}
+              >
+                <Table sx={{ minWidth: 980 }}>
                   <TableHead>
-                    <TableRow>
-                      <TableCell><strong>#</strong></TableCell>
-                      <TableCell><strong>Client ID</strong></TableCell>
-                      <TableCell><strong>Name</strong></TableCell>
-                      <TableCell><strong>Phone</strong></TableCell>
-                      <TableCell><strong>Joined</strong></TableCell>
-                      <TableCell><strong>Appointments</strong></TableCell>
-                      <TableCell><strong>Total Spent</strong></TableCell>
-                      <TableCell><strong>Latest Status</strong></TableCell>
-                      <TableCell><strong>Actions</strong></TableCell>
+                    <TableRow sx={{ bgcolor: 'rgba(148, 163, 184, 0.12)' }}>
+                      <TableCell sx={{ fontWeight: 700 }}>#</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Client ID</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Phone</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Joined</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Appointments</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Total Spent</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Latest Status</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Loyalty</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {clients.map((client, index) => {
                       const latestAppointment = client.appointments[0];
                       return (
-                        <TableRow key={client.id} hover>
+                        <TableRow
+                          key={client.id}
+                          hover
+                          sx={{
+                            '&:last-of-type td': { borderBottom: 0 },
+                            '&:hover': { bgcolor: 'rgba(59, 130, 246, 0.04)' },
+                          }}
+                        >
                           <TableCell>
                             <Typography variant="body2" fontWeight={500}>
                               {startIndex + index + 1}
@@ -547,7 +780,8 @@ export default function ClientsPage() {
                                 label={latestAppointment.status}
                                 color={getStatusColor(latestAppointment.status) as any}
                                 size="small"
-                                variant="outlined"
+                                variant="filled"
+                                sx={getStatusChipSx(latestAppointment.status)}
                               />
                             ) : (
                               <Typography variant="body2" color="text.secondary">
@@ -556,22 +790,70 @@ export default function ClientsPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              {renderLoyaltyCircle(getLoyaltyProgress(client), 34)}
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', gap: 0.75 }}>
                               <Tooltip title="View Details">
-                                <IconButton size="small" color="primary">
-                                  <VisibilityIcon />
+                                <IconButton
+                                  size="small"
+                                  sx={{
+                                    width: 30,
+                                    height: 30,
+                                    p: 0.5,
+                                    border: '1px solid',
+                                    borderColor: '#bfdbfe',
+                                    color: '#2563eb',
+                                    bgcolor: 'transparent',
+                                    '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.08)' },
+                                  }}
+                                >
+                                  <VisibilityIcon sx={{ fontSize: 18 }} />
                                 </IconButton>
                               </Tooltip>
+                              {(userRole === 'Boss') && (
+                                <Tooltip title="Edit Loyalty Progress">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => openLoyaltyDialog(client)}
+                                    sx={{
+                                      width: 30,
+                                      height: 30,
+                                      p: 0.5,
+                                      border: '1px solid',
+                                      borderColor: '#fecaca',
+                                      color: '#dc2626',
+                                      bgcolor: 'transparent',
+                                      '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.08)' },
+                                    }}
+                                  >
+                                    <EditIcon sx={{ fontSize: 18 }} />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                               {(userRole === 'Boss' || userRole === 'Staff') && (
                                 <Tooltip title={client.appointments.length > 0 ? "Cannot delete client with appointments" : "Delete Client"}>
                                   <span>
                                     <IconButton 
                                       size="small" 
-                                      color="error"
                                       onClick={() => handleDeleteClick(client)}
                                       disabled={client.appointments.length > 0}
+                                      sx={{
+                                        width: 30,
+                                        height: 30,
+                                        p: 0.5,
+                                        border: '1px solid',
+                                        borderColor: client.appointments.length > 0 ? '#d4d4d8' : '#fca5a5',
+                                        color: client.appointments.length > 0 ? '#a1a1aa' : '#dc2626',
+                                        bgcolor: 'transparent',
+                                        '&:hover': {
+                                          bgcolor: client.appointments.length > 0 ? 'transparent' : 'rgba(239, 68, 68, 0.08)',
+                                        },
+                                      }}
                                     >
-                                      <DeleteIcon />
+                                      <DeleteIcon sx={{ fontSize: 18 }} />
                                     </IconButton>
                                   </span>
                                 </Tooltip>
@@ -622,12 +904,16 @@ export default function ClientsPage() {
         fullWidth
         PaperProps={{
           sx: {
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.12)',
             m: isMobile ? 1 : 3,
             width: isMobile ? 'calc(100% - 16px)' : 'auto'
           }
         }}
       >
-        <DialogTitle>
+        <DialogTitle sx={{ py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'rgba(248, 250, 252, 0.9)' }}>
           <Typography variant="h6" fontWeight={600}>
             Create New Client
           </Typography>
@@ -635,7 +921,7 @@ export default function ClientsPage() {
             Client will be able to use QR code to login and book appointments
           </Typography>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: { xs: 2, sm: 2.5 }, bgcolor: '#fcfcfd' }}>
           <Stack spacing={3} sx={{ mt: 1 }}>
             {/* Full Name */}
             <TextField
@@ -686,38 +972,41 @@ export default function ClientsPage() {
             </Box> */}
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ 
-          p: 3, 
-          gap: 2,
-          flexDirection: 'row'
-        }}>
-          <GradientButton
-            variant="blue"
-            animated
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: { xs: 1.75, sm: 2.25 }, gap: { xs: 1.25, sm: 1.5 }, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'rgba(248, 250, 252, 0.85)' }}>
+          <Button
+            variant="outlined"
             onClick={() => setCreateClientOpen(false)}
             sx={{ 
               flex: 1,
-              px: { xs: 2, sm: 3 }, 
-              py: { xs: 1, sm: 1.2 }, 
-              fontSize: { xs: 13, sm: 14 }
+              borderRadius: 2,
+              py: 1.1,
+              textTransform: 'none',
+              fontWeight: 600,
+              borderColor: 'grey.300',
+              color: 'text.secondary',
+              '&:hover': { borderColor: 'grey.400', bgcolor: 'grey.50' },
             }}
           >
             Cancel
-          </GradientButton>
-          <GradientButton
-            variant="red"
-            animated
+          </Button>
+          <Button
+            variant="contained"
             onClick={handleCreateClient}
             disabled={!newClient.fullName.trim() || !newClient.phoneNumber.trim()}
             sx={{ 
               flex: 1,
-              px: { xs: 2, sm: 3 }, 
-              py: { xs: 1, sm: 1.2 }, 
-              fontSize: { xs: 13, sm: 14 }
+              borderRadius: 2,
+              py: 1.1,
+              textTransform: 'none',
+              fontWeight: 700,
+              bgcolor: '#dc2626',
+              boxShadow: '0 8px 20px rgba(220, 38, 38, 0.28)',
+              '&:hover': { bgcolor: '#b91c1c', boxShadow: '0 10px 24px rgba(185, 28, 28, 0.34)' },
+              '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#94a3b8' },
             }}
           >
             Create
-          </GradientButton>
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -771,6 +1060,37 @@ export default function ClientsPage() {
           >
             Delete
           </GradientButton>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={loyaltyDialogOpen} onClose={() => setLoyaltyDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={700}>Update Loyalty Progress</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Set completed haircuts for {clientToEditLoyalty?.fullName}
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mt: 1 }}>
+            <InputLabel>Progress</InputLabel>
+            <Select
+              value={loyaltyDraft}
+              label="Progress"
+              onChange={(e) => setLoyaltyDraft(Number(e.target.value))}
+            >
+              {[0, 1, 2, 3, 4, 5].map((value) => (
+                <MenuItem key={value} value={value}>
+                  {value}/6
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button variant="outlined" onClick={() => setLoyaltyDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleLoyaltyUpdate} sx={{ bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' } }}>
+            Save
+          </Button>
         </DialogActions>
       </Dialog>
 

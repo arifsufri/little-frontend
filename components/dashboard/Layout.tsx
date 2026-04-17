@@ -8,7 +8,8 @@ import SidebarPermanent from './SidebarPermanent';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [openMobile, setOpenMobile] = React.useState(false);
-  const drawerWidth = 240;
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = React.useState(false);
+  const drawerWidth = desktopSidebarCollapsed ? 84 : 240;
 
   return (
     <Box sx={{ 
@@ -19,14 +20,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       overflow: 'hidden',
       overflowX: 'hidden'
     }}>
-      <AppHeader onOpenSidebar={() => setOpenMobile(true)} />
+      <AppHeader
+        onOpenSidebar={() => setOpenMobile(true)}
+        drawerWidth={drawerWidth}
+      />
       <Sidebar open={openMobile} onClose={() => setOpenMobile(false)} />
-      <SidebarPermanent width={drawerWidth} />
+      <SidebarPermanent
+        width={drawerWidth}
+        collapsed={desktopSidebarCollapsed}
+        onToggleCollapsed={() => setDesktopSidebarCollapsed((prev) => !prev)}
+      />
 
       <Box component="main" sx={{ 
         flexGrow: 1, 
         p: { xs: 2, md: 3 }, 
         ml: { md: `${drawerWidth}px` }, 
+        transition: 'margin-left 220ms ease',
         backgroundColor: '#f8f9fa', 
         minHeight: '100vh',
         width: '100%',

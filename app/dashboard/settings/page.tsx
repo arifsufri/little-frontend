@@ -48,7 +48,6 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { apiGet, apiPut, apiPost, apiDelete, apiPatch } from '../../../src/utils/axios';
-import GradientButton from '../../../components/GradientButton';
 import keepAliveService, { KeepAliveStatus } from '../../../src/utils/keepAlive';
 import { useUserRole } from '../../../hooks/useUserRole';
 
@@ -198,7 +197,7 @@ export default function SettingsPage() {
       const response = await apiGet<{ success: boolean; data: any }>('/auth/me');
       if (response.success) {
         const user = response.data;
-        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
         const avatarUrl = user.avatar ? `${baseUrl}${user.avatar}` : '';
         
         setUserProfile({
@@ -427,7 +426,7 @@ export default function SettingsPage() {
       formData.append('name', userProfile.name);
       formData.append('email', userProfile.email);
 
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
       const token = localStorage.getItem('token');
       
       console.log('Uploading to:', `${baseUrl}/auth/profile`);
@@ -491,7 +490,7 @@ export default function SettingsPage() {
         formData.append('avatar', selectedFile);
       }
 
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
       const response = await fetch(`${baseUrl}/auth/profile`, {
         method: 'PUT',
         headers: {
@@ -507,7 +506,7 @@ export default function SettingsPage() {
       const result = await response.json();
       
       if (result.success) {
-        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
         const avatarUrl = result.data.user.avatar ? `${baseUrl}${result.data.user.avatar}` : userProfile.avatar;
         
         setUserProfile(prev => ({ 
@@ -579,29 +578,71 @@ export default function SettingsPage() {
     return () => clearInterval(interval);
   }, []);
 
+  const fieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: 2,
+      backgroundColor: '#fff',
+    },
+  };
+  const primaryButtonSx = {
+    borderRadius: 2,
+    textTransform: 'none',
+    fontWeight: 700,
+    px: 2.5,
+    py: 1,
+    color: '#fff',
+    bgcolor: '#dc2626',
+    boxShadow: '0 8px 20px rgba(220, 38, 38, 0.28)',
+    '&:hover': {
+      bgcolor: '#b91c1c',
+      boxShadow: '0 10px 24px rgba(185, 28, 28, 0.34)',
+    },
+    '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#94a3b8', boxShadow: 'none' },
+  };
+  const secondaryButtonSx = {
+    borderRadius: 2,
+    textTransform: 'none',
+    fontWeight: 600,
+    px: 2.5,
+    py: 1,
+    borderColor: '#cbd5e1',
+    color: '#475569',
+    '&:hover': { borderColor: '#94a3b8', bgcolor: '#f8fafc' },
+  };
+
   return (
     <DashboardLayout>
+      <Box sx={{ px: { xs: 1, sm: 3 } }}>
       {/* Header */}
-      <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+      <Box
+        sx={{
+          mb: { xs: 2, sm: 3 },
+          p: { xs: 2, sm: 2.5 },
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: 'divider',
+          background:
+            'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(248,113,113,0.08) 45%, rgba(255,255,255,0.92))',
+          boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
+        }}
+      >
         <Typography 
-          variant="h3" 
-          fontWeight={900} 
+          variant="h4" 
+          fontWeight={700} 
           sx={{ 
-            fontFamily: 'Soria, Georgia, Cambria, "Times New Roman", Times, serif',
-            fontSize: { xs: '1.75rem', sm: '3rem' },
+            fontSize: { xs: '1.75rem', sm: '2.15rem' },
             mb: { xs: 0.5, sm: 1 },
-            color: '#000000',
             lineHeight: 1.2
           }}
         >
           Settings
         </Typography>
         <Typography 
-          variant="h6" 
+          variant="body2" 
           sx={{ 
-            color: '#666666',
+            color: 'text.secondary',
             fontWeight: 400,
-            fontSize: { xs: '0.9rem', sm: '1.25rem' },
+            fontSize: { xs: '0.9rem', sm: '0.95rem' },
             lineHeight: 1.3
           }}
         >
@@ -645,11 +686,20 @@ export default function SettingsPage() {
       <Paper 
         elevation={0}
         sx={{ 
-          borderRadius: { xs: 3, sm: 4 },
-          border: '1px solid rgba(0, 0, 0, 0.06)',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: '#e2e8f0',
+          boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
           overflow: 'hidden',
-          mb: 3
+          mb: 3,
+          '& .MuiTextField-root .MuiOutlinedInput-root': {
+            borderRadius: 2,
+            backgroundColor: '#fff',
+          },
+          '& .MuiFormControl-root .MuiOutlinedInput-root': {
+            borderRadius: 2,
+            backgroundColor: '#fff',
+          },
         }}
       >
         <Tabs 
@@ -657,22 +707,24 @@ export default function SettingsPage() {
           onChange={handleTabChange} 
           variant={isMobile ? "fullWidth" : "standard"}
           sx={{
-            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+            p: 0.5,
+            borderBottom: '1px solid #e2e8f0',
+            bgcolor: '#fafafa',
+            '& .MuiTabs-indicator': { height: 0 },
             '& .MuiTab-root': {
-              minHeight: { xs: 64, sm: 72 },
-              fontSize: { xs: '0.875rem', sm: '1rem' },
-              fontWeight: 600,
+              minHeight: { xs: 52, sm: 56 },
+              borderRadius: 1.5,
+              fontSize: { xs: '0.82rem', sm: '0.95rem' },
+              fontWeight: 700,
               textTransform: 'none',
               color: '#64748b',
+              transition: 'all 180ms ease',
               '&.Mui-selected': {
                 color: '#dc2626',
-                fontWeight: 700
+                bgcolor: 'rgba(239, 68, 68, 0.14)',
+                boxShadow: '0 6px 16px rgba(220, 38, 38, 0.14)',
               }
             },
-            '& .MuiTabs-indicator': {
-              backgroundColor: '#dc2626',
-              height: 3
-            }
           }}
         >
           <Tab 
@@ -805,30 +857,21 @@ export default function SettingsPage() {
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                       Selected: {selectedFile.name}
                     </Typography>
-                    <GradientButton 
-                      variant="red"
-                      animated
-                      sx={{ 
-                        px: { xs: 2, sm: 2.5 }, 
-                        py: { xs: 0.8, sm: 1 }, 
-                        fontSize: { xs: 12, sm: 13 }
-                      }}
+                    <Button
+                      variant="contained"
+                      sx={{ ...primaryButtonSx, fontSize: { xs: 12, sm: 13 } }}
                       onClick={handleAvatarUpload}
                       disabled={loading}
                     >
                       Save Photo
-                    </GradientButton>
+                    </Button>
                   </Box>
                 )}
               </Box>
             </Box>
 
             {/* Profile Form */}
-            <Card sx={{ 
-              borderRadius: { xs: 2, sm: 3 },
-              border: '1px solid rgba(0, 0, 0, 0.06)',
-              boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)'
-            }}>
+            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)' }}>
               <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
                 <Typography 
                   variant="h6" 
@@ -881,36 +924,22 @@ export default function SettingsPage() {
                         spacing={2}
                         sx={{ mt: 2 }}
                       >
-                        <GradientButton
+                        <Button
                           type="submit"
-                          variant="green"
-                          animated
-                          sx={{ 
-                            px: { xs: 2.5, sm: 3 }, 
-                            py: { xs: 1, sm: 1.2 }, 
-                            fontSize: { xs: 13, sm: 14 },
-                            fontWeight: 600,
-                            flex: { xs: 1, sm: 'none' }
-                          }}
+                          variant="contained"
+                          sx={{ ...primaryButtonSx, fontSize: { xs: 13, sm: 14 }, flex: { xs: 1, sm: 'none' } }}
                           disabled={loading}
                         >
                           Save Changes
-                        </GradientButton>
-                        <GradientButton
-                          variant="red"
-                          animated
+                        </Button>
+                        <Button
+                          variant="outlined"
                           startIcon={<LockIcon />}
-                          sx={{ 
-                            px: { xs: 2.5, sm: 3 }, 
-                            py: { xs: 1, sm: 1.2 }, 
-                            fontSize: { xs: 13, sm: 14 },
-                            fontWeight: 600,
-                            flex: { xs: 1, sm: 'none' }
-                          }}
+                          sx={{ ...secondaryButtonSx, fontSize: { xs: 13, sm: 14 }, flex: { xs: 1, sm: 'none' } }}
                           onClick={() => setPasswordDialogOpen(true)}
                         >
                           Change Password
-                        </GradientButton>
+                        </Button>
                       </Stack>
                     </Grid>
                   </Grid>
@@ -939,12 +968,12 @@ export default function SettingsPage() {
               {/* Password Section */}
               <Grid item xs={12}>
                 <Card sx={{ 
-                  borderRadius: { xs: 2, sm: 3 },
-                  border: '1px solid rgba(0, 0, 0, 0.06)',
-                  boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+                  borderRadius: 3,
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
                   transition: 'all 0.2s ease',
                   '&:hover': {
-                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+                    boxShadow: '0 14px 30px rgba(15, 23, 42, 0.08)'
                   }
                 }}>
                   <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
@@ -987,20 +1016,14 @@ export default function SettingsPage() {
                         >
                           Keep your account secure with a strong password. We recommend changing it regularly.
                         </Typography>
-                        <GradientButton
-                          variant="red"
-                          animated
+                        <Button
+                          variant="outlined"
                           startIcon={<LockIcon />}
-                          sx={{ 
-                            px: { xs: 2.5, sm: 3 }, 
-                            py: { xs: 1, sm: 1.2 }, 
-                            fontSize: { xs: 13, sm: 14 },
-                            fontWeight: 600
-                          }}
+                          sx={{ ...secondaryButtonSx, fontSize: { xs: 13, sm: 14 } }}
                           onClick={() => setPasswordDialogOpen(true)}
                         >
                           Change Password
-                        </GradientButton>
+                        </Button>
                       </Box>
                     </Stack>
                   </CardContent>
@@ -1010,12 +1033,12 @@ export default function SettingsPage() {
               {/* Account Security */}
               <Grid item xs={12}>
                 <Card sx={{ 
-                  borderRadius: { xs: 2, sm: 3 },
-                  border: '1px solid rgba(0, 0, 0, 0.06)',
-                  boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+                  borderRadius: 3,
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
                   transition: 'all 0.2s ease',
                   '&:hover': {
-                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+                    boxShadow: '0 14px 30px rgba(15, 23, 42, 0.08)'
                   }
                 }}>
                   <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
@@ -1115,20 +1138,14 @@ export default function SettingsPage() {
                 >
                   Discount Code Management
                 </Typography>
-                <GradientButton
-                  variant="red"
-                  animated
+                <Button
+                  variant="contained"
                   startIcon={<AddIcon />}
-                  sx={{ 
-                    px: { xs: 2.5, sm: 3 }, 
-                    py: { xs: 1, sm: 1.2 }, 
-                    fontSize: { xs: 13, sm: 14 },
-                    fontWeight: 600
-                  }}
+                  sx={{ ...primaryButtonSx, fontSize: { xs: 13, sm: 14 } }}
                   onClick={openCreateDiscountDialog}
                 >
                   Create Code
-                </GradientButton>
+                </Button>
               </Box>
 
               {/* Discount Codes List */}
@@ -1136,9 +1153,9 @@ export default function SettingsPage() {
                 {discountCodes.length === 0 ? (
                   <Grid item xs={12}>
                     <Card sx={{ 
-                      borderRadius: { xs: 2, sm: 3 },
-                      border: '1px solid rgba(0, 0, 0, 0.06)',
-                      boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+                      borderRadius: 3,
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
                       textAlign: 'center',
                       py: 6
                     }}>
@@ -1157,12 +1174,12 @@ export default function SettingsPage() {
                   discountCodes.map((discount) => (
                     <Grid item xs={12} sm={6} lg={4} key={discount.id}>
                       <Card sx={{ 
-                        borderRadius: { xs: 2, sm: 3 },
-                        border: '1px solid rgba(0, 0, 0, 0.06)',
-                        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+                        borderRadius: 3,
+                        border: '1px solid #e2e8f0',
+                        boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
                         transition: 'all 0.2s ease',
                         '&:hover': {
-                          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                          boxShadow: '0 14px 30px rgba(15, 23, 42, 0.08)',
                           transform: 'translateY(-2px)'
                         }
                       }}>
@@ -1337,12 +1354,12 @@ export default function SettingsPage() {
               {/* Keep-Alive Service */}
               <Grid item xs={12}>
                 <Card sx={{ 
-                  borderRadius: { xs: 2, sm: 3 },
-                  border: '1px solid rgba(0, 0, 0, 0.06)',
-                  boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+                  borderRadius: 3,
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
                   transition: 'all 0.2s ease',
                   '&:hover': {
-                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+                    boxShadow: '0 14px 30px rgba(15, 23, 42, 0.08)'
                   }
                 }}>
                   <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
@@ -1420,36 +1437,26 @@ export default function SettingsPage() {
                         )}
 
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                          <GradientButton
-                            variant={keepAliveStatus?.isActive ? "red" : "green"}
-                            animated
+                          <Button
+                            variant={keepAliveStatus?.isActive ? 'outlined' : 'contained'}
                             startIcon={keepAliveStatus?.isActive ? <WifiOffIcon /> : <WifiIcon />}
-                            sx={{ 
-                              px: { xs: 2.5, sm: 3 }, 
-                              py: { xs: 1, sm: 1.2 }, 
-                              fontSize: { xs: 13, sm: 14 },
-                              fontWeight: 600
-                            }}
+                            sx={keepAliveStatus?.isActive
+                              ? { ...secondaryButtonSx, color: '#b91c1c', borderColor: '#fca5a5', fontSize: { xs: 13, sm: 14 } }
+                              : { ...primaryButtonSx, fontSize: { xs: 13, sm: 14 } }}
                             onClick={handleKeepAliveToggle}
                           >
                             {keepAliveStatus?.isActive ? 'Stop Service' : 'Start Service'}
-                          </GradientButton>
+                          </Button>
                           
-                          <GradientButton
-                            variant="blue"
-                            animated
+                          <Button
+                            variant="outlined"
                             startIcon={<RefreshIcon />}
-                            sx={{ 
-                              px: { xs: 2.5, sm: 3 }, 
-                              py: { xs: 1, sm: 1.2 }, 
-                              fontSize: { xs: 13, sm: 14 },
-                              fontWeight: 600
-                            }}
+                            sx={{ ...secondaryButtonSx, fontSize: { xs: 13, sm: 14 } }}
                             onClick={handleKeepAlivePing}
                             disabled={loading}
                           >
                             Test Connection
-                          </GradientButton>
+                          </Button>
                         </Stack>
                       </Box>
                     </Stack>
@@ -1457,49 +1464,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* Environment Info */}
-              <Grid item xs={12}>
-                <Card sx={{ 
-                  borderRadius: { xs: 2, sm: 3 },
-                  border: '1px solid rgba(0, 0, 0, 0.06)',
-                  boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)'
-                }}>
-                  <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
-                    <Typography 
-                      variant="h6" 
-                      fontWeight={600} 
-                      sx={{ 
-                        mb: 3,
-                        fontSize: { xs: '1rem', sm: '1.125rem' }
-                      }}
-                    >
-                      Environment Information
-                    </Typography>
-                    
-                    <Stack spacing={2}>
-                      <Box sx={{
-                        p: { xs: 2.5, sm: 3 },
-                        borderRadius: { xs: 1.5, sm: 2 },
-                        border: '1px solid rgba(0, 0, 0, 0.06)',
-                        background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
-                      }}>
-                        <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                          Application Environment
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          <strong>Mode:</strong> {process.env.NODE_ENV || 'development'}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          <strong>API URL:</strong> {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          <strong>Keep-Alive Enabled:</strong> {process.env.NEXT_PUBLIC_ENABLE_KEEP_ALIVE === 'true' ? 'Yes' : 'Auto (Production only)'}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Grid>
             </Grid>
           </Box>
         </TabPanel>
@@ -1513,20 +1477,25 @@ export default function SettingsPage() {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: { xs: 2, sm: 3 },
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)'
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.12)'
           }
         }}
       >
         <DialogTitle sx={{ 
-          pb: 2,
-          fontSize: { xs: '1.25rem', sm: '1.5rem' },
-          fontWeight: 700
+          py: 2,
+          fontSize: { xs: '1.1rem', sm: '1.25rem' },
+          fontWeight: 700,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'rgba(248, 250, 252, 0.9)'
         }}>
           Change Password
         </DialogTitle>
         <form onSubmit={passwordForm.handleSubmit(handlePasswordSubmit)}>
-          <DialogContent sx={{ pb: 2 }}>
+          <DialogContent dividers sx={{ py: 2.5, bgcolor: '#fcfcfd' }}>
             <Stack spacing={3}>
               <TextField
                 label="Current Password"
@@ -1536,11 +1505,7 @@ export default function SettingsPage() {
                 {...passwordForm.register('currentPassword')}
                 error={!!passwordForm.formState.errors.currentPassword}
                 helperText={passwordForm.formState.errors.currentPassword?.message}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: { xs: 1.5, sm: 2 }
-                  }
-                }}
+                sx={fieldSx}
               />
               <TextField
                 label="New Password"
@@ -1550,11 +1515,7 @@ export default function SettingsPage() {
                 {...passwordForm.register('newPassword')}
                 error={!!passwordForm.formState.errors.newPassword}
                 helperText={passwordForm.formState.errors.newPassword?.message}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: { xs: 1.5, sm: 2 }
-                  }
-                }}
+                sx={fieldSx}
               />
               <TextField
                 label="Confirm New Password"
@@ -1564,49 +1525,22 @@ export default function SettingsPage() {
                 {...passwordForm.register('confirmPassword')}
                 error={!!passwordForm.formState.errors.confirmPassword}
                 helperText={passwordForm.formState.errors.confirmPassword?.message}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: { xs: 1.5, sm: 2 }
-                  }
-                }}
+                sx={fieldSx}
               />
             </Stack>
           </DialogContent>
-          <DialogActions sx={{ p: 3, pt: 2 }}>
+          <DialogActions sx={{ p: 2.5, gap: 1.25, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'rgba(248, 250, 252, 0.85)' }}>
             <Stack 
               direction="row" 
               spacing={2}
               sx={{ width: '100%' }}
             >
-              <GradientButton
-                variant="blue"
-                animated
-                onClick={() => setPasswordDialogOpen(false)}
-                sx={{ 
-                  flex: 1,
-                  px: { xs: 2.5, sm: 3 }, 
-                  py: { xs: 1, sm: 1.2 }, 
-                  fontSize: { xs: 13, sm: 14 },
-                  fontWeight: 600
-                }}
-              >
+              <Button variant="outlined" onClick={() => setPasswordDialogOpen(false)} sx={{ ...secondaryButtonSx, flex: 1 }}>
                 Cancel
-              </GradientButton>
-              <GradientButton 
-                type="submit" 
-                variant="red"
-                animated
-                sx={{ 
-                  flex: 1,
-                  px: { xs: 2.5, sm: 3 }, 
-                  py: { xs: 1, sm: 1.2 }, 
-                  fontSize: { xs: 13, sm: 14 },
-                  fontWeight: 600
-                }}
-                disabled={loading}
-              >
+              </Button>
+              <Button type="submit" variant="contained" sx={{ ...primaryButtonSx, flex: 1 }} disabled={loading}>
                 {loading ? 'Changing...' : 'Change Password'}
-              </GradientButton>
+              </Button>
             </Stack>
           </DialogActions>
         </form>
@@ -1620,20 +1554,25 @@ export default function SettingsPage() {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: { xs: 2, sm: 3 },
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)'
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.12)'
           }
         }}
       >
         <DialogTitle sx={{ 
-          pb: 2,
-          fontSize: { xs: '1.25rem', sm: '1.5rem' },
-          fontWeight: 700
+          py: 2,
+          fontSize: { xs: '1.1rem', sm: '1.25rem' },
+          fontWeight: 700,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'rgba(248, 250, 252, 0.9)'
         }}>
           {editingDiscount ? 'Edit Discount Code' : 'Create Discount Code'}
         </DialogTitle>
         <form onSubmit={discountForm.handleSubmit(editingDiscount ? handleEditDiscount : handleCreateDiscount)}>
-          <DialogContent sx={{ pb: 2 }}>
+          <DialogContent dividers sx={{ py: 2.5, bgcolor: '#fcfcfd' }}>
             <Stack spacing={3}>
               <TextField
                 label="Discount Code"
@@ -1643,11 +1582,7 @@ export default function SettingsPage() {
                 {...discountForm.register('code')}
                 error={!!discountForm.formState.errors.code}
                 helperText={discountForm.formState.errors.code?.message || 'Code will be converted to uppercase'}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: { xs: 1.5, sm: 2 }
-                  }
-                }}
+                sx={fieldSx}
               />
               <TextField
                 label="Description (Optional)"
@@ -1659,11 +1594,7 @@ export default function SettingsPage() {
                 {...discountForm.register('description')}
                 error={!!discountForm.formState.errors.description}
                 helperText={discountForm.formState.errors.description?.message}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: { xs: 1.5, sm: 2 }
-                  }
-                }}
+                sx={fieldSx}
               />
               {/* Discount Type Selection */}
               <FormControl fullWidth>
@@ -1680,11 +1611,7 @@ export default function SettingsPage() {
                     }
                   }}
                   label="Discount Type"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: { xs: 1.5, sm: 2 }
-                    }
-                  }}
+                  sx={fieldSx}
                 >
                   <MenuItem value="percentage">Percentage Discount (%)</MenuItem>
                   <MenuItem value="fixed_amount">Fixed Amount (RM)</MenuItem>
@@ -1702,11 +1629,7 @@ export default function SettingsPage() {
                   {...discountForm.register('discountPercent', { valueAsNumber: true })}
                   error={!!discountForm.formState.errors.discountPercent}
                   helperText={discountForm.formState.errors.discountPercent?.message || 'Enter percentage (e.g., 10 for 10% off)'}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: { xs: 1.5, sm: 2 }
-                    }
-                  }}
+                  sx={fieldSx}
                 />
               ) : (
                 <TextField
@@ -1718,11 +1641,7 @@ export default function SettingsPage() {
                   {...discountForm.register('discountAmount', { valueAsNumber: true })}
                   error={!!discountForm.formState.errors.discountAmount}
                   helperText={discountForm.formState.errors.discountAmount?.message || 'Enter fixed amount (e.g., 5 for RM5 off)'}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: { xs: 1.5, sm: 2 }
-                    }
-                  }}
+                  sx={fieldSx}
                 />
               )}
               
@@ -1778,41 +1697,18 @@ export default function SettingsPage() {
               </FormControl>
             </Stack>
           </DialogContent>
-          <DialogActions sx={{ p: 3, pt: 2 }}>
+          <DialogActions sx={{ p: 2.5, gap: 1.25, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'rgba(248, 250, 252, 0.85)' }}>
             <Stack 
               direction="row" 
               spacing={2}
               sx={{ width: '100%' }}
             >
-              <GradientButton
-                variant="blue"
-                animated
-                onClick={() => setDiscountDialogOpen(false)}
-                sx={{ 
-                  flex: 1,
-                  px: { xs: 2.5, sm: 3 }, 
-                  py: { xs: 1, sm: 1.2 }, 
-                  fontSize: { xs: 13, sm: 14 },
-                  fontWeight: 600
-                }}
-              >
+              <Button variant="outlined" onClick={() => setDiscountDialogOpen(false)} sx={{ ...secondaryButtonSx, flex: 1 }}>
                 Cancel
-              </GradientButton>
-              <GradientButton 
-                type="submit" 
-                variant="red"
-                animated
-                sx={{ 
-                  flex: 1,
-                  px: { xs: 2.5, sm: 3 }, 
-                  py: { xs: 1, sm: 1.2 }, 
-                  fontSize: { xs: 13, sm: 14 },
-                  fontWeight: 600
-                }}
-                disabled={loading}
-              >
+              </Button>
+              <Button type="submit" variant="contained" sx={{ ...primaryButtonSx, flex: 1 }} disabled={loading}>
                 {loading ? (editingDiscount ? 'Updating...' : 'Creating...') : (editingDiscount ? 'Update Code' : 'Create Code')}
-              </GradientButton>
+              </Button>
             </Stack>
           </DialogActions>
         </form>
@@ -1826,20 +1722,25 @@ export default function SettingsPage() {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: { xs: 2, sm: 3 },
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)'
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.12)'
           }
         }}
       >
         <DialogTitle sx={{ 
-          pb: 2,
-          fontSize: { xs: '1.25rem', sm: '1.5rem' },
+          py: 2,
+          fontSize: { xs: '1.1rem', sm: '1.25rem' },
           fontWeight: 700,
-          color: 'error.main'
+          color: 'error.main',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'rgba(248, 250, 252, 0.9)'
         }}>
           Delete Discount Code
         </DialogTitle>
-        <DialogContent sx={{ pb: 2 }}>
+        <DialogContent dividers sx={{ py: 2.5, bgcolor: '#fcfcfd' }}>
           <Typography variant="body1" sx={{ mb: 2 }}>
             Are you sure you want to delete the discount code &quot;{deletingDiscount?.code}&quot;?
           </Typography>
@@ -1847,44 +1748,22 @@ export default function SettingsPage() {
             This action cannot be undone. The discount code will be permanently removed from your system.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 3, pt: 2 }}>
+        <DialogActions sx={{ p: 2.5, gap: 1.25, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'rgba(248, 250, 252, 0.85)' }}>
           <Stack 
             direction="row" 
             spacing={2}
             sx={{ width: '100%' }}
           >
-            <GradientButton
-              variant="blue"
-              animated
-              onClick={() => setDeleteDiscountOpen(false)}
-              sx={{ 
-                flex: 1,
-                px: { xs: 2.5, sm: 3 }, 
-                py: { xs: 1, sm: 1.2 }, 
-                fontSize: { xs: 13, sm: 14 },
-                fontWeight: 600
-              }}
-            >
+            <Button variant="outlined" onClick={() => setDeleteDiscountOpen(false)} sx={{ ...secondaryButtonSx, flex: 1 }}>
               Cancel
-            </GradientButton>
-            <GradientButton 
-              variant="red"
-              animated
-              onClick={handleDeleteDiscount}
-              sx={{ 
-                flex: 1,
-                px: { xs: 2.5, sm: 3 }, 
-                py: { xs: 1, sm: 1.2 }, 
-                fontSize: { xs: 13, sm: 14 },
-                fontWeight: 600
-              }}
-              disabled={loading}
-            >
+            </Button>
+            <Button variant="contained" onClick={handleDeleteDiscount} sx={{ ...primaryButtonSx, flex: 1 }} disabled={loading}>
               {loading ? 'Deleting...' : 'Delete Code'}
-            </GradientButton>
+            </Button>
           </Stack>
         </DialogActions>
       </Dialog>
+      </Box>
     </DashboardLayout>
   );
 }

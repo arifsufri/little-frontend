@@ -1,170 +1,78 @@
 'use client';
 
 import * as React from 'react';
-import NextLink from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useUserRole } from '../../hooks/useUserRole';
 import {
   Drawer,
+  Box,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Box,
   Divider,
 } from '@mui/material';
-import DashboardIcon from '@mui/icons-material/SpaceDashboardOutlined';
-import PeopleIcon from '@mui/icons-material/PeopleOutline';
-import SettingsIcon from '@mui/icons-material/SettingsOutlined';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import ShoppingBagIcon from '@mui/icons-material/ShoppingBagOutlined';
-import GroupIcon from '@mui/icons-material/GroupOutlined';
-import AssessmentIcon from '@mui/icons-material/AssessmentOutlined';
-import FactCheckIcon from '@mui/icons-material/FactCheckOutlined';
+import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded';
+import EventNoteRoundedIcon from '@mui/icons-material/EventNoteRounded';
+import PeopleAltRoundedIcon from '@mui/icons-material/PeopleAltRounded';
+import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
+import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
+import PointOfSaleRoundedIcon from '@mui/icons-material/PointOfSaleRounded';
+import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded';
+import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded';
+import RuleRoundedIcon from '@mui/icons-material/RuleRounded';
+import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 
-export type NavItem = {
+type NavItem = {
   label: string;
   href: string;
   icon: React.ReactNode;
+  group: number;
 };
 
-const defaultItems: NavItem[] = [
-  { label: 'Overview', href: '/dashboard', icon: <DashboardIcon /> },
-  { label: 'Appointments', href: '/dashboard/appointments', icon: <CalendarMonthIcon /> },
-  { label: 'Clients', href: '/dashboard/clients', icon: <PeopleIcon /> },
-  { label: 'Staff', href: '/dashboard/staff', icon: <GroupIcon /> },
-  { label: 'Products', href: '/dashboard/products', icon: <ShoppingBagIcon /> },
-  { label: 'Sales', href: '/dashboard/sales', icon: <ShoppingBagIcon /> },
-  { label: 'Financial Reports', href: '/dashboard/financial', icon: <AssessmentIcon /> },
-  { label: 'Profit & Loss', href: '/dashboard/profit-loss', icon: <AssessmentIcon /> },
-  { label: 'Audit', href: '/dashboard/audit', icon: <FactCheckIcon /> },
-  { label: 'Settings', href: '/dashboard/settings', icon: <SettingsIcon /> },
+const navItems: NavItem[] = [
+  { label: 'Overview', href: '/dashboard', icon: <DashboardRoundedIcon />, group: 1 },
+  { label: 'Appointments', href: '/dashboard/appointments', icon: <EventNoteRoundedIcon />, group: 2 },
+  { label: 'Clients', href: '/dashboard/clients', icon: <PeopleAltRoundedIcon />, group: 2 },
+  { label: 'Staff', href: '/dashboard/staff', icon: <GroupsRoundedIcon />, group: 3 },
+  { label: 'Products', href: '/dashboard/products', icon: <Inventory2RoundedIcon />, group: 3 },
+  { label: 'Sales', href: '/dashboard/sales', icon: <PointOfSaleRoundedIcon />, group: 3 },
+  { label: 'Financial Reports', href: '/dashboard/financial', icon: <InsightsRoundedIcon />, group: 4 },
+  { label: 'Profit & Loss', href: '/dashboard/profit-loss', icon: <TrendingUpRoundedIcon />, group: 4 },
+  { label: 'Audit', href: '/dashboard/audit', icon: <RuleRoundedIcon />, group: 4 },
+  { label: 'Settings', href: '/dashboard/settings', icon: <SettingsIcon />, group: 5 },
 ];
 
 export default function Sidebar({
   open,
   onClose,
-  items = defaultItems,
-  width = 260,
 }: {
   open: boolean;
   onClose: () => void;
-  items?: NavItem[];
-  width?: number;
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { userRole } = useUserRole();
+  const [role, setRole] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const value = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    setRole(value);
+  }, []);
+
+  const canSee = (href: string) => {
+    if (role === 'Boss') return true;
+    if (role === 'Staff') return !['/dashboard/staff', '/dashboard/audit', '/dashboard/profit-loss'].includes(href);
+    return true;
+  };
+
+  const isActive = (href: string) => (href === '/dashboard' ? pathname === href : pathname?.startsWith(href));
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    router.push('/login');
     onClose();
-    router.replace('/login');
   };
-
-  const isActive = (href: string) => {
-    if (href === '/dashboard') {
-      return pathname === '/dashboard';
-    }
-    return pathname.startsWith(href);
-  };
-
-  // Filter items based on user role
-  const getVisibleItems = () => {
-    return items.filter(item => {
-      // Boss can see everything
-      if (userRole === 'Boss') {
-        return true;
-      }
-      
-      // Staff can see everything except Staff page
-      if (userRole === 'Staff') {
-        return item.href !== '/dashboard/staff' && item.href !== '/dashboard/profit-loss';
-      }
-      
-      // Clients can only see Overview (if needed in future)
-      return false;
-    });
-  };
-
-  const visibleItems = getVisibleItems();
-
-  const content = (
-    <Box sx={{ width }} role="presentation" onClick={onClose}>
-      <Box sx={{ width: '100%', pt: 2, pl: 2, pr: 2, mb: 1.5 }}>
-        <Box component="img" src="/images/banner.jpg" alt="Sidebar banner" sx={{ width: '100%', display: 'block', borderRadius: 2, boxShadow: '0 6px 16px rgba(0,0,0,0.08)' }} />
-      </Box>
-      <Divider />
-      <List>
-        {visibleItems.map((item, index) => {
-          const active = isActive(item.href);
-          const showDividerAfter = 
-            item.href === '/dashboard' || // After Overview
-            item.href === '/dashboard/clients' || // After Clients
-            item.href === '/dashboard/products' || // After Products
-            item.href === '/dashboard/financial'; // After Financial Reports
-          
-          return (
-            <React.Fragment key={item.href}>
-              <ListItemButton 
-                component={NextLink} 
-                href={item.href}
-                sx={{
-                  backgroundColor: active ? '#670e10' : 'transparent',
-                  borderRadius: 2,
-                  mx: 1,
-                  mb: 0.5,
-                  '&:hover': {
-                    backgroundColor: active ? '#91734a' : 'rgba(0, 0, 0, 0.04)',
-                  },
-                }}
-              >
-                <ListItemIcon sx={{ color: active ? '#ffffff' : 'text.secondary' }}>{item.icon}</ListItemIcon>
-                <ListItemText 
-                  primaryTypographyProps={{ 
-                    sx: { 
-                      fontFamily: 'Manrope, Inter, system-ui, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif',
-                      color: active ? '#ffffff' : 'inherit',
-                      fontWeight: active ? 600 : 400,
-                    } 
-                  }} 
-                  primary={item.label} 
-                />
-              </ListItemButton>
-              {showDividerAfter && (
-                <Divider sx={{ mx: 2, my: 1, borderColor: 'rgba(0, 0, 0, 0.08)' }} />
-              )}
-            </React.Fragment>
-          );
-        })}
-        <Divider sx={{ mx: 2, my: 1.5, borderColor: 'rgba(0, 0, 0, 0.08)' }} />
-        <ListItemButton
-          onClick={handleLogout}
-          sx={{
-            borderRadius: 2,
-            mx: 1,
-            mb: 1,
-            color: 'error.main',
-            '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.08)' },
-          }}
-        >
-          <ListItemIcon sx={{ color: 'error.main' }}>
-            <LogoutIcon />
-          </ListItemIcon>
-          <ListItemText
-            primary="Log out"
-            primaryTypographyProps={{
-              sx: {
-                fontFamily: 'Manrope, Inter, system-ui, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif',
-                fontWeight: 600,
-              },
-            }}
-          />
-        </ListItemButton>
-      </List>
-    </Box>
-  );
 
   return (
     <Drawer
@@ -172,9 +80,80 @@ export default function Sidebar({
       open={open}
       onClose={onClose}
       ModalProps={{ keepMounted: true }}
-      sx={{ display: { xs: 'block', md: 'none' } }}
+      sx={{
+        display: { xs: 'block', md: 'none' },
+        '& .MuiDrawer-paper': {
+          width: 240,
+          boxSizing: 'border-box',
+          background: 'linear-gradient(180deg, #fff7f7 0%, #fff 35%, #f8fafc 100%)',
+        },
+      }}
     >
-      {content}
+      <Box sx={{ p: 1.5, pt: 1 }}>
+        <Box component="img" src="/images/banner.jpg" alt="Sidebar banner" sx={{ width: '100%', borderRadius: 1, display: 'block' }} />
+      </Box>
+      <Divider />
+      <List sx={{ px: 1, py: 1 }}>
+        {navItems.filter((i) => canSee(i.href)).map((item, index, arr) => (
+          <React.Fragment key={item.href}>
+            <ListItemButton
+              selected={Boolean(isActive(item.href))}
+              onClick={() => {
+                router.push(item.href);
+                onClose();
+              }}
+              sx={{
+                borderRadius: 1.5,
+                mb: 0.35,
+                py: 1,
+                position: 'relative',
+                overflow: 'hidden',
+                transition: 'all 160ms ease',
+                '&:hover': {
+                  bgcolor: 'rgba(239, 68, 68, 0.08)',
+                  transform: 'translateX(2px)',
+                },
+                '&.Mui-selected': {
+                  bgcolor: 'rgba(239, 68, 68, 0.14)',
+                  color: '#b91c1c',
+                  boxShadow: '0 8px 20px rgba(220, 38, 38, 0.14)',
+                },
+                '&.Mui-selected::before': {
+                  content: '""',
+                  position: 'absolute',
+                  left: 0,
+                  top: 7,
+                  bottom: 7,
+                  width: 4,
+                  borderRadius: 4,
+                  background: 'linear-gradient(180deg, #ef4444, #b91c1c)',
+                },
+                '&.Mui-selected:hover': {
+                  bgcolor: 'rgba(239, 68, 68, 0.18)',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 36, color: isActive(item.href) ? '#dc2626' : 'text.secondary' }}>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+            {index < arr.length - 1 && arr[index + 1].group !== item.group && (
+              <Divider sx={{ my: 0.6, mx: 1.2 }} />
+            )}
+          </React.Fragment>
+        ))}
+      </List>
+      <Divider sx={{ mx: 2, my: 1 }} />
+      <List sx={{ px: 1 }}>
+        <ListItemButton onClick={handleLogout} sx={{ borderRadius: 1, color: 'error.main' }}>
+          <ListItemIcon sx={{ color: 'error.main' }}>
+            <LogoutIcon />
+          </ListItemIcon>
+          <ListItemText primary="Log out" />
+        </ListItemButton>
+      </List>
     </Drawer>
   );
 }
+

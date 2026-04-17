@@ -22,14 +22,10 @@ import {
   TextField,
   Stack,
   Alert,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Divider,
   IconButton,
   Tooltip,
+  Container,
 } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DownloadIcon from '@mui/icons-material/Download';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -317,39 +313,35 @@ export default function AuditPage() {
 
   return (
     <DashboardLayout>
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h4" fontWeight={800}>
+      <Container maxWidth="lg" sx={{ px: { xs: 1, sm: 3 } }}>
+      <Box
+        sx={{
+          mb: { xs: 2, sm: 3 },
+          p: { xs: 2, sm: 2.5 },
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: 'divider',
+          background:
+            'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(248,113,113,0.08) 45%, rgba(255,255,255,0.92))',
+          boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, mb: 1, gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+          <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.2 }}>
             Financial Audit & Reconciliation
           </Typography>
-          <Stack direction="row" spacing={2}>
-            <TextField
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              size="small"
-              sx={{ width: 200 }}
-            />
-            <Button
-              variant="outlined"
-              startIcon={<RefreshIcon />}
-              onClick={fetchAuditData}
-              disabled={loading}
-            >
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ width: { xs: '100%', sm: 'auto' } }}>
+            <TextField type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} size="small" sx={{ width: { xs: '100%', sm: 190 }, bgcolor: '#fff' }} />
+            <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchAuditData} disabled={loading} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: '#cbd5e1', color: '#475569', '&:hover': { borderColor: '#94a3b8', bgcolor: '#f8fafc' } }}>
               Refresh
             </Button>
-            <Button
-              variant="contained"
-              startIcon={<DownloadIcon />}
-              onClick={exportToCSV}
-              disabled={!reconciliation}
-            >
+            <Button variant="contained" startIcon={<DownloadIcon />} onClick={exportToCSV} disabled={!reconciliation} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#dc2626', boxShadow: '0 8px 20px rgba(220, 38, 38, 0.28)', '&:hover': { bgcolor: '#b91c1c', boxShadow: '0 10px 24px rgba(185, 28, 28, 0.34)' }, '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#94a3b8' } }}>
               Export CSV
             </Button>
           </Stack>
         </Box>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary">
           Track all financial transactions and reconcile with your bank statements
         </Typography>
       </Box>
@@ -358,7 +350,7 @@ export default function AuditPage() {
       {reconciliation && (
         <Grid container spacing={3} sx={{ mb: 3 }}>
           <Grid item xs={12} md={6} lg={3}>
-            <Card>
+            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)' }}>
               <CardContent>
                 <Typography variant="caption" color="text.secondary">
                   Expected Revenue
@@ -376,7 +368,7 @@ export default function AuditPage() {
           </Grid>
 
           <Grid item xs={12} md={6} lg={3}>
-            <Card>
+            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)' }}>
               <CardContent>
                 <Typography variant="caption" color="text.secondary">
                   Total Expenses
@@ -389,7 +381,7 @@ export default function AuditPage() {
           </Grid>
 
           <Grid item xs={12} md={6} lg={3}>
-            <Card>
+            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)' }}>
               <CardContent>
                 <Typography variant="caption" color="text.secondary">
                   Net Revenue
@@ -402,7 +394,7 @@ export default function AuditPage() {
           </Grid>
 
           <Grid item xs={12} md={6} lg={3}>
-            <Card>
+            <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)' }}>
               <CardContent>
                 <Stack direction="row" spacing={1} alignItems="center">
                   {getStatusIcon(reconciliation.difference)}
@@ -431,7 +423,7 @@ export default function AuditPage() {
       )}
 
       {/* Reconciliation Tool */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: 3, borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)' }}>
         <CardContent>
           <Typography variant="h6" fontWeight={600} gutterBottom>
             Bank Reconciliation
@@ -440,14 +432,14 @@ export default function AuditPage() {
             Enter the actual amount received in your bank account to compare with system records
           </Typography>
           
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
             <TextField
               label="Actual Revenue from Bank"
               type="number"
               value={actualRevenue}
               onChange={(e) => setActualRevenue(e.target.value)}
               size="small"
-              sx={{ width: 250 }}
+              sx={{ width: { xs: '100%', sm: 260 } }}
               InputProps={{
                 startAdornment: <Typography sx={{ mr: 1 }}>RM</Typography>
               }}
@@ -456,6 +448,7 @@ export default function AuditPage() {
               variant="contained"
               onClick={handleReconcile}
               disabled={!actualRevenue || !reconciliation}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' } }}
             >
               Reconcile
             </Button>
@@ -486,17 +479,17 @@ export default function AuditPage() {
       </Card>
 
       {/* Transaction Log */}
-      <Card>
+      <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)' }}>
         <CardContent>
           <Typography variant="h6" fontWeight={600} gutterBottom>
             Transaction Log ({reconciliation?.transactions.length || 0} transactions)
           </Typography>
           
           {reconciliation && reconciliation.transactions.length > 0 ? (
-            <TableContainer>
-              <Table size="small">
+            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2.5, borderColor: '#e2e8f0', overflowX: 'auto' }}>
+              <Table size="small" sx={{ minWidth: 860 }}>
                 <TableHead>
-                  <TableRow>
+                  <TableRow sx={{ bgcolor: '#f8fafc' }}>
                     <TableCell>Time</TableCell>
                     <TableCell>Type</TableCell>
                     <TableCell>Description</TableCell>
@@ -508,16 +501,18 @@ export default function AuditPage() {
                 </TableHead>
                 <TableBody>
                   {reconciliation.transactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
+                    <TableRow key={transaction.id} hover sx={{ '&:hover td': { bgcolor: '#fcfcfd' } }}>
                       <TableCell>{transaction.time}</TableCell>
                       <TableCell>
                         <Chip
                           label={transaction.type.replace('_', ' ').toUpperCase()}
                           size="small"
-                          color={
-                            transaction.type === 'appointment' ? 'primary' :
-                            transaction.type === 'product_sale' ? 'success' :
-                            'error'
+                          sx={
+                            transaction.type === 'appointment'
+                              ? { bgcolor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontWeight: 700 }
+                              : transaction.type === 'product_sale'
+                              ? { bgcolor: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', fontWeight: 700 }
+                              : { bgcolor: '#fef2f2', color: '#b91c1c', border: '1px solid #fca5a5', fontWeight: 700 }
                           }
                         />
                       </TableCell>
@@ -534,7 +529,7 @@ export default function AuditPage() {
                       </TableCell>
                       <TableCell>
                         <Tooltip title={JSON.stringify(transaction.metadata, null, 2)}>
-                          <IconButton size="small">
+                          <IconButton size="small" sx={{ border: '1px solid', borderColor: '#cbd5e1', width: 28, height: 28, color: '#475569', '&:hover': { bgcolor: '#f8fafc' } }}>
                             <InfoIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
@@ -551,6 +546,7 @@ export default function AuditPage() {
           )}
         </CardContent>
       </Card>
+      </Container>
     </DashboardLayout>
   );
 }
