@@ -1441,6 +1441,8 @@ export default function AppointmentsPage() {
       const response = await apiPut(`/appointments/${selectedAppointment.id}`, updateData) as any;
       console.log('Update response:', response);
       
+      let actualProductCommission = 0;
+
       // Sell products if any selected
       // Use the appointment's barber ID for commission, not the logged-in user
       if (selectedProducts.length > 0 && selectedAppointment) {
@@ -1484,7 +1486,8 @@ export default function AppointmentsPage() {
               sellData.staffId = barberId;
             }
             
-            await apiPost('/products/sell', sellData);
+            const saleResponse = await apiPost('/products/sell', sellData) as any;
+            actualProductCommission += Number(saleResponse?.data?.commissionAmount || 0);
           } catch (error) {
             console.error('Error selling product:', error);
             // Continue with other products even if one fails
@@ -1504,17 +1507,8 @@ export default function AppointmentsPage() {
         const appointmentPrice = response.data.originalPrice || response.data.finalPrice || 0;
         const appointmentEarnings = appointmentPrice * (response.data.barber.commissionRate / 100);
         
-        // Calculate product commission (using barber's productCommissionRate)
-        let productCommission = 0;
-        if (selectedProducts.length > 0) {
-          const productTotal = selectedProducts.reduce((sum, sp) => {
-            const product = retailProducts.find(p => p.id === sp.productId);
-            return sum + (product ? product.price * sp.quantity : 0);
-          }, 0);
-          // Use barber's productCommissionRate if available, otherwise default to 5%
-          const commissionRate = (response.data?.barber as any)?.productCommissionRate ?? 5.0;
-          productCommission = productTotal * (commissionRate / 100);
-        }
+        // Product commission now comes from per-product fixed RM settings.
+        const productCommission = actualProductCommission;
         
         // Total earnings (appointment + products)
         const totalEarnings = appointmentEarnings + productCommission;
@@ -3485,24 +3479,16 @@ export default function AppointmentsPage() {
                       <Typography variant="body2" fontWeight={600}>RM{calculateTotalPrice().toFixed(2)}</Typography>
                     </Box>
                     
-                    {selectedProducts.length > 0 && (() => {
-                      const productTotal = selectedProducts.reduce((sum, sp) => {
-                        const product = retailProducts.find(p => p.id === sp.productId);
-                        return sum + (product ? product.price * sp.quantity : 0);
-                      }, 0);
-                      const commissionRate = (selectedAppointment?.barber as any)?.productCommissionRate ?? 5.0;
-                      const commission = productTotal * (commissionRate / 100);
-                      return (
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Typography variant="caption" color="text.secondary">
-                            Staff commission ({commissionRate}% products)
-                          </Typography>
-                          <Typography variant="caption" color="info.main" fontWeight={600}>
-                            RM{commission.toFixed(2)}
-                          </Typography>
-                        </Box>
-                      );
-                    })()}
+                    {selectedProducts.length > 0 && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Staff commission
+                        </Typography>
+                        <Typography variant="caption" color="info.main" fontWeight={600}>
+                          Based on product RM settings
+                        </Typography>
+                      </Box>
+                    )}
                     
                     {/* Discount Lines */}
                     {multipleDiscountCodes.length > 0 && (
@@ -4626,26 +4612,17 @@ export default function AppointmentsPage() {
                       </Typography>
                     </Box>
                     
-                    {/* Product Commission - Staff Earnings */}
-                    {editSelectedProducts.length > 0 && (() => {
-                      const productTotal = editSelectedProducts.reduce((sum, sp) => {
-                        const product = retailProducts.find(p => p.id === sp.productId);
-                        return sum + (product ? product.price * sp.quantity : 0);
-                      }, 0);
-                      // Use barber's productCommissionRate if available, otherwise default to 5%
-                      const commissionRate = (editingAppointment?.barber as any)?.productCommissionRate ?? 5.0;
-                      const commission = productTotal * (commissionRate / 100);
-                      return (
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            Staff Commission ({commissionRate}% of products):
-                          </Typography>
-                          <Typography variant="body2" color="info.main" fontWeight={600}>
-                            RM{commission.toFixed(2)}
-                          </Typography>
-                        </Box>
-                      );
-                    })()}
+                    {/* Product commission now uses fixed RM per-product settings */}
+                    {editSelectedProducts.length > 0 && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Staff Commission:
+                        </Typography>
+                        <Typography variant="body2" color="info.main" fontWeight={600}>
+                          Based on product RM settings
+                        </Typography>
+                      </Box>
+                    )}
                   </Box>
                   
                   {editMultipleDiscountCodes.length > 0 && (

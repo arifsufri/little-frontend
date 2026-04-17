@@ -25,6 +25,12 @@ interface Package {
   createdAt: string;
 }
 
+interface StaffCommissionAssignee {
+  id: number;
+  name: string;
+  role: string;
+}
+
 // Helper function to get full image URL
 const getImageUrl = (imageUrl?: string | null): string | undefined => {
   if (!imageUrl) return undefined;
@@ -74,6 +80,9 @@ export default function ProductsPage() {
   const [retailProductStock, setRetailProductStock] = React.useState('0');
   const [retailProductImage, setRetailProductImage] = React.useState<File | null>(null);
   const [creatingRetail, setCreatingRetail] = React.useState(false);
+  const [staffList, setStaffList] = React.useState<StaffCommissionAssignee[]>([]);
+  const [productCommissions, setProductCommissions] = React.useState<Record<number, string>>({});
+  const [commissionsLoading, setCommissionsLoading] = React.useState(false);
 
   // Fetch packages on component mount
   React.useEffect(() => {
@@ -106,6 +115,50 @@ export default function ProductsPage() {
     } finally {
       setRetailLoading(false);
     }
+  };
+
+  const fetchProductCommissions = async (productId: number) => {
+    setCommissionsLoading(true);
+    try {
+      const response = await apiGet<{
+        success: boolean;
+        data: {
+          allStaff: StaffCommissionAssignee[];
+          assignments: Array<{ staffId: number; commissionAmount: number }>;
+        };
+      }>(`/products/${productId}/commissions`);
+      const allStaff = response.data?.allStaff || [];
+      const assignmentMap = new Map<number, number>();
+      (response.data?.assignments || []).forEach((item) => {
+        assignmentMap.set(item.staffId, item.commissionAmount);
+      });
+      const commissionDrafts: Record<number, string> = {};
+      allStaff.forEach((staff) => {
+        commissionDrafts[staff.id] = (assignmentMap.get(staff.id) ?? 0).toString();
+      });
+      setStaffList(allStaff);
+      setProductCommissions(commissionDrafts);
+    } catch (error) {
+      console.error('Error fetching product commissions:', error);
+      setStaffList([]);
+      setProductCommissions({});
+      setSnackbar({ open: true, message: 'Failed to load staff commissions', severity: 'error' });
+    } finally {
+      setCommissionsLoading(false);
+    }
+  };
+
+  const saveProductCommissions = async (productId: number) => {
+    const assignments = staffList.map((staff) => {
+      const raw = productCommissions[staff.id];
+      const parsed = raw === '' ? 0 : Number(raw);
+      return {
+        staffId: staff.id,
+        commissionAmount: Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
+      };
+    });
+
+    await apiPut(`/products/${productId}/commissions`, { assignments });
   };
 
   const handleCreateRetailProduct = async () => {
@@ -142,7 +195,7 @@ export default function ProductsPage() {
     }
   };
 
-  const handleEditRetailProduct = (product: any) => {
+  const handleEditRetailProduct = async (product: any) => {
     setEditingRetailProduct(product);
     setRetailProductName(product.name);
     setRetailProductDesc(product.description || '');
@@ -152,6 +205,7 @@ export default function ProductsPage() {
     );
     setRetailProductStock(product.stock?.toString() || '0');
     setRetailProductEditOpen(true);
+    await fetchProductCommissions(product.id);
   };
 
   const handleUpdateRetailProduct = async () => {
@@ -173,6 +227,7 @@ export default function ProductsPage() {
       }
 
       await uploadFile(`/products/${editingRetailProduct.id}`, formData, 'PUT');
+      await saveProductCommissions(editingRetailProduct.id);
       setSnackbar({ open: true, message: 'Product updated successfully!', severity: 'success' });
       resetRetailModal();
       fetchRetailProducts();
@@ -236,6 +291,9 @@ export default function ProductsPage() {
     setRetailProductUnitCost('');
     setRetailProductStock('0');
     setRetailProductImage(null);
+    setStaffList([]);
+    setProductCommissions({});
+    setCommissionsLoading(false);
   };
 
   const showNotification = (message: string, severity: 'success' | 'error' = 'success') => {
@@ -1691,6 +1749,35 @@ export default function ProductsPage() {
                 </Button>
               </label>
             </Box>
+            <Divider />
+            <Typography variant="subtitle1" fontWeight={700}>
+              Staff Commission (RM per unit)
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Flat amount each staff earns per unit sold. Leave 0 for no commission.
+            </Typography>
+            {commissionsLoading ? (
+              <Typography variant="body2" color="text.secondary">
+                Loading staff commission settings...
+              </Typography>
+            ) : (
+              staffList.map((staff) => (
+                <TextField
+                  key={staff.id}
+                  label={`${staff.name} (${staff.role})`}
+                  type="number"
+                  value={productCommissions[staff.id] ?? '0'}
+                  onChange={(e) =>
+                    setProductCommissions((prev) => ({
+                      ...prev,
+                      [staff.id]: e.target.value
+                    }))
+                  }
+                  inputProps={{ min: 0, step: 0.5 }}
+                  fullWidth
+                />
+              ))
+            )}
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3, gap: 1.5 }}>
