@@ -86,6 +86,7 @@ interface Package {
   duration: number;
   barber: string | null;
   imageUrl: string | null;
+  loyaltyEligible?: boolean;
   hasVariablePricing?: boolean;
   priceOptions?: Array<{ label: string; price: number }>;
 }
@@ -132,6 +133,7 @@ interface Appointment {
     duration: number;
     barber: string | null;
     imageUrl: string | null;
+    loyaltyEligible?: boolean;
     hasVariablePricing?: boolean;
     priceOptions?: Array<{ label: string; price: number }>;
   };
@@ -3228,7 +3230,9 @@ export default function AppointmentsPage() {
                 </Box>
               )}
 
-              {selectedAppointment && (selectedAppointment.client.loyaltyProgress ?? 0) === 5 && (
+              {selectedAppointment &&
+                selectedAppointment.package.loyaltyEligible !== false &&
+                (selectedAppointment.client.loyaltyProgress ?? 0) === 5 && (
                 <Alert
                   severity="info"
                   icon={<LocalOfferIcon />}

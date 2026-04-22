@@ -16,6 +16,7 @@ interface Package {
   name: string;
   description: string;
   price: number;
+  loyaltyEligible?: boolean;
   barber?: string;
   duration: number;
   discountCode?: string;
@@ -57,6 +58,7 @@ export default function ProductsPage() {
   const [duration, setDuration] = React.useState(30);
   const [hasDiscount, setHasDiscount] = React.useState(false);
   const [discountCode, setDiscountCode] = React.useState('');
+  const [loyaltyEligible, setLoyaltyEligible] = React.useState(true);
   const [modalStep, setModalStep] = React.useState(1);
   const [packageImage, setPackageImage] = React.useState<File | null>(null);
   const [creating, setCreating] = React.useState(false);
@@ -328,6 +330,7 @@ export default function ProductsPage() {
       formData.append('name', name);
       formData.append('description', desc);
       formData.append('hasVariablePricing', hasVariablePricing.toString());
+      formData.append('loyaltyEligible', loyaltyEligible.toString());
       
       if (hasVariablePricing) {
         const validOptions = priceOptions.filter(opt => opt.label && opt.price).map(opt => ({
@@ -409,6 +412,7 @@ export default function ProductsPage() {
     setDuration(30);
     setHasDiscount(false);
     setDiscountCode('');
+    setLoyaltyEligible(true);
     setPackageImage(null);
     setHasVariablePricing(false);
     setPriceOptions([{ label: '', price: '' }]);
@@ -425,6 +429,7 @@ export default function ProductsPage() {
     setDuration(30);
     setHasDiscount(false);
     setDiscountCode('');
+    setLoyaltyEligible(true);
     setPackageImage(null);
     setHasVariablePricing(false);
     setPriceOptions([{ label: '', price: '' }]);
@@ -441,6 +446,7 @@ export default function ProductsPage() {
     setDuration(pkg.duration);
     setHasDiscount(!!pkg.discountCode);
     setDiscountCode(pkg.discountCode || '');
+    setLoyaltyEligible(pkg.loyaltyEligible ?? true);
     
     // Load variable pricing data
     if (pkg.hasVariablePricing && pkg.priceOptions && pkg.priceOptions.length > 0) {
@@ -487,6 +493,7 @@ export default function ProductsPage() {
       formData.append('name', name);
       formData.append('description', desc);
       formData.append('hasVariablePricing', hasVariablePricing.toString());
+      formData.append('loyaltyEligible', loyaltyEligible.toString());
       
       if (hasVariablePricing) {
         const validOptions = priceOptions.filter(opt => opt.label && opt.price).map(opt => ({
@@ -1335,6 +1342,16 @@ export default function ProductsPage() {
                   </Button>
                 </Box>
               )}
+
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={loyaltyEligible}
+                    onChange={(e) => setLoyaltyEligible(e.target.checked)}
+                  />
+                }
+                label="Counts toward loyalty stamps"
+              />
               
               <FormControl fullWidth>
                 <InputLabel id="duration-label">Duration</InputLabel>
@@ -1523,6 +1540,16 @@ export default function ProductsPage() {
                   </Button>
                 </Box>
               )}
+
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={loyaltyEligible}
+                    onChange={(e) => setLoyaltyEligible(e.target.checked)}
+                  />
+                }
+                label="Counts toward loyalty stamps"
+              />
               
               <FormControl fullWidth>
                 <InputLabel id="duration-label">Duration</InputLabel>
