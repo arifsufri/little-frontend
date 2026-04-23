@@ -20,6 +20,7 @@ import PointOfSaleRoundedIcon from '@mui/icons-material/PointOfSaleRounded';
 import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded';
 import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded';
 import RuleRoundedIcon from '@mui/icons-material/RuleRounded';
+import ContactPhoneRoundedIcon from '@mui/icons-material/ContactPhoneRounded';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 
@@ -40,6 +41,7 @@ const navItems: NavItem[] = [
   { label: 'Financial Reports', href: '/dashboard/financial', icon: <InsightsRoundedIcon />, group: 4 },
   { label: 'Profit & Loss', href: '/dashboard/profit-loss', icon: <TrendingUpRoundedIcon />, group: 4 },
   { label: 'Audit', href: '/dashboard/audit', icon: <RuleRoundedIcon />, group: 4 },
+  { label: 'Landing Leads', href: '/dashboard/landing-leads', icon: <ContactPhoneRoundedIcon />, group: 4 },
   { label: 'Settings', href: '/dashboard/settings', icon: <SettingsIcon />, group: 5 },
 ];
 
