@@ -1169,7 +1169,7 @@ export default function ClientPackagesPage() {
                   }
                 }}
               >
-                    {booking ? 'Booking...' : bookingSuccess ? 'Booked Successfully!' : 'Confirm Booking'}
+                    {booking ? 'Booking...' : bookingSuccess ? 'Booked Successfully!' : 'Confirm Queue'}
               </Button>
             </DialogActions>
           </>
